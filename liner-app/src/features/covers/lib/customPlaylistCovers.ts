@@ -11,6 +11,10 @@
  *
  * Images are downscaled to a square JPEG at pick time (cover-fit crop) so a
  * 600×600 cover costs ~40-120KB — IndexedDB handles thousands of those.
+ *
+ * Animated GIFs are the exception: they are stored byte-for-byte as uploaded
+ * (no canvas re-encode, which would flatten them to their first frame), so
+ * covers animate everywhere an <img>/background-image renders them.
  */
 
 const DB_NAME = "liner_custom_covers_v1";
@@ -100,7 +104,10 @@ export async function getAllCustomCoverUrls(
   return out;
 }
 
-/** Persists (and replaces) a custom cover. Pass a square-cropped JPEG blob. */
+/**
+ * Persists (and replaces) a custom cover. Pass a square-cropped JPEG blob, or
+ * the original file for animated GIFs (see fileToSquareCoverBlob).
+ */
 export async function setCustomCover(id: string, blob: Blob): Promise<void> {
   const db = await openDb();
   const tx = db.transaction(STORE, "readwrite");
@@ -204,10 +211,34 @@ export function useCustomPlaylistCoverMap(
 const COVER_SIZE = 600;
 
 /**
+ * True when the blob is a GIF containing more than one frame. Scans for
+ * Graphic Control Extension markers (0x21 0xF9) — one per frame; a static GIF
+ * has at most one. Cheap byte scan, no decode, safe false-positive direction
+ * (a misdetection just stores the original file, which still renders fine).
+ */
+export async function isAnimatedGif(blob: Blob): Promise<boolean> {
+  const head = new Uint8Array(await blob.slice(0, 6).arrayBuffer());
+  const sig = String.fromCharCode(...head);
+  if (sig !== "GIF87a" && sig !== "GIF89a") return false;
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let extensions = 0;
+  for (let i = 0; i < bytes.length - 1; i++) {
+    if (bytes[i] === 0x21 && bytes[i + 1] === 0xf9) {
+      extensions++;
+      if (extensions >= 2) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Crops any image file to a centered square JPEG blob (600×600), keeping EXIF
  * orientation via createImageBitmap's imageOrientation option when available.
+ * Animated GIFs skip the crop entirely and are returned as uploaded so the
+ * animation survives (canvas rendering only captures the first frame).
  */
 export async function fileToSquareCoverBlob(file: Blob): Promise<Blob> {
+  if (await isAnimatedGif(file)) return file;
   const bitmap = await loadBitmap(file);
   try {
     const side = Math.min(bitmap.width, bitmap.height);

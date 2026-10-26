@@ -540,3 +540,17 @@ Stage Summary:
 - Personal and public playlists accept a custom cover: hover the artwork (or more menu) -> Change cover -> any image is center-cropped to a square and stored per browser (IndexedDB); it renders on the page hero, library cards, page backdrop and the player context, with Reset to auto cover; persists across reloads
 - Bundle App-DEgTAY2d.js built+synced; production picks it up on next platform republish (hard refresh afterwards)
 - Note: custom covers are per-browser by design (the Liner API has no cover-upload endpoint)
+
+---
+Task ID: 25-b
+Agent: main (Z.ai)
+Task: "must support animated gif. make it quick" — animated GIF custom playlist covers
+
+Work Log:
+- Root cause: Task 25's fileToSquareCoverBlob re-encoded every upload via createImageBitmap -> canvas -> JPEG q0.86, which flattens a GIF to its first frame
+- Fix (covers/lib/customPlaylistCovers.ts): new exported isAnimatedGif(blob) — verifies GIF87a/89a signature, counts Graphic Control Extension markers (0x21 0xF9, one per frame; >=2 = animated; cheap byte scan, false-positive direction is safe since an unmodified GIF still renders). fileToSquareCoverBlob now early-returns the original blob for animated GIFs: zero re-encode, animation survives; static GIFs/other images keep the 600x600 JPEG crop. <img>/background-image render blob-URL GIFs animated natively, so hero, library grid, backdrop and player context all animate with no surface changes; accept="image/*" already allowed GIF
+- Tests: +2 (detection matrix incl. static/non-GIF, passthrough identity + storage) -> covers file 5/5; tsc -b clean
+- Build: vite build -> App-CwdTTWaR.js (GIF logic in cacheManager-DgogbwJM.js chunk, md5-identical across dist/public/liner/.next/standalone); bun run build OK; site 200 on :3000
+
+Stage Summary:
+- Custom playlist covers now support animated GIFs end-to-end: pick any .gif on the cover picker and it is stored and rendered byte-for-byte animated on every surface (per-browser IndexedDB, same as before); everything else still square-crops to JPEG. Bundle App-CwdTTWaR.js synced; production picks it up on next platform republish (hard refresh afterwards)

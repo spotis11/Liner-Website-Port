@@ -3,6 +3,8 @@ import {
   getCustomCoverUrl,
   setCustomCover,
   removeCustomCover,
+  isAnimatedGif,
+  fileToSquareCoverBlob,
 } from "./customPlaylistCovers";
 
 // ---------------------------------------------------------------------------
@@ -81,7 +83,36 @@ function jpegBlob(): Blob {
   });
 }
 
+// GIF fixtures — byte layouts only need what isAnimatedGif scans for:
+// the 6-byte signature and 0x21 0xF9 extension-introducer pairs.
+function gifBlob(gceCount: number): Blob {
+  const gce = [0x21, 0xf9, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00];
+  const bytes = [
+    ...new TextEncoder().encode("GIF89a"),
+    ...Array.from({ length: gceCount }).flatMap(() => gce),
+    0x3b,
+  ];
+  return new Blob([new Uint8Array(bytes)], { type: "image/gif" });
+}
+
 describe("customPlaylistCovers", () => {
+  it("detects animated vs static vs non-GIF blobs", async () => {
+    await expect(isAnimatedGif(gifBlob(3))).resolves.toBe(true);
+    await expect(isAnimatedGif(gifBlob(1))).resolves.toBe(false);
+    await expect(isAnimatedGif(gifBlob(0))).resolves.toBe(false);
+    await expect(isAnimatedGif(jpegBlob())).resolves.toBe(false);
+  });
+
+  it("passes animated GIFs through untouched and still stores them", async () => {
+    const gif = gifBlob(4);
+    const out = await fileToSquareCoverBlob(gif);
+    expect(out).toBe(gif); // same blob, zero re-encode — animation survives
+    expect(out.type).toBe("image/gif");
+
+    await setCustomCover("pl-gif", gif);
+    const url = await getCustomCoverUrl("pl-gif");
+    expect(url).toMatch(/^blob:mock-/);
+  });
   it("returns undefined when no custom cover is stored", async () => {
     await expect(getCustomCoverUrl("pl-1")).resolves.toBeUndefined();
   });
