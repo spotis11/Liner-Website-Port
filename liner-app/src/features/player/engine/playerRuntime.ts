@@ -70,6 +70,8 @@ export class PlayerRuntime {
   private backgroundCacheAbortController: AbortController | null = null;
   private currentSessionExpiresAt: number | null = null;
   private recoveryAttempts = 0;
+  /** one-shot: the next resolve must bypass the Liner r2 probe (audio-error recovery) */
+  private forceFallbackResolve = false;
   // after a recovery, the retry budget only refills once playback gets past this
   // position: a "playing" event alone is not proof (a bad frame further on would
   // otherwise error -> recover -> play -> error forever, reloading every time)
@@ -459,6 +461,10 @@ export class PlayerRuntime {
       ) {
         this.recoveryAttempts++;
         this.recoveryHoldUntilMs = posMs + RECOVERY_HOLD_MS;
+        // the first resolution already produced a broken stream — the retry
+        // must change paths (skip the Liner r2 probe) or it replays the same
+        // failure; resolvePlaybackStream's SoundCloud rescue still applies
+        this.forceFallbackResolve = true;
         log(
           "yellow",
           "playback",
@@ -781,6 +787,7 @@ export class PlayerRuntime {
     if (this.currentTrackId !== track.id) {
       this.recoveryAttempts = 0;
       this.recoveryHoldUntilMs = null;
+      this.forceFallbackResolve = false;
     }
 
     if (this.preloadingTrackId === track.id && this.preloadingPromise) {
@@ -898,11 +905,13 @@ export class PlayerRuntime {
       const stream = await withDeadline(
         resolvePlaybackStream(track, controller.signal, {
           progressive: true,
+          skipLinerCache: this.forceFallbackResolve,
         }),
         RESOLVE_DEADLINE_MS,
         () =>
           new PlaybackTimeoutError("resolve", track.title, RESOLVE_DEADLINE_MS),
       );
+      this.forceFallbackResolve = false;
       this.ttfbMs = Math.round(performance.now() - this.loadStartTime);
 
       if (epoch !== this.loadEpoch || controller.signal.aborted) {

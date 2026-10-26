@@ -34,6 +34,13 @@ import { usePlayerStore } from "../store/playerStore";
 
 export interface ResolveStreamOptions {
   progressive?: boolean;
+  /**
+   * Skip the Liner r2 cache probe and resolve from YouTube/SoundCloud
+   * directly. Used by the runtime's audio-error recovery: if a presigned r2
+   * URL turns out to be dead at play time, re-resolving through the same
+   * cache would return the same broken URL — the recovery must change paths.
+   */
+  skipLinerCache?: boolean;
 }
 
 // A hung resolution stage (TV bootstrap, player request, SABR handshake,
@@ -141,12 +148,15 @@ async function resolveYoutubeTrack(
   videoId: string,
   progressive: boolean,
   signal?: AbortSignal,
+  options: ResolveStreamOptions = {},
 ): Promise<PlaybackStream> {
-  const liner = await resolveLinerStream(videoId, signal);
-  if (liner) {
-    log("cyan", "playback", `playing liner audio (r2) for "${track.title}"`);
-    recordPlaybackSuccess("played", "liner audio (r2)", track.title);
-    return fromLinerStream(liner, track);
+  if (!options.skipLinerCache) {
+    const liner = await resolveLinerStream(videoId, signal);
+    if (liner) {
+      log("cyan", "playback", `playing liner audio (r2) for "${track.title}"`);
+      recordPlaybackSuccess("played", "liner audio (r2)", track.title);
+      return fromLinerStream(liner, track);
+    }
   }
   return resolveYoutubeAudio(videoId, progressive, signal, track.title);
 }
@@ -237,6 +247,7 @@ async function resolvePlaybackStreamInner(
     return stream;
   }
   const videoId = toVideoId(track.id);
-  if (videoId) return resolveYoutubeTrack(track, videoId, progressive, signal);
+  if (videoId)
+    return resolveYoutubeTrack(track, videoId, progressive, signal, options);
   return resolveYoutubeStandIn(track, progressive, signal);
 }

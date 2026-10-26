@@ -554,3 +554,21 @@ Work Log:
 
 Stage Summary:
 - Custom playlist covers now support animated GIFs end-to-end: pick any .gif on the cover picker and it is stored and rendered byte-for-byte animated on every surface (per-browser IndexedDB, same as before); everything else still square-crops to JPEG. Bundle App-CwdTTWaR.js synced; production picks it up on next platform republish (hard refresh afterwards)
+
+---
+Task ID: 26
+Agent: main (Z.ai)
+Task: "flashback by jd smith isnt playing ... before the v.0.2 version like that version 0.1.40 was working fine without youtube sign in"
+
+Work Log:
+- Found the track: Liner catalog "Flashback" by JD Smith 4:24 = YouTube VrZpGEO_o5Q (JD Smith - Topic). Reproduced the REAL failure with the app's own youtubei.js flow + server PO minting: getBasicInfo(YTMUSIC, valid po_token) -> LOGIN_REQUIRED "Sign in to confirm you're not a bot". Sandbox live E2E console showed the same for every profile: WEB_REMIX x2, TVHTML5, VISIONOS, ANDROID_VR all bot-checked
+- ROOT CAUSE (why v0.1.40 desktop worked without sign-in): YouTube bot-checks by EGRESS IP class, not just token. Desktop streamed from the user's home IP (anonymous innertube fine); the web port resolves through datacenter IPs, and YouTube demands sign-in for this specific video there. Per-video, not a code regression
+- Verified the built-in rescue handles it end-to-end (agent-browser, localhost:3000, fake-session init-script recipe -- AGENT_BROWSER_INIT_SCRIPTS env var + fetch interceptor for /v1/me + /auth/refresh; note agent-browser route mocks can't set ACAO headers): bot-check on all YouTube paths -> SoundCloud stand-in search -> "JD Smith - Flashback (Orginial Mix)" by XxFoxerBoxxX (sc:934568899, score 3.93, full length, policy ALLOW) -> HLS aac_96k playlist + segments (playback.media-streaming.soundcloud.cloud sends ACAO:* so downloadHlsAudio works browser-direct) -> "started: Flashback in 9571ms" + 3073KB background cached; second play from cache 77ms, audio.currentTime advancing
+- Checked prod: already serves Task-25b bundle (index-6QHcaW-v.js) with the full rescue machinery; prod /api/po-token mints (124-char token) and /api/sc works
+- HARDENING shipped: found the play-stage gap -- audio-error recovery re-ran the SAME resolution chain, so a dead presigned liner-r2 URL (signed-in users) would resolve to itself, burn the single recovery attempt and die. streamResolver gained ResolveStreamOptions.skipLinerCache (skips the resolveLinerStream probe -> goes YouTube->SoundCloud paths); playerRuntime gained forceFallbackResolve one-shot flag set in the audio error handler, consumed+reset in loadAndPlay (also reset on track change)
+- Verification: tsc -b clean; player suite 132/132 + resolver 13/13; vite build -> App-CLtwRjkv.js synced to public/liner + .next/standalone (md5 identical x3); bun run build OK; E2E replay on the new bundle: cache-hit start 77ms, audio playing; prod picks up on next platform republish
+- Repro scripts kept: scripts/repro_flashback2.mjs (real WEB_REMIX flow), repro_soundcloud_standin.mjs, repro_sc_transcodings.mjs, repro_hls_timing.mjs, e2e-auth-init.js (init-script auth bypass for future E2E)
+
+Stage Summary:
+- "Flashback by JD Smith" plays without YouTube sign-in: YouTube bot-checks the server's datacenter IP for that one video (why desktop v0.1.40 from a home IP never saw it), and the app's SoundCloud fallback auto-rescues it (proven playing, cached for instant replays). Users just need the current bundle (hard refresh) + SoundCloud fallback ON in settings
+- New: play-stage stream errors now recover via a different path (liner r2 probe skipped) instead of repeating the same broken URL; ships in App-CLtwRjkv.js on next platform republish
