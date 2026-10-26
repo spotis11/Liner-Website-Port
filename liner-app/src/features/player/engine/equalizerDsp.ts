@@ -8,8 +8,14 @@
  *
  * - Bands are peaking BiquadFilters at standard graphic-EQ frequencies
  *   (32Hz … 16kHz), ±12 dB, so "all zeros" is bit-transparent.
- * - Bass Boost is a separate low-shelf (0–100% maps to 0…+12 dB @ 90Hz)
- *   so it stacks on top of any preset like on the desktop app.
+ * - Bass Boost is a separate low-shelf (0–100% maps to 0…+12 dB @ 150Hz)
+ *   so it stacks on top of any preset like on the desktop app. The shelf sits
+ *   at 150Hz (not lower) because most laptop/phone/TV speakers cannot
+ *   reproduce content below ~100Hz at all — a 90Hz shelf measurably boosts
+ *   the signal yet stays inaudible on such setups, which reads as "bass
+ *   boost isn't working". 150Hz lands the boost where speakers actually
+ *   have output (and still fully covers sub-bass, since a low-shelf lifts
+ *   everything below its corner).
  * - Master Preamp compensates for EQ gain stacking (±12 dB, 0 = unity).
  * - Bypass is a parallel dry/wet crossfade (20ms) instead of rewiring, so
  *   toggling never clicks and the graph topology never changes at runtime.
@@ -21,7 +27,7 @@ export const EQ_BAND_FREQUENCIES: readonly number[] = [
 
 export const EQ_MAX_GAIN_DB = 12;
 export const EQ_DEFAULT_Q = 1.1;
-export const BASS_SHELF_FREQUENCY = 90;
+export const BASS_SHELF_FREQUENCY = 150;
 export const BASS_BOOST_MAX_DB = 12;
 
 export interface EqualizerParams {

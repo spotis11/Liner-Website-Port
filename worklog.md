@@ -498,3 +498,24 @@ Work Log:
 Stage Summary:
 - Equalizer (10-band, presets, preamp, bass boost, bypass — fully wired into the Web Audio graph) and Local Music (folder/file scan, drag&drop, IndexedDB library, blob playback through the same engine + EQ) ship in bundle App-Baw8tJM6.js; production picks them up on the next platform republish (hard refresh afterwards)
 - All 777 tests green, tsc clean, standalone synced; EQ audibly affects local AND streamed playback (single shared graph), settings persist per browser
+
+---
+Task ID: 24
+Agent: main (Z.ai)
+Task: "bass boost isnt working."
+
+Work Log:
+- Ruled out the usual suspects first: production serves the Task-23 bundle (prod index-BMY-TWDx.js == local public/liner), streams run through the same-origin /api/media proxy (no CORS taint of MediaElementSource), store->engine->DSP wiring inspected line by line (EqualizerModal Slider onChange passes numbers, setBassBoost clamps, equalizerEngine subscribes, pitchShifter.applyEqualizer attaches lazily)
+- Built a real reproduction: generated a 60Hz-sine + 1kHz-marker WAV (scripts/gen_bass_test... gen_bass_wav.py), uploaded it through the /local page (#/local — hash router; the /local deep-link 404 on the Next shell is irrelevant since SPA routes are hash-based), played it, tapped an AnalyserNode onto masterOutputGain of the live graph
+- MEASURED on sandbox AND production (App-Baw8tJM6.js, real playback, real gesture, ctx running): EQ on (bass 100%) bass40-100Hz=-55.5dB vs mid=-86.1dB; bypass ON -> bass=-65.1/-65.2dB, wet=0, mids unchanged; re-enable -> -55.5dB restored. Bass boost adds ~+9.6-9.7dB of REAL, measurable bass energy on the live site — the feature objectively works end-to-end (persisted store -> engine -> Biquad graph -> audible spectrum)
+- ROOT CAUSE of the report: the low-shelf sat at 90Hz. Most laptop/phone/TV speakers physically cannot reproduce <100Hz content, so a +12dB boost there measurably changes the signal yet is inaudible on typical setups -> reads as "not working". (Secondary suspects for individual users: "Equalizer Bypassed" toggle left ON kills the whole EQ; the "Bass Boost" PRESET only sets bands 32-500Hz and leaves the Bass Boost card at 0%.)
+- FIX: BASS_SHELF_FREQUENCY 90 -> 150 in equalizerDsp.ts (+ doc comment explaining why). A 150Hz low-shelf still fully lifts sub-bass (low-shelf boosts everything below the corner) AND lands the boost in the 80-150Hz range real speakers reproduce — strictly stronger, unambiguously audible curve at the same 0-100% -> 0..+12dB mapping
+- Verification: vitest 777/777 (126 files; only pre-existing WindowControls node-env unhandled noise), tsc -b clean; vite build -> App-hjuJGiQ3.js synced to public/liner + bun run build (standalone); sandbox re-verified live: shelfFreq=150, shelfDb=+12, wet=1, bass40-100=-53.5dB (stronger than the old -55.5), modal intact (Bass card 100%, bypass Off)
+- Production still serves index-BMY-TWDx.js at handoff — picks up the 150Hz shelf on the next platform republish (.zscripts/build.sh rebuilds from source, which is already in the new state); user needs a hard refresh after that
+- agent-browser gotchas hit this session: hash-only navigation doesn't reload (seeded localStorage after boot -> login page; fix: agent-browser reload); 10s test track keeps ending between CLI calls (mini player unmounts, EQ button vanishes) -> do replay+measure in ONE async eval; track row textContent empty on production (metadata parse differs) -> click via snapshot ref
+- Cleanup: browser closed (throwaway profile; IndexedDB/localStorage seeds lived only there), test WAV + repro screenshots kept under scripts/
+
+Stage Summary:
+- Bass boost was NOT broken — proven with spectrum measurements on the live site (+9.7dB bass lift, mids untouched, bypass/restore correct)
+- Made it PERCEIVABLE instead: bass shelf 90Hz -> 150Hz (+12dB below corner), bundle App-hjuJGiQ3.js built+synced; ships on next platform republish, hard refresh afterwards
+- Guidance for the user: EQ lives in the mini-player toolbox; keep "Equalizer Bypassed" OFF; drag the Bass Boost card up while a song plays; the Bass Boost preset only shapes the 10 bands — the card is the big bass knob
