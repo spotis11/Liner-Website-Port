@@ -443,7 +443,13 @@
     "min": "min",
     "sec": "s",
     "empty_title": "Ta playlista jest pusta",
-    "empty_subtitle": "Wyszukaj utwory, aby je dodać"
+    "empty_subtitle": "Wyszukaj utwory, aby je dodać",
+    "change_cover": "Zmień okładkę",
+    "reset_cover": "Przywróć automatyczną okładkę",
+    "cover_updated": "Zaktualizowano własną okładkę",
+    "cover_reset": "Przywrócono automatyczną okładkę",
+    "cover_invalid": "Ten plik nie jest obrazem",
+    "cover_failed": "Nie udało się zaktualizować okładki"
   },
   "search": {
     "placeholder": "Szukaj utworów, wykonawców, albumów...",

@@ -20,6 +20,7 @@ import { useTranslation } from "@/languages";
 import { useModalStore } from "../store/modalStore";
 import { useImportStore } from "../store/importStore";
 import { usePageBackdrop } from "@/shared/lib";
+import { useCustomPlaylistCoverMap } from "@/features/covers";
 import ImportingPlaylistCard from "./ImportingPlaylistCard";
 
 const PAGE_SIZE = 24;
@@ -196,22 +197,33 @@ export default function LibraryPage() {
     useLikedTrackCount();
   const openCreatePlaylist = useModalStore((state) => state.openCreatePlaylist);
 
+  // custom covers (client-side) override the auto-derived playlist artwork
+  const customCoverMap = useCustomPlaylistCoverMap(
+    useMemo(
+      () => (playlistsData?.playlists ?? []).map((p) => p.id),
+      [playlistsData],
+    ),
+  );
+
   const playlistItems: LibraryItemViewModel[] = useMemo(() => {
     if (!playlistsData) return [];
     const list = playlistsData.playlists ?? [];
-    return list.map((playlist) => ({
-      id: playlist.id,
-      title: playlist.title,
-      subtitle: t("common.tracks", { count: playlist.trackCount }),
-      imageUrl: playlist.coverUrl || "",
-      coverUrls: playlist.coverUrls,
-      kind: "playlist" as const,
-      isOwned: true,
-      href: `/library/playlist?id=${encodeURIComponent(playlist.id)}`,
-      addedAt:
-        playlist.updatedAt || playlist.createdAt || new Date().toISOString(),
-    }));
-  }, [playlistsData, t]);
+    return list.map((playlist) => {
+      const custom = customCoverMap[playlist.id];
+      return {
+        id: playlist.id,
+        title: playlist.title,
+        subtitle: t("common.tracks", { count: playlist.trackCount }),
+        imageUrl: custom || playlist.coverUrl || "",
+        coverUrls: custom ? [custom] : playlist.coverUrls,
+        kind: "playlist" as const,
+        isOwned: true,
+        href: `/library/playlist?id=${encodeURIComponent(playlist.id)}`,
+        addedAt:
+          playlist.updatedAt || playlist.createdAt || new Date().toISOString(),
+      };
+    });
+  }, [playlistsData, customCoverMap, t]);
 
   const initialLoading = playlistsLoading;
 

@@ -1,0 +1,1 @@
+{"items": [{"id": "pl-custom-1", "title": "My E2E Playlist", "description": "", "isPublic": false, "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z", "revision": 1, "ownerId": "user-e2e", "owner": {"id": "user-e2e", "username": "e2euser", "displayName": "E2E Tester", "avatarUrl": null}}]}

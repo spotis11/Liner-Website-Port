@@ -441,7 +441,13 @@
     "min": "min",
     "sec": "s",
     "empty_title": "Cette playlist est vide",
-    "empty_subtitle": "Recherchez des titres à ajouter"
+    "empty_subtitle": "Recherchez des titres à ajouter",
+    "change_cover": "Changer la pochette",
+    "reset_cover": "Rétablir la pochette auto",
+    "cover_updated": "Pochette personnalisée mise à jour",
+    "cover_reset": "Pochette rétablie sur auto",
+    "cover_invalid": "Ce fichier n'est pas une image",
+    "cover_failed": "Impossible de mettre à jour la pochette"
   },
   "search": {
     "placeholder": "Rechercher des titres, artistes, albums...",

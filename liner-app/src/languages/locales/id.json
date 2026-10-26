@@ -447,7 +447,13 @@
     "sec": "dtk",
     "empty_title": "Playlist ini masih kosong",
     "empty_subtitle": "Cari lagu untuk ditambahkan",
-    "likes_empty": "Belum ada lagu yang disukai"
+    "likes_empty": "Belum ada lagu yang disukai",
+    "change_cover": "Ubah sampul",
+    "reset_cover": "Kembalikan ke sampul otomatis",
+    "cover_updated": "Sampul kustom diperbarui",
+    "cover_reset": "Sampul dikembalikan ke otomatis",
+    "cover_invalid": "File itu bukan gambar",
+    "cover_failed": "Tidak dapat memperbarui sampul"
   },
   "search": {
     "placeholder": "Cari trek, artis, album...",

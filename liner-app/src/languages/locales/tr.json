@@ -439,7 +439,13 @@
     "min": "dk",
     "sec": "sn",
     "empty_title": "Bu çalma listesi boş",
-    "empty_subtitle": "Eklemek için şarkı ara"
+    "empty_subtitle": "Eklemek için şarkı ara",
+    "change_cover": "Kapakyı değiştir",
+    "reset_cover": "Otomatik kapaka dön",
+    "cover_updated": "Özel kapak güncellendi",
+    "cover_reset": "Otomatik kapaga dönüldü",
+    "cover_invalid": "Bu dosya bir görsel değil",
+    "cover_failed": "Kapak güncellenemedi"
   },
   "search": {
     "placeholder": "Parça, sanatçı, albüm ara...",

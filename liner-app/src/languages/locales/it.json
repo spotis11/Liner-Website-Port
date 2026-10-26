@@ -439,7 +439,13 @@
     "min": "min",
     "sec": "s",
     "empty_title": "Questa playlist è vuota",
-    "empty_subtitle": "Cerca dei brani da aggiungere"
+    "empty_subtitle": "Cerca dei brani da aggiungere",
+    "change_cover": "Cambia copertina",
+    "reset_cover": "Ripristina copertina automatica",
+    "cover_updated": "Copertina personalizzata aggiornata",
+    "cover_reset": "Copertina ripristinata su automatica",
+    "cover_invalid": "Quel file non è un'immagine",
+    "cover_failed": "Impossibile aggiornare la copertina"
   },
   "search": {
     "placeholder": "Cerca brani, artisti, album...",

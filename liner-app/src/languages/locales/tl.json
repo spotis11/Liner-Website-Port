@@ -447,7 +447,13 @@
     "sec": "seg",
     "empty_title": "Walang laman ang playlist na ito",
     "empty_subtitle": "Maghanap ng mga kantang idadagdag",
-    "likes_empty": "Wala pang nagustuhang kanta"
+    "likes_empty": "Wala pang nagustuhang kanta",
+    "change_cover": "Palitan ang cover",
+    "reset_cover": "Ibalik sa auto cover",
+    "cover_updated": "Na-update ang custom cover",
+    "cover_reset": "Naibalik sa auto cover",
+    "cover_invalid": "Hindi image ang file na iyan",
+    "cover_failed": "Hindi ma-update ang cover"
   },
   "search": {
     "placeholder": "Maghanap ng track, artist, album...",

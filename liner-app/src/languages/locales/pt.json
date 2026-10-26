@@ -451,7 +451,13 @@
     "sec": "s",
     "empty_title": "Esta playlist está vazia",
     "empty_subtitle": "Pesquise músicas para adicionar",
-    "likes_empty": "Nenhuma música curtida ainda"
+    "likes_empty": "Nenhuma música curtida ainda",
+    "change_cover": "Alterar capa",
+    "reset_cover": "Restaurar capa automática",
+    "cover_updated": "Capa personalizada atualizada",
+    "cover_reset": "Capa restaurada para automática",
+    "cover_invalid": "Esse arquivo não é uma imagem",
+    "cover_failed": "Não foi possível atualizar a capa"
   },
   "search": {
     "placeholder": "Pesquise faixas, artistas, álbuns...",

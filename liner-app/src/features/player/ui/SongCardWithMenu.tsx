@@ -4,6 +4,11 @@ import { useSongMenuItems } from "../hooks/useSongMenuItems";
 import { playerEngine } from "../engine/playerEngine";
 import type { PlayableTrack } from "../engine/playbackStream";
 import { usePlayerStore } from "../store/playerStore";
+import {
+  useLikeTrack,
+  useUnlikeTrack,
+} from "@/features/library/hooks/useLibraryMutations";
+import { useIsTrackLiked } from "@/features/library/hooks/useIsTrackLiked";
 import { useToast } from "@/shared/ui";
 import { useTranslation } from "@/languages";
 
@@ -115,6 +120,22 @@ function SongCardWithMenu({
     (state) => state.trackDoubleClickBehavior,
   );
 
+  // liked-state heart ("see which songs I like in an album/playlist"):
+  // wired automatically for every row with a track id — red filled heart when
+  // liked, outline heart on hover to like from the row itself
+  const likedEntry = useIsTrackLiked(id);
+  const likeMutation = useLikeTrack();
+  const unlikeMutation = useUnlikeTrack();
+
+  const handleToggleLike = useCallback(() => {
+    if (!id) return;
+    if (likedEntry) {
+      unlikeMutation.mutate(id);
+    } else {
+      likeMutation.mutate(id);
+    }
+  }, [id, likedEntry, likeMutation, unlikeMutation]);
+
   const handleDoubleClick = useCallback(() => {
     if (!id) return;
     if (trackDoubleClickBehavior === "queue") {
@@ -191,6 +212,8 @@ function SongCardWithMenu({
       onGrabStart={onGrabStart}
       trailingAction={trailingAction}
       previewTrack={previewTrack}
+      liked={likedEntry}
+      onToggleLike={id ? handleToggleLike : undefined}
     />
   );
 }

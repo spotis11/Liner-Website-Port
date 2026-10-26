@@ -17,3 +17,12 @@ export {
   getCoverProxyUrl,
   signCoverUrl,
 } from "./lib/coverSigner";
+export {
+  getCustomCoverUrl,
+  getAllCustomCoverUrls,
+  setCustomCover,
+  removeCustomCover,
+  fileToSquareCoverBlob,
+  useCustomPlaylistCoverUrl,
+  useCustomPlaylistCoverMap,
+} from "./lib/customPlaylistCovers";

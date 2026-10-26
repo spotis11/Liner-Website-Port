@@ -442,7 +442,13 @@
     "sec": "s",
     "empty_title": "Esta lista de reproducción está vacía",
     "empty_subtitle": "Busca canciones para añadirlas",
-    "likes_empty": "Aún no hay canciones que te gusten"
+    "likes_empty": "Aún no hay canciones que te gusten",
+    "change_cover": "Cambiar portada",
+    "reset_cover": "Restablecer portada automática",
+    "cover_updated": "Portada personalizada actualizada",
+    "cover_reset": "Portada restablecida a automática",
+    "cover_invalid": "Ese archivo no es una imagen",
+    "cover_failed": "No se pudo actualizar la portada"
   },
   "search": {
     "placeholder": "Buscar canciones, artistas, álbumes...",

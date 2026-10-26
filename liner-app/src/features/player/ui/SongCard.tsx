@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { More2Fill, RepeatFill } from "@mingcute/react";
+import { HeartFill, HeartLine, More2Fill, RepeatFill } from "@mingcute/react";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import { useTranslation } from "@/languages";
@@ -45,6 +45,10 @@ export interface SongCardProps {
   trailingAction?: React.ReactNode;
   /** when set, hovering the row plays a short preview of this track */
   previewTrack?: PlayableTrack | null;
+  /** renders a heart state indicator before the duration (red fill = liked) */
+  liked?: boolean;
+  /** clicking the heart indicator toggles the like state */
+  onToggleLike?: () => void;
 }
 
 function SongCard({
@@ -77,6 +81,8 @@ function SongCard({
   hideArtists = false,
   trailingAction,
   previewTrack,
+  liked,
+  onToggleLike,
 }: SongCardProps) {
   const { t } = useTranslation();
   const [imageLoaded, setImageLoaded] = useState(() => isCoverReady(coverUrl));
@@ -99,6 +105,17 @@ function SongCard({
     if (!previewTrack) return;
     hoverPreview.hoverEnd(previewTrack.id);
   }, [previewTrack]);
+
+  const handleToggleLikeClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!onToggleLike) return;
+      // keep the row itself from reacting (play / preview / drag)
+      e.stopPropagation();
+      e.preventDefault();
+      onToggleLike();
+    },
+    [onToggleLike],
+  );
 
   useEffect(() => {
     setImageLoaded(isCoverReady(coverUrl));
@@ -278,6 +295,22 @@ function SongCard({
       </div>
 
       <div className="flex items-center shrink-0 ml-[16px] gap-[16px]">
+        {onToggleLike && (
+          <button
+            type="button"
+            aria-label={liked ? t("common.unlike") : t("common.like")}
+            title={liked ? t("common.unlike") : t("common.like")}
+            data-prevent-drag
+            onClick={handleToggleLikeClick}
+            className={`shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0 transition-all duration-200 active:scale-[0.9] ${
+              liked
+                ? "flex items-center justify-center text-red-500"
+                : "flex items-center justify-center text-text-secondary opacity-0 transition-opacity group-hover:opacity-100 hover:text-text-primary focus-visible:opacity-100"
+            }`}
+          >
+            {liked ? <HeartFill size={17} /> : <HeartLine size={17} />}
+          </button>
+        )}
         {releaseDate && (
           <span
             className="text-[14px] text-text-tertiary"

@@ -444,7 +444,13 @@
     "min": "Min.",
     "sec": "Sek.",
     "empty_title": "Diese Playlist ist leer",
-    "empty_subtitle": "Suche nach Titeln, die du hinzufügen möchtest"
+    "empty_subtitle": "Suche nach Titeln, die du hinzufügen möchtest",
+    "change_cover": "Cover ändern",
+    "reset_cover": "Auf automatisches Cover zurücksetzen",
+    "cover_updated": "Eigenes Cover aktualisiert",
+    "cover_reset": "Cover auf automatisch zurückgesetzt",
+    "cover_invalid": "Diese Datei ist kein Bild",
+    "cover_failed": "Cover konnte nicht aktualisiert werden"
   },
   "search": {
     "placeholder": "Titel, Künstler oder Alben suchen",

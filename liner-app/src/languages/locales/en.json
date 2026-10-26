@@ -447,7 +447,13 @@
     "sec": "sec",
     "empty_title": "This playlist is empty",
     "empty_subtitle": "Search for songs to add",
-    "likes_empty": "No liked songs yet"
+    "likes_empty": "No liked songs yet",
+    "change_cover": "Change cover",
+    "reset_cover": "Reset to auto cover",
+    "cover_updated": "Custom cover updated",
+    "cover_reset": "Cover reset to auto",
+    "cover_invalid": "That file is not an image",
+    "cover_failed": "Couldn't update the cover"
   },
   "search": {
     "placeholder": "Search tracks, artists, albums...",

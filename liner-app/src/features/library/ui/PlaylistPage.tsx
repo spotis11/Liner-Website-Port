@@ -42,12 +42,26 @@ import {
   ShareForwardLine,
 } from "@mingcute/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LuPencil, LuTrash2, LuText, LuShuffle } from "react-icons/lu";
+import {
+  LuPencil,
+  LuTrash2,
+  LuText,
+  LuShuffle,
+  LuCamera,
+  LuRotateCcw,
+  LuImagePlus,
+} from "react-icons/lu";
 import { buildShareUrl } from "@/shared/utils/share";
 import Button from "@/shared/ui/Button";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
 import CoverImage from "@/features/covers/ui/CoverImage";
+import {
+  useCustomPlaylistCoverUrl,
+  setCustomCover,
+  removeCustomCover,
+  fileToSquareCoverBlob,
+} from "@/features/covers";
 import { useModalStore } from "../store/modalStore";
 import {
   usePlaylist,
@@ -153,6 +167,15 @@ function LibraryPlaylistContent() {
 
   const isLoading = isLikesMode ? likesLoading : playlistLoading;
 
+  // custom playlist cover (client-side IndexedDB — the Liner API has no cover
+  // upload endpoint). Overrides the auto-derived track covers everywhere:
+  // hero, library cards, page backdrop and the player playback context.
+  const customCoverUrl = useCustomPlaylistCoverUrl(
+    isLikesMode ? null : decodedId,
+  );
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [isCoverBusy, setIsCoverBusy] = useState(false);
+
   const viewData = (() => {
     if (isLikesMode) {
       if (!likesData) return null;
@@ -176,10 +199,11 @@ function LibraryPlaylistContent() {
       title: playlistDetail.title || t("playlist.untitled_playlist"),
       bio,
       countLabel: t("common.tracks", { count: playlistDetail.trackCount }),
-      coverUrl: playlistDetail.coverUrl || "",
-      coverUrls:
-        playlistDetail.coverUrls ??
-        (playlistDetail.coverUrl ? [playlistDetail.coverUrl] : []),
+      coverUrl: customCoverUrl || playlistDetail.coverUrl || "",
+      coverUrls: customCoverUrl
+        ? [customCoverUrl]
+        : (playlistDetail.coverUrls ??
+          (playlistDetail.coverUrl ? [playlistDetail.coverUrl] : [])),
       tracks: playlistDetail.tracks,
       revision: playlistDetail.revision,
     };
@@ -303,6 +327,47 @@ function LibraryPlaylistContent() {
       });
     }
   }, [decodedId, viewData?.title, toast, t]);
+
+  // ---- custom cover handling ------------------------------------------------
+  const openCoverPicker = useCallback(() => {
+    coverInputRef.current?.click();
+  }, []);
+
+  const handleCoverFile = useCallback(
+    async (file: File | undefined) => {
+      if (!file || !decodedId || isLikesMode) return;
+      if (!file.type.startsWith("image/")) {
+        toast(t("playlist.cover_invalid"), "info");
+        return;
+      }
+      setIsCoverBusy(true);
+      try {
+        const blob = await fileToSquareCoverBlob(file);
+        await setCustomCover(decodedId, blob);
+        toast(t("playlist.cover_updated"), "checkmark", {
+          description: viewData?.title || undefined,
+        });
+      } catch {
+        toast(t("playlist.cover_failed"), "info");
+      } finally {
+        setIsCoverBusy(false);
+        if (coverInputRef.current) coverInputRef.current.value = "";
+      }
+    },
+    [decodedId, isLikesMode, toast, t, viewData?.title],
+  );
+
+  const handleResetCover = useCallback(async () => {
+    if (!decodedId) return;
+    try {
+      await removeCustomCover(decodedId);
+      toast(t("playlist.cover_reset"), "checkmark", {
+        description: viewData?.title || undefined,
+      });
+    } catch {
+      // removal failures are non-fatal — cover simply stays as-is
+    }
+  }, [decodedId, toast, t, viewData?.title]);
 
   const handleReorderCommit = useCallback(
     (fromIndex: number, toIndex: number, movingTrack: Track) => {
@@ -450,6 +515,16 @@ function LibraryPlaylistContent() {
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-transparent">
+      {/* hidden picker backing the hero-overlay + more-menu "change cover" */}
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          void handleCoverFile(e.target.files?.[0]);
+        }}
+      />
       <div className="relative z-1 grid grid-cols-1 w-full h-full min-h-0 overflow-hidden">
         {viewData && (
           <div
@@ -465,11 +540,14 @@ function LibraryPlaylistContent() {
             >
               <div className="shrink-0 pl-[16px] pr-[12px] pt-[8px]" data-no-window-drag>
                 <EntityHero
-                  cover={(() => {
-                    const urls =
-                      viewData.coverUrls ??
-                      (viewData.coverUrl ? [viewData.coverUrl] : []);
-                    if (urls.length === 0) {
+                  coverClassName="group/cover bg-border-alpha-14"
+                  cover={
+                    <>
+                      {(() => {
+                        const urls =
+                          viewData.coverUrls ??
+                          (viewData.coverUrl ? [viewData.coverUrl] : []);
+                        if (urls.length === 0) {
                       return isLikesMode ? (
                         <img
                           src={likesCover}
@@ -521,7 +599,41 @@ function LibraryPlaylistContent() {
                         })}
                       </div>
                     );
-                  })()}
+                      })()}
+                      {/* custom-cover controls: hover the hero artwork to
+                          change / reset (also available in the more menu) */}
+                      {!isLikesMode && (
+                        <div
+                          className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-[8px] bg-black/50 px-[10px] opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-hover/cover:opacity-100 focus-within:opacity-100 ${
+                            isCoverBusy ? "opacity-100" : ""
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={openCoverPicker}
+                            disabled={isCoverBusy}
+                            className="flex cursor-pointer items-center gap-[6px] rounded-lg border border-white/20 bg-white/10 px-[10px] py-[6px] text-[12px] font-[500] text-white transition-colors hover:bg-white/20 active:scale-[0.97] disabled:opacity-60"
+                            style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                          >
+                            <LuCamera size={15} />
+                            <span>{t("playlist.change_cover")}</span>
+                          </button>
+                          {customCoverUrl && (
+                            <button
+                              type="button"
+                              onClick={() => void handleResetCover()}
+                              disabled={isCoverBusy}
+                              className="flex cursor-pointer items-center gap-[6px] rounded-lg border-0 bg-transparent px-[8px] py-[4px] text-[11px] font-[400] text-white/80 transition-colors hover:text-white active:scale-[0.97] disabled:opacity-60"
+                              style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                            >
+                              <LuRotateCcw size={12} />
+                              <span>{t("playlist.reset_cover")}</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  }
                   title={
                     <h1
                       ref={titleRef}
@@ -749,6 +861,22 @@ function LibraryPlaylistContent() {
                               label: t("common.edit_description"),
                               onClick: () => setIsEditingDescription(true),
                             },
+                            {
+                              id: "change-cover",
+                              icon: <LuImagePlus size={15} />,
+                              label: t("playlist.change_cover"),
+                              onClick: openCoverPicker,
+                            },
+                            ...(customCoverUrl
+                              ? [
+                                  {
+                                    id: "reset-cover",
+                                    icon: <LuRotateCcw size={15} />,
+                                    label: t("playlist.reset_cover"),
+                                    onClick: () => void handleResetCover(),
+                                  },
+                                ]
+                              : []),
                             {
                               id: "share",
                               icon: <ShareForwardLine size={15} />,
