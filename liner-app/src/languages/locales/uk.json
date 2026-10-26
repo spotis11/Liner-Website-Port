@@ -51,7 +51,8 @@
       "home": "Головна",
       "search": "Пошук",
       "library": "Бібліотека",
-      "settings": "Налаштування"
+      "settings": "Налаштування",
+      "local": "Локальна музика"
     },
     "loading": "Завантаження",
     "signed_in": "У системі",
@@ -399,7 +400,30 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Реверберація",
     "reverb_hint": "Атмосферний простір та об'ємна глибина",
-    "reverb_amount": "Реверберація"
+    "reverb_amount": "Реверберація",
+    "equalizer": {
+      "title": "Еквалайзер і пресети",
+      "subtitle": "Тонке налаштування звуку 10-смуговим графічним еквалайзером",
+      "bypassed": "Еквалайзер вимкнено",
+      "bypass_on": "Увімк",
+      "bypass_off": "Вимк",
+      "preset": "Пресет:",
+      "reset_flat": "Скинути в Flat",
+      "master_preamp": "Загальний попередній підсилювач",
+      "bass_boost": "Підсилення басів",
+      "hint_double_click": "Подвійний клік по смузі скидає її в 0dB",
+      "hint_freq_range": "Діапазон частот: 20Гц – 16кГц",
+      "preset_flat": "Flat",
+      "preset_bass": "Баси",
+      "preset_treble": "Верхи",
+      "preset_vocal": "Вокал",
+      "preset_rock": "Рок",
+      "preset_pop": "Поп",
+      "preset_jazz": "Джаз",
+      "preset_classical": "Класика",
+      "preset_electronic": "Електроніка",
+      "preset_custom": "Свій"
+    }
   },
   "playlist": {
     "playlist": "Плейліст",
@@ -1140,5 +1164,34 @@
     "title_prefix": "Оголошення від",
     "expires_note": "це повідомлення зникне протягом 1 хвилини",
     "okay": "Ок"
+  },
+  "local": {
+    "title": "Локальна музика",
+    "subtitle": "Скануйте локальні папки або перетягніть файли безпосередньо",
+    "tracks_count": "{count} треків",
+    "folders": "Папки",
+    "add_folder": "Додати папку",
+    "scan_now": "Сканувати",
+    "scanning": "Сканування…",
+    "drop_hint": "Перетягніть аудіофайли (MP3, FLAC, WAV, M4A тощо) або натисніть для вибору",
+    "search_placeholder": "Фільтр за назвою, виконавцем, альбомом, шляхом...",
+    "empty_title": "Ваша локальна бібліотека порожня",
+    "empty_body": "Додайте локальну папку або перетягніть аудіофайли на цю сторінку, щоб слухати офлайн.",
+    "choose_folder": "Вибрати папку з музикою",
+    "sort_title": "Назва",
+    "sort_artist": "Виконавець",
+    "sort_album": "Альбом",
+    "sort_recent": "Недавні",
+    "sort_label": "Сортувати",
+    "remove": "Видалити з бібліотеки",
+    "play_all": "Грати все",
+    "scan_complete": "Сканування завершено: {count} треків",
+    "scan_failed": "Помилка сканування: {reason}",
+    "folder_added": "Папку додано: {name}",
+    "files_added": "Додано треків: {count}",
+    "missing_file": "Локальний файл відсутній — проскануйте бібліотеку знову",
+    "no_results": "Немає треків за вашим фільтром",
+    "unknown_album": "Невідомий альбом",
+    "folders_none": "Папки ще не додано"
   }
 }

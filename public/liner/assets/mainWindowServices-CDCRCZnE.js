@@ -1,1 +1,0 @@
-import{i as e,o as t}from"./index-DM6Firax.js";import{a as n,et as r}from"./cacheManager-BNYEIND0.js";function i(){return typeof window>`u`?()=>{}:window.linerElectron?.onBundleStamp?.(e=>t(`gray`,`bundle`,e))??(()=>{})}function a(){e(),n(),r(),i()}export{a as initMainWindowServices};

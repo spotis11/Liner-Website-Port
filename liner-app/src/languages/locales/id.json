@@ -51,7 +51,8 @@
       "home": "Beranda",
       "search": "Cari",
       "library": "Pustaka",
-      "settings": "Pengaturan"
+      "settings": "Pengaturan",
+      "local": "Musik Lokal"
     },
     "minimize": "Perkecil",
     "exitFullscreen": "Keluar dari layar penuh",
@@ -404,7 +405,30 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Reverb",
     "reverb_hint": "Ruang atmosfer & kedalaman ambien",
-    "reverb_amount": "Reverb"
+    "reverb_amount": "Reverb",
+    "equalizer": {
+      "title": "Equalizer Audio & Preset",
+      "subtitle": "Sempurnakan panggung audiomu dengan EQ grafis 10-band",
+      "bypassed": "Equalizer Dilewati",
+      "bypass_on": "Nyala",
+      "bypass_off": "Mati",
+      "preset": "Preset:",
+      "reset_flat": "Kembalikan ke Flat",
+      "master_preamp": "Preamp Utama",
+      "bass_boost": "Penguat Bass",
+      "hint_double_click": "Klik dua kali band mana pun untuk mengatur ulang ke 0dB",
+      "hint_freq_range": "Rentang frekuensi: 20Hz – 16kHz",
+      "preset_flat": "Flat",
+      "preset_bass": "Bass",
+      "preset_treble": "Treble",
+      "preset_vocal": "Vokal",
+      "preset_rock": "Rock",
+      "preset_pop": "Pop",
+      "preset_jazz": "Jazz",
+      "preset_classical": "Klasik",
+      "preset_electronic": "Elektronik",
+      "preset_custom": "Kustom"
+    }
   },
   "playlist": {
     "playlist": "Playlist",
@@ -1112,5 +1136,34 @@
     "title_prefix": "Pengumuman dari",
     "expires_note": "pesan ini akan hilang dalam 1 menit",
     "okay": "Oke"
+  },
+  "local": {
+    "title": "Musik Lokal",
+    "subtitle": "Pindai folder audio lokal atau seret & lepas file langsung",
+    "tracks_count": "{count} lagu",
+    "folders": "Folder",
+    "add_folder": "Tambah Folder",
+    "scan_now": "Pindai Sekarang",
+    "scanning": "Memindai…",
+    "drop_hint": "Seret & lepas file audio (MP3, FLAC, WAV, M4A, dll.) atau klik untuk menjelajah",
+    "search_placeholder": "Filter berdasarkan judul, artis, album, jalur...",
+    "empty_title": "Perpustakaan lokalmu masih kosong",
+    "empty_body": "Tambahkan folder lokal atau seret & lepas file audio ke halaman ini untuk mendengarkan secara offline.",
+    "choose_folder": "Pilih Folder Musik",
+    "sort_title": "Judul",
+    "sort_artist": "Artis",
+    "sort_album": "Album",
+    "sort_recent": "Terbaru",
+    "sort_label": "Urutkan",
+    "remove": "Hapus dari perpustakaan",
+    "play_all": "Putar semua",
+    "scan_complete": "Pemindaian selesai: {count} lagu",
+    "scan_failed": "Pemindaian gagal: {reason}",
+    "folder_added": "Folder ditambahkan: {name}",
+    "files_added": "{count} lagu ditambahkan",
+    "missing_file": "File lokal hilang — pindai ulang perpustakaanmu",
+    "no_results": "Tidak ada lagu yang cocok dengan filtermu",
+    "unknown_album": "Album tidak diketahui",
+    "folders_none": "Belum ada folder yang ditambahkan"
   }
 }

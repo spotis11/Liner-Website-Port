@@ -51,7 +51,8 @@
       "home": "Accueil",
       "search": "Rechercher",
       "library": "Bibliothèque",
-      "settings": "Paramètres"
+      "settings": "Paramètres",
+      "local": "Musique locale"
     },
     "loading": "Chargement",
     "signed_in": "Connecté",
@@ -399,7 +400,30 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Réverbération",
     "reverb_hint": "Espace atmosphérique et profondeur d'ambiance",
-    "reverb_amount": "Réverbération"
+    "reverb_amount": "Réverbération",
+    "equalizer": {
+      "title": "Égaliseur audio et préréglages",
+      "subtitle": "Affinez votre scène audio avec un EQ graphique 10 bandes",
+      "bypassed": "Égaliseur contourné",
+      "bypass_on": "Activé",
+      "bypass_off": "Désactivé",
+      "preset": "Préréglage :",
+      "reset_flat": "Réinitialiser à Plat",
+      "master_preamp": "Préampli master",
+      "bass_boost": "Boost des basses",
+      "hint_double_click": "Double-cliquez sur une bande pour la remettre à 0dB",
+      "hint_freq_range": "Plage de fréquences : 20Hz – 16kHz",
+      "preset_flat": "Plat",
+      "preset_bass": "Basses",
+      "preset_treble": "Aigus",
+      "preset_vocal": "Vocal",
+      "preset_rock": "Rock",
+      "preset_pop": "Pop",
+      "preset_jazz": "Jazz",
+      "preset_classical": "Classique",
+      "preset_electronic": "Électronique",
+      "preset_custom": "Personnalisé"
+    }
   },
   "playlist": {
     "playlist": "Playlist",
@@ -1023,5 +1047,34 @@
     "title_prefix": "Annonce de",
     "expires_note": "ce message disparaîtra dans 1 minute",
     "okay": "Ok"
+  },
+  "local": {
+    "title": "Musique locale",
+    "subtitle": "Scannez des dossiers audio locaux ou glissez-déposez des fichiers",
+    "tracks_count": "{count} pistes",
+    "folders": "Dossiers",
+    "add_folder": "Ajouter un dossier",
+    "scan_now": "Scanner maintenant",
+    "scanning": "Analyse…",
+    "drop_hint": "Glissez des fichiers audio (MP3, FLAC, WAV, M4A, etc.) ou cliquez pour parcourir",
+    "search_placeholder": "Filtrer par titre, artiste, album, chemin...",
+    "empty_title": "Votre bibliothèque locale est vide",
+    "empty_body": "Ajoutez un dossier local ou déposez des fichiers audio sur cette page pour écouter hors ligne.",
+    "choose_folder": "Choisir un dossier musical",
+    "sort_title": "Titre",
+    "sort_artist": "Artiste",
+    "sort_album": "Album",
+    "sort_recent": "Récent",
+    "sort_label": "Trier",
+    "remove": "Retirer de la bibliothèque",
+    "play_all": "Tout lire",
+    "scan_complete": "Analyse terminée : {count} pistes",
+    "scan_failed": "Échec de l'analyse : {reason}",
+    "folder_added": "Dossier ajouté : {name}",
+    "files_added": "{count} pistes ajoutées",
+    "missing_file": "Fichier local manquant — rescannez votre bibliothèque",
+    "no_results": "Aucune piste ne correspond à votre filtre",
+    "unknown_album": "Album inconnu",
+    "folders_none": "Aucun dossier ajouté pour le moment"
   }
 }

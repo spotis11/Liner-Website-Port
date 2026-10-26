@@ -227,6 +227,18 @@ class PlaybackTelemetryTracker {
 
     if (this.playedDurationMs >= 3000 || this.completed) {
       const snap = this.activeTrack;
+      // local tracks live in the user's IndexedDB — nothing to report upstream
+      if (snap?.localFileId) {
+        this.activeTrackId = null;
+        this.activeTrack = null;
+        this.playbackSessionId = "";
+        this.lastTickTime = null;
+        this.playedDurationMs = 0;
+        this.completed = false;
+        this.loopCount = 0;
+        this.hasSeekBackward = false;
+        return Promise.resolve();
+      }
       const artistsList = snap?.artistList?.length
         ? snap.artistList.map((a) => ({ id: a.id || "unknown", name: a.name }))
         : snap?.artists
@@ -1117,6 +1129,15 @@ class PlayerEngine {
   }
 
   private appendSimilarTracksForSeed(
+    session: number,
+    seedTrackId: string,
+  ): Promise<void> {
+    // local files have no online identity — never auto-append online songs
+    if (seedTrackId.startsWith("local:")) return Promise.resolve();
+    return this._appendSimilarTracksForSeed(session, seedTrackId);
+  }
+
+  private async _appendSimilarTracksForSeed(
     session: number,
     seedTrackId: string,
   ): Promise<void> {

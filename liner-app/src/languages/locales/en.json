@@ -51,7 +51,8 @@
       "home": "Home",
       "search": "Search",
       "library": "Library",
-      "settings": "Settings"
+      "settings": "Settings",
+      "local": "Local Music"
     },
     "minimize": "Minimize",
     "exitFullscreen": "Exit fullscreen",
@@ -404,7 +405,30 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Reverb",
     "reverb_hint": "Atmospheric space & ambient depth",
-    "reverb_amount": "Reverb"
+    "reverb_amount": "Reverb",
+    "equalizer": {
+      "title": "Audio Equalizer & Presets",
+      "subtitle": "Fine-tune your audio stage with 10-band precision graphic EQ",
+      "bypassed": "Equalizer Bypassed",
+      "bypass_on": "On",
+      "bypass_off": "Off",
+      "preset": "Preset:",
+      "reset_flat": "Reset to Flat",
+      "master_preamp": "Master Preamp",
+      "bass_boost": "Bass Boost",
+      "hint_double_click": "Double-click any band to reset to 0dB",
+      "hint_freq_range": "Frequency range: 20Hz – 16kHz",
+      "preset_flat": "Flat",
+      "preset_bass": "Bass Boost",
+      "preset_treble": "Treble Boost",
+      "preset_vocal": "Vocal",
+      "preset_rock": "Rock",
+      "preset_pop": "Pop",
+      "preset_jazz": "Jazz",
+      "preset_classical": "Classical",
+      "preset_electronic": "Electronic",
+      "preset_custom": "Custom"
+    }
   },
   "playlist": {
     "playlist": "Playlist",
@@ -1112,5 +1136,34 @@
     "title_prefix": "Announcement From",
     "expires_note": "this message will be gone within 1 minute",
     "okay": "Okay"
+  },
+  "local": {
+    "title": "Local Music",
+    "subtitle": "Scan local audio folders or drag & drop files directly",
+    "tracks_count": "{count} tracks",
+    "folders": "Folders",
+    "add_folder": "Add Folder",
+    "scan_now": "Scan Now",
+    "scanning": "Scanning…",
+    "drop_hint": "Drag & drop audio files (MP3, FLAC, WAV, M4A, etc.) or click to browse",
+    "search_placeholder": "Filter by title, artist, album, path...",
+    "empty_title": "Your local library is empty",
+    "empty_body": "Add a local folder or drag and drop audio files anywhere on this page to start listening offline.",
+    "choose_folder": "Choose Music Folder",
+    "sort_title": "Title",
+    "sort_artist": "Artist",
+    "sort_album": "Album",
+    "sort_recent": "Recent",
+    "sort_label": "Sort",
+    "remove": "Remove from library",
+    "play_all": "Play all",
+    "scan_complete": "Scan complete: {count} tracks",
+    "scan_failed": "Scan failed: {reason}",
+    "folder_added": "Folder added: {name}",
+    "files_added": "Added {count} tracks",
+    "missing_file": "Local file is missing — rescan your library",
+    "no_results": "No tracks match your filter",
+    "unknown_album": "Unknown album",
+    "folders_none": "No folders added yet"
   }
 }

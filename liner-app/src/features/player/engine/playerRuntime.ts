@@ -6,6 +6,11 @@ import { linerDb, audioCache } from "@/shared/storage";
 import { isStandaloneAudioFile } from "@/shared/storage/audioFormat";
 import type { Track } from "@/shared/types";
 import { pitchShifter } from "./pitchShifter";
+import {
+  ensureEqualizerApplied,
+  initEqualizerEngine,
+  isEqActive,
+} from "@/features/equalizer";
 import { resolvePlaybackStream, type PlaybackStream } from "./streamResolver";
 import { recordPlaybackFailure } from "@/shared/diagnostics/playbackDiagnostics";
 import { withDeadline } from "@/shared/utils/withDeadline";
@@ -95,6 +100,8 @@ export class PlayerRuntime {
     }
     this.audio = audio;
     this.setupAudioListeners(this.audio);
+    // pushes persisted EQ state into the graph and keeps it in sync
+    initEqualizerEngine();
 
     const initialVolume = usePlayerStore.getState().volume;
     this.audio.volume = initialVolume;
@@ -511,7 +518,9 @@ export class PlayerRuntime {
       const isReverbEnabled = store.isReverbEnabled ?? false;
       const reverbLevel = store.reverbLevel ?? 0.35;
       const needsEffects =
-        isReverbEnabled || (!isPitchLinked && Math.abs(pitchSemitones) >= 0.05);
+        isReverbEnabled ||
+        (!isPitchLinked && Math.abs(pitchSemitones) >= 0.05) ||
+        isEqActive();
       if (!needsEffects && !pitchShifter.isAttached()) return;
       pitchShifter.attach(this.audio);
       pitchShifter.update({
@@ -520,6 +529,8 @@ export class PlayerRuntime {
         isReverbEnabled,
         reverbLevel,
       });
+      // re-assert EQ after (re)attach so a fresh graph serves the saved curve
+      ensureEqualizerApplied();
     } catch (err) {
       console.error("[PlayerRuntime] applyPlaybackRateAndPitch error:", err);
     }
@@ -676,6 +687,7 @@ export class PlayerRuntime {
 
   public async preloadTrack(track: Track): Promise<void> {
     if (this.currentTrackId === track.id) return;
+    if (track.localFileId) return; // local blobs are already "cached"
     if (this.preloadingTrackId === track.id) return;
 
     const cached = await linerDb.getAudio(track.id);
@@ -1194,6 +1206,7 @@ export class PlayerRuntime {
     stream: PlaybackStream,
     signal: AbortSignal,
   ) {
+    if (track.localFileId) return; // never duplicate the user's own files
     if (track.durationMs && track.durationMs > 20 * 60 * 1000) return;
     const generation = audioCache.currentGeneration();
     void (async () => {

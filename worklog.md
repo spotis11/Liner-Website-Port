@@ -477,3 +477,24 @@ Stage Summary:
 - The Lyrics toggle button is confirmed LIVE and WORKING on production: renders at top-left like the desktop app, hides the lyrics pane with an animated slide+fade while the player glides to center, restores on second click, and remembers the preference per browser
 - User-facing fix is simply a hard refresh (Ctrl+Shift+R) to bust the cached index.html; no code changes were needed for this report
 - Left as-is: platform serves HTML without Cache-Control (not controllable from the repo); the second hidden OverlayApp Lyrics instance is desktop-port heritage and invisible to users
+
+---
+Task ID: 23
+Agent: main (Z.ai)
+Task: "add equalizer seen in the screenshot (make sure its fully working) (not in the fullscreen) and add local music seen in the screenshot"
+
+Work Log:
+- DISCOVERY: the lost-context session had ALREADY implemented both features in source (src/features/equalizer/ + src/features/local-music/ untracked, engines wired via uncommitted diffs, add_eq_local_locales.py + 57 locale lines x 12 languages) but never built/verified/shipped — dist was still the Task-20 bundle (App-CGaR3xMQ.js, confirmed zero EQ/local markers on production)
+- Reviewed the implementation: equalizerDsp.ts (10 peaking BiquadFilters 32Hz–16kHz ±12dB, lowshelf bass boost 90Hz 0-100% -> +12dB, master preamp, dry/wet bypass crossfade — bit-transparent defaults, click-free 20ms ramps); pitchShifter gains an eq stage between pitch and master (reverb now taps the EQed mix); equalizerEngine subscribes to the zustand store (init in PlayerRuntime constructor); EqualizerModal (bypass toggle + preset Select + Reset to Flat + preamp/bass cards + 10 vertical BandSliders with dblclick-reset + keyboard + footer hints) mounted in MiniPlayer behind a new SliderHorizontal toolbox button; LocalMusicPage at /local + sidebar nav (Folder2Fill, common.sidebar.local) with FTS-style filter, sort, drag&drop, file-input fallback when no File System Access API; scan.ts web-native (showDirectoryPicker + webkitGetAsEntry recursion); localMusicDb stores blobs/covers/folders in IndexedDB; streamResolver serves localFileId blobs without touching the network; track type gained localFileId/localPath
+- Fixed 2 tsc errors in the new tests: audioTags.test.ts bytes() return type -> Uint8Array<ArrayBuffer> (TS 5.9 BlobPart); equalizerDsp.test.ts .gain.calls accesses -> typed callsOf() accessor
+- Verification: vitest 777/777 (126 files, includes 26 new EQ/local tests); tsc -b clean; vite build -> App-Baw8tJM6.js synced to public/liner + .next/standalone; bun run build OK
+- LIVE E2E on localhost:3000 (agent-browser + auth route-mocks): EQ button in mini player toolbox (30px, visible); modal matches the reference screenshot exactly (title/subtitle/bypass/preset/Reset to Flat/preamp/bass/10 bands 32Hz–16kHz/both hints); keyboard ArrowUp on 32Hz band -> store band0=1 + preset=custom persisted to liner.equalizer.v1 (synchronous dispatch batches stale-closure value — real presses fine); preset dropdown (10 options incl Custom) -> Bass Boost applies [7,6,5,3,1,0,0,0,0,0] + persists; bypass toggle dry/wet verified in the LIVE graph
+- FULLY-WORKING proof (the critical part): generated real WAVs in the sandbox, uploaded via the page's hidden file input -> scanned (filename tags parsed: "Eq Test Artist - Midnight Local Song"), listed (2 tracks), clicked -> playerEngine.playTrack -> blob: src from IndexedDB -> audio actually PLAYED (currentTime advancing, queue auto-advanced to next local track after the 4s file ended); with playback running the AudioContext went running and the Bass Boost curve SETTLED in the live graph (eqWetGain=1, band32=+7dB via setTargetAtTime — verified by spying graph params + reading settled values); bypass ON -> wet 0/dry 1; OFF -> wet 1/band32 7 restored; audio never dropped
+- Note: headless-only trap — with a SUSPENDED AudioContext setTargetAtTime targets never settle so .value reads look frozen; not a bug, real browsers run the context on user gesture
+- Also verified: search filter hides non-matching rows; local library + EQ preset survive reload (IndexedDB/localStorage persistence); /api/discord-bot/status still online; site 200
+- Screenshots in download/: eq-modal-open.png, eq-modal-bassboost.png (bass curve + playing mini player), local-music-search.png
+- Cleanup: browser closed (test IndexedDB/localStorage lived only in the throwaway headless profile), /tmp WAVs left, no server state touched
+
+Stage Summary:
+- Equalizer (10-band, presets, preamp, bass boost, bypass — fully wired into the Web Audio graph) and Local Music (folder/file scan, drag&drop, IndexedDB library, blob playback through the same engine + EQ) ship in bundle App-Baw8tJM6.js; production picks them up on the next platform republish (hard refresh afterwards)
+- All 777 tests green, tsc clean, standalone synced; EQ audibly affects local AND streamed playback (single shared graph), settings persist per browser

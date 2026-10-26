@@ -15,6 +15,13 @@
  * Perfectly tuned for the authentic "Slowed + Reverb" aesthetic.
  */
 
+import {
+  applyEqualizerParams,
+  buildEqChain,
+  type EqChainNodes,
+  type EqualizerParams,
+} from "./equalizerDsp";
+
 const GRAIN_PERIOD = 0.038; // 38ms grain window
 const NUM_TAPS = 4;
 
@@ -215,6 +222,8 @@ interface AudioEffectsGraph {
   convolver: ConvolverNode;
   reverbHighpass: BiquadFilterNode;
   reverbWetGain: GainNode;
+  /** 10-band graphic EQ stage (dry/wet bypass, preamp, bass shelf, bands) */
+  eq: EqChainNodes;
 }
 
 export interface AudioEffectsParams {
@@ -294,7 +303,13 @@ export class PitchShifterController {
           g.pitchStageOutput &&
           g.masterOutputGain &&
           g.masterDryGain &&
-          g.shifter,
+          g.shifter &&
+          g.eq?.eqBands?.length === 10 &&
+          g.eq.eqDryGain &&
+          g.eq.eqWetGain &&
+          g.eq.eqPreampGain &&
+          g.eq.eqBassShelf &&
+          g.eq.eqOutputGain,
         );
       };
 
@@ -318,6 +333,15 @@ export class PitchShifterController {
             (graph as any).convolver?.disconnect();
             (graph as any).reverbHighpass?.disconnect();
             (graph as any).reverbWetGain?.disconnect();
+            const legacyEq = (graph as any).eq as EqChainNodes | undefined;
+            if (legacyEq) {
+              legacyEq.eqDryGain?.disconnect();
+              legacyEq.eqWetGain?.disconnect();
+              legacyEq.eqPreampGain?.disconnect();
+              legacyEq.eqBassShelf?.disconnect();
+              legacyEq.eqBands?.forEach((band) => band.disconnect());
+              legacyEq.eqOutputGain?.disconnect();
+            }
           } catch {}
         }
         delete audioObj.__liner_pitch_graph;
@@ -341,6 +365,9 @@ export class PitchShifterController {
 
         const shifter = new HannPitchShifter(ctx);
 
+        // 10-band graphic EQ stage (dry/wet bypass so toggling never clicks)
+        const eq = buildEqChain(ctx);
+
         // Pitch stage routing
         sourceNode.connect(pitchDryGain);
         sourceNode.connect(pitchWetGain);
@@ -349,11 +376,13 @@ export class PitchShifterController {
         pitchWetGain.connect(shifter.input);
         shifter.output.connect(pitchStageOutput);
 
-        // Direct path from pitch stage to master
-        pitchStageOutput.connect(masterDryGain);
+        // EQ stage between the pitch stage and master
+        pitchStageOutput.connect(eq.eqDryGain);
+        pitchStageOutput.connect(eq.eqWetGain);
+        eq.eqOutputGain.connect(masterDryGain);
         masterDryGain.connect(masterOutputGain);
 
-        // Reverb stage routing
+        // Reverb stage routing (taps the EQed mix so the tail follows the EQ)
         const reverbSendGain = ctx.createGain();
         reverbSendGain.gain.value = 1.0;
 
@@ -370,7 +399,7 @@ export class PitchShifterController {
         const reverbWetGain = ctx.createGain();
         reverbWetGain.gain.value = 0.0; // Disabled by default
 
-        pitchStageOutput.connect(reverbSendGain);
+        eq.eqOutputGain.connect(reverbSendGain);
         reverbSendGain.connect(convolver);
         convolver.connect(reverbHighpass);
         reverbHighpass.connect(reverbWetGain);
@@ -391,6 +420,7 @@ export class PitchShifterController {
           convolver,
           reverbHighpass,
           reverbWetGain,
+          eq,
         };
 
         audioObj.__liner_pitch_graph = graph;
@@ -409,6 +439,34 @@ export class PitchShifterController {
 
   public isAttached(): boolean {
     return this.isConnected;
+  }
+
+  /** the live effects graph, or null before the first attach */
+  public getGraph(): AudioEffectsGraph | null {
+    return this.isConnected ? this.graph : null;
+  }
+
+  /**
+   * Pushes equalizer params into the graph. Attaches lazily so opening the
+   * EQ modal (or changing a band) works even before any effects were used.
+   */
+  public applyEqualizer(params: EqualizerParams): boolean {
+    if (typeof window !== "undefined") {
+      const win = window as any;
+      const audio =
+        win.__liner_audio ||
+        (typeof document !== "undefined"
+          ? document.getElementById("liner-audio")
+          : null);
+      if (audio && !this.isConnected) {
+        this.attach(audio);
+      }
+    }
+    const graph = this.getGraph();
+    if (!graph || !this.context) return false;
+    this.resumeContext();
+    applyEqualizerParams(graph.eq, params, this.context.currentTime);
+    return true;
   }
 
   public resumeContext(): void {

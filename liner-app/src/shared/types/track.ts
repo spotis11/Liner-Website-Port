@@ -21,4 +21,12 @@ export interface Track {
     id: string;
     title: string;
   };
+  /**
+   * Local library track: id of the audio blob in the local-music IndexedDB.
+   * Streams for these tracks are served from the user's own files
+   * (see local-music/lib/localMusicDb → resolvePlaybackStream branch).
+   */
+  localFileId?: string;
+  /** original absolute path / relative folder path, local tracks only */
+  localPath?: string;
 }

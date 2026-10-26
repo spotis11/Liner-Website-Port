@@ -51,7 +51,8 @@
       "home": "Ana sayfa",
       "search": "Ara",
       "library": "Kitaplık",
-      "settings": "Ayarlar"
+      "settings": "Ayarlar",
+      "local": "Yerel Müzik"
     },
     "loading": "Yükleniyor",
     "signed_in": "Giriş yapıldı",
@@ -397,7 +398,30 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Yankı",
     "reverb_hint": "Atmosferik alan ve ortam derinliği",
-    "reverb_amount": "Yankı"
+    "reverb_amount": "Yankı",
+    "equalizer": {
+      "title": "Ses Ekolayzeri ve Ön Ayarlar",
+      "subtitle": "10 bantlı grafik EQ ile ses sahnenizi ince ayar yapın",
+      "bypassed": "Ekolayzer Devre Dışı",
+      "bypass_on": "Açık",
+      "bypass_off": "Kapalı",
+      "preset": "Ön ayar:",
+      "reset_flat": "Düz'e sıfırla",
+      "master_preamp": "Ana Ön yükselteç",
+      "bass_boost": "Bas Güçlendirme",
+      "hint_double_click": "0dB'ye sıfırlamak için herhangi bir bant çift tıklayın",
+      "hint_freq_range": "Frekans aralığı: 20Hz – 16kHz",
+      "preset_flat": "Düz",
+      "preset_bass": "Bas",
+      "preset_treble": "Tiz",
+      "preset_vocal": "Vokal",
+      "preset_rock": "Rock",
+      "preset_pop": "Pop",
+      "preset_jazz": "Caz",
+      "preset_classical": "Klasik",
+      "preset_electronic": "Elektronik",
+      "preset_custom": "Özel"
+    }
   },
   "playlist": {
     "playlist": "Çalma listesi",
@@ -1021,5 +1045,34 @@
     "title_prefix": "Duyuru yapan:",
     "expires_note": "bu mesaj 1 dakika içinde kaybolacak",
     "okay": "Tamam"
+  },
+  "local": {
+    "title": "Yerel Müzik",
+    "subtitle": "Yerel ses klasörlerini tarayın veya dosyaları sürükleyip bırakın",
+    "tracks_count": "{count} parça",
+    "folders": "Klasörler",
+    "add_folder": "Klasör Ekle",
+    "scan_now": "Şimdi Tara",
+    "scanning": "Taranıyor…",
+    "drop_hint": "Ses dosyalarını sürükleyip bırakın (MP3, FLAC, WAV, M4A vb.) veya tıklayıp seçin",
+    "search_placeholder": "Başlık, sanatçı, albüm, yola göre filtrele...",
+    "empty_title": "Yerel kütüphaneniz boş",
+    "empty_body": "Çevrimdışı dinlemek için yerel bir klasör ekleyin veya bu sayfaya ses dosyaları bırakın.",
+    "choose_folder": "Müzik Klasörü Seç",
+    "sort_title": "Başlık",
+    "sort_artist": "Sanatçı",
+    "sort_album": "Albüm",
+    "sort_recent": "Son eklenen",
+    "sort_label": "Sırala",
+    "remove": "Kütüphaneden kaldır",
+    "play_all": "Tümünü çal",
+    "scan_complete": "Tarama tamamlandı: {count} parça",
+    "scan_failed": "Tarama başarısız: {reason}",
+    "folder_added": "Klasör eklendi: {name}",
+    "files_added": "{count} parça eklendi",
+    "missing_file": "Yerel dosya eksik — kütüphanenizi yeniden tarayın",
+    "no_results": "Filtrenize uyan parça yok",
+    "unknown_album": "Bilinmeyen albüm",
+    "folders_none": "Henüz klasör eklenmedi"
   }
 }

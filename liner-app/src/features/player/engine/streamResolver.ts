@@ -23,6 +23,7 @@ import {
   type PlaybackStream,
 } from "./playbackStream";
 import { findYoutubeStandIn } from "./youtubeStandIn";
+import { localMusicDb } from "@/features/local-music/lib/localMusicDb";
 import {
   recordPlaybackFailure,
   recordPlaybackSuccess,
@@ -155,6 +156,29 @@ export async function resolvePlaybackStream(
   signal?: AbortSignal,
   options: ResolveStreamOptions = {},
 ): Promise<PlaybackStream> {
+  // local library files never touch the network — serve the stored blob
+  if (track.localFileId) {
+    const record = await localMusicDb.getFile(track.localFileId);
+    if (record?.blob) {
+      recordPlaybackSuccess("played", "local file", track.title);
+      return {
+        blob: record.blob,
+        expiresAtMs: null,
+        mimeType: record.type || "audio/mpeg",
+        codec: record.type || "local",
+        bitrate: 0,
+      };
+    }
+    recordPlaybackFailure(
+      "unresolved",
+      new Error("local file missing from IndexedDB"),
+      track.title,
+    );
+    throw new Error(
+      `"${track.title}" is no longer in your local library — rescan your folders.`,
+    );
+  }
+
   // bound every stage inside resolvePlaybackStreamInner; abort the in-flight
   // work when the deadline fires so sockets don't linger
   const innerController = new AbortController();

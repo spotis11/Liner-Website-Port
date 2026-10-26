@@ -51,7 +51,8 @@
       "home": "Start",
       "search": "Szukaj",
       "library": "Biblioteka",
-      "settings": "Ustawienia"
+      "settings": "Ustawienia",
+      "local": "Muzyka lokalna"
     },
     "loading": "Ładowanie",
     "signed_in": "Zalogowano",
@@ -401,7 +402,30 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Pogłos",
     "reverb_hint": "Przestrzeń i głębia brzmienia",
-    "reverb_amount": "Pogłos"
+    "reverb_amount": "Pogłos",
+    "equalizer": {
+      "title": "Korektor audio i presety",
+      "subtitle": "Dostrój scenę dźwiękową 10-pasmowym korektorem graficznym",
+      "bypassed": "Korektor ominięty",
+      "bypass_on": "Wł.",
+      "bypass_off": "Wył.",
+      "preset": "Preset:",
+      "reset_flat": "Przywróć płaskie",
+      "master_preamp": "Preamp główny",
+      "bass_boost": "Wzmocnienie basów",
+      "hint_double_click": "Kliknij dwukrotnie pasmo, aby zresetować do 0dB",
+      "hint_freq_range": "Zakres częstotliwości: 20Hz – 16kHz",
+      "preset_flat": "Płaskie",
+      "preset_bass": "Bas",
+      "preset_treble": "Góra",
+      "preset_vocal": "Wokal",
+      "preset_rock": "Rock",
+      "preset_pop": "Pop",
+      "preset_jazz": "Jazz",
+      "preset_classical": "Klasyka",
+      "preset_electronic": "Elektroniczna",
+      "preset_custom": "Własny"
+    }
   },
   "playlist": {
     "playlist": "Playlista",
@@ -1025,5 +1049,34 @@
     "title_prefix": "Ogłoszenie od",
     "expires_note": "ta wiadomość zniknie w ciągu 1 minuty",
     "okay": "Okej"
+  },
+  "local": {
+    "title": "Muzyka lokalna",
+    "subtitle": "Skanuj lokalne foldery audio lub przeciągnij i upuść pliki",
+    "tracks_count": "{count} utworów",
+    "folders": "Foldery",
+    "add_folder": "Dodaj folder",
+    "scan_now": "Skanuj teraz",
+    "scanning": "Skanowanie…",
+    "drop_hint": "Przeciągnij pliki audio (MP3, FLAC, WAV, M4A itp.) lub kliknij, aby przeglądać",
+    "search_placeholder": "Filtruj według tytułu, wykonawcy, albumu, ścieżki...",
+    "empty_title": "Twoja lokalna biblioteka jest pusta",
+    "empty_body": "Dodaj lokalny folder lub przeciągnij pliki audio na tę stronę, aby słuchać offline.",
+    "choose_folder": "Wybierz folder z muzyką",
+    "sort_title": "Tytuł",
+    "sort_artist": "Wykonawca",
+    "sort_album": "Album",
+    "sort_recent": "Ostatnio dodane",
+    "sort_label": "Sortuj",
+    "remove": "Usuń z biblioteki",
+    "play_all": "Odtwórz wszystko",
+    "scan_complete": "Skanowanie zakończone: {count} utworów",
+    "scan_failed": "Skanowanie nie powiodło się: {reason}",
+    "folder_added": "Folder dodany: {name}",
+    "files_added": "Dodano {count} utworów",
+    "missing_file": "Brak lokalnego pliku — przeskanuj bibliotekę",
+    "no_results": "Brak utworów pasujących do filtra",
+    "unknown_album": "Nieznany album",
+    "folders_none": "Nie dodano jeszcze żadnych folderów"
   }
 }

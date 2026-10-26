@@ -36,7 +36,7 @@ export type PlaybackStream = UrlPlaybackStream | BufferedPlaybackStream;
 
 export type PlayableTrack = Pick<
   Track,
-  "id" | "title" | "artists" | "durationMs"
+  "id" | "title" | "artists" | "durationMs" | "localFileId"
 >;
 
 function toTimestamp(value: string | null | undefined): number | null {

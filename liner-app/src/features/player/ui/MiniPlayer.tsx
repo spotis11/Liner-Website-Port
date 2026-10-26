@@ -18,6 +18,8 @@ import {
   Shuffle,
 } from "@solar-icons/react";
 import { HeartFill, HeartLine, AddLine } from "@mingcute/react";
+import { SliderHorizontal } from "@solar-icons/react";
+import { EqualizerModal } from "@/features/equalizer";
 
 import { PlayerMorphIcon, ICON_PLAY, ICON_PAUSE } from "./morphPlayerIcons";
 
@@ -321,6 +323,7 @@ function MiniPlayer({
 
   const [queueLimit, setQueueLimit] = useState(50);
   const [volumeOpen, setVolumeOpen] = useState(false);
+  const [equalizerOpen, setEqualizerOpen] = useState(false);
   const [volumePopupStyle, setVolumePopupStyle] = useState<React.CSSProperties>(
     { bottom: 52 },
   );
@@ -936,6 +939,24 @@ function MiniPlayer({
                 </motion.div>
               </button>
               <button
+                type="button"
+                aria-label={t("player.equalizer.title")}
+                title={t("player.equalizer.title")}
+                className={`${iconButtonClass} ${
+                  equalizerOpen ? "bg-bg-toolbox-active text-text-primary" : ""
+                }`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => {
+                  setSpeedOpen(false);
+                  setVolumeOpen(false);
+                  onQueueOpenChange?.(false);
+                  setEqualizerOpen(true);
+                }}
+                style={{ cursor: "pointer" }}
+              >
+                <SliderHorizontal size={18} weight="Outline" />
+              </button>
+              <button
                 ref={volumeToggleRef}
                 type="button"
                 aria-label="Volume"
@@ -1068,6 +1089,8 @@ function MiniPlayer({
           </div>
         </div>
       </div>
+
+      <EqualizerModal open={equalizerOpen} onOpenChange={setEqualizerOpen} />
     </div>
   );
 }

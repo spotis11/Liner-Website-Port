@@ -51,7 +51,8 @@
       "home": "Startseite",
       "search": "Suche",
       "library": "Mediathek",
-      "settings": "Einstellungen"
+      "settings": "Einstellungen",
+      "local": "Lokale Musik"
     },
     "minimize": "Minimieren",
     "exitFullscreen": "Vollbild beenden",
@@ -402,7 +403,30 @@
     "preset_nightcore": "1,35x Nightcore",
     "reverb": "Hall",
     "reverb_hint": "Atmosphärischer Raum & Tiefe",
-    "reverb_amount": "Hall"
+    "reverb_amount": "Hall",
+    "equalizer": {
+      "title": "Audio-Equalizer & Presets",
+      "subtitle": "Feinabstimmung deiner Bühne mit 10-Band-Grafik-EQ",
+      "bypassed": "Equalizer umgangen",
+      "bypass_on": "Ein",
+      "bypass_off": "Aus",
+      "preset": "Preset:",
+      "reset_flat": "Auf Flat zurücksetzen",
+      "master_preamp": "Master-Vorverstärker",
+      "bass_boost": "Bass-Boost",
+      "hint_double_click": "Doppelklick auf ein Band setzt es auf 0dB zurück",
+      "hint_freq_range": "Frequenzbereich: 20Hz – 16kHz",
+      "preset_flat": "Flat",
+      "preset_bass": "Bass-Boost",
+      "preset_treble": "Höhen-Boost",
+      "preset_vocal": "Gesang",
+      "preset_rock": "Rock",
+      "preset_pop": "Pop",
+      "preset_jazz": "Jazz",
+      "preset_classical": "Klassik",
+      "preset_electronic": "Elektronisch",
+      "preset_custom": "Benutzerdefiniert"
+    }
   },
   "playlist": {
     "playlist": "Playlist",
@@ -965,5 +989,34 @@
     "title_prefix": "Ankündigung von",
     "expires_note": "diese Nachricht verschwindet innerhalb von 1 Minute",
     "okay": "Okay"
+  },
+  "local": {
+    "title": "Lokale Musik",
+    "subtitle": "Scanne lokale Audio-Ordner oder ziehe Dateien direkt hierher",
+    "tracks_count": "{count} Titel",
+    "folders": "Ordner",
+    "add_folder": "Ordner hinzufügen",
+    "scan_now": "Jetzt scannen",
+    "scanning": "Scanne…",
+    "drop_hint": "Audio-Dateien hierher ziehen (MP3, FLAC, WAV, M4A usw.) oder klicken zum Durchsuchen",
+    "search_placeholder": "Nach Titel, Künstler, Album, Pfad filtern...",
+    "empty_title": "Deine lokale Bibliothek ist leer",
+    "empty_body": "Füge einen lokalen Ordner hinzu oder ziehe Audio-Dateien auf diese Seite, um offline zu hören.",
+    "choose_folder": "Musik-Ordner wählen",
+    "sort_title": "Titel",
+    "sort_artist": "Künstler",
+    "sort_album": "Album",
+    "sort_recent": "Neueste",
+    "sort_label": "Sortieren",
+    "remove": "Aus Bibliothek entfernen",
+    "play_all": "Alles abspielen",
+    "scan_complete": "Scan abgeschlossen: {count} Titel",
+    "scan_failed": "Scan fehlgeschlagen: {reason}",
+    "folder_added": "Ordner hinzugefügt: {name}",
+    "files_added": "{count} Titel hinzugefügt",
+    "missing_file": "Lokale Datei fehlt — scanne deine Bibliothek erneut",
+    "no_results": "Keine Titel entsprechen deinem Filter",
+    "unknown_album": "Unbekanntes Album",
+    "folders_none": "Noch keine Ordner hinzugefügt"
   }
 }
