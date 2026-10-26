@@ -441,3 +441,20 @@ Work Log:
 Stage Summary:
 - Fullscreen player now has the desktop-style "Lyrics" pill at top-left: click hides the lyrics pane (animated slide+fade, player UI centers), click again brings it back; preference persists per browser
 - Ships in the same bundle as Tasks 16-19; production syncs on republish (hard refresh to get App-CGaR3xMQ.js)
+
+---
+Task ID: 21
+Agent: main (Z.ai)
+Task: "workspace isnt here" — preview/dev server down after Task 19's orphaned-preview note; recover the web server without losing the bot
+
+Work Log:
+- Confirmed workspace files fully intact (liner-app/, discord-bot/, src/, public/liner all present) — the complaint was the dead preview: no node/bun server process, curl localhost:3000 -> 000
+- Verified the Alfredo bot had SURVIVED the whole time (pid 4173 alive, heartbeat advancing 12:18 -> 12:40, 24 guilds) — the setsid watchdog-spawn architecture from Task 19 held
+- Plain `setsid nohup bun run dev` died within seconds (tool-shell children get reaped); foreground run proved the server itself is healthy ("Ready in 718ms", SIGTERM only from the test timeout)
+- Built scripts/spawn_webserver.py: double-fork + setsid + os.execvp("bun run dev"), pid recorded to scripts/webserver.pid, logs appended to dev.log — same detachment pattern that keeps the bot alive
+- Server came up and STAYED up (200 after the ~90s reaper window, same survival profile as the bot)
+- Health check: / (SPA) 200 serving bundle index-DM6Firax.js + App-CGaR3xMQ.js (Tasks 16-20 all in), /api/discord-bot/status {"online":true,"bot":"Mr Alfredo#3597","guildCount":24,"heartbeatAgeSec":7}, /api/announcements/current 200 (null = no live announcement, correct)
+- Note: /liner (no trailing slash) 404s in dev — cosmetic only; the app is served at / via the rewrite and users never hit /liner directly
+
+Stage Summary:
+- Workspace preview restored without a platform restart: dev server now runs as a reaper-proof double-fork daemon (scripts/spawn_webserver.py) alongside the already-persistent Alfredo bot; both bot (online, 24 servers) and site (200, all features) healthy; production still syncs on next platform republish
