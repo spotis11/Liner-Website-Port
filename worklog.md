@@ -458,3 +458,22 @@ Work Log:
 
 Stage Summary:
 - Workspace preview restored without a platform restart: dev server now runs as a reaper-proof double-fork daemon (scripts/spawn_webserver.py) alongside the already-persistent Alfredo bot; both bot (online, 24 servers) and site (200, all features) healthy; production still syncs on next platform republish
+
+---
+Task ID: 22
+Agent: main (Z.ai)
+Task: "the lyrics button isnt there like in the screenshot" — investigate why the user doesn't see the Task-20 fullscreen Lyrics toggle; verify the feature actually works on the live production site
+
+Work Log:
+- Verified code: FullscreenPlayer.tsx has the always-rendered "Lyrics" pill (top-[6px] left-[46px], aria-pressed, next to the close arrow); i18n key player.lyrics = "Lyrics" present in all locales; routes.tsx mounts PlayerPage at /player; both widgets barrels re-export the same component
+- Verified production integrity: prod root HTML references /liner/assets/index-DM6Firax.js (byte-identical md5 fd5df191... to local), which imports App-CGaR3xMQ.js — also byte-identical (0fd06644...) and contains lyricsVisible → the feature IS live on liner-music.space-z.ai right now
+- Root cause of the report: production HTML is served WITHOUT Cache-Control headers (verified via curl -I) → browsers heuristically cache index.html → user's browser keeps loading the OLD hashed bundle set; hard refresh needed (same pattern as every previous republish)
+- Live-browser E2E on PRODUCTION (agent-browser): login wall bypassed via network route mocks (/v1/me + /auth/refresh -> fake 200s) + seeded localStorage liner_auth_session + liner_player_session_v2 (fake HEAVY LOVE/Odetari track, defaultPlaybackContext "resume" triggers queue persistence); app rendered authenticated with the track restored as paused
+- E2E results (all on https://liner-music.space-z.ai): Lyrics pill renders at top-left next to the close arrow (63x32px, bg-white/15 when open); click -> aria-pressed false, localStorage liner.fullscreen.lyricsVisible="0", left pane animates 50%->100%, right pane -> width 0 + opacity 0 + translateX(48px) (measured via getBoundingClientRect + computed style); second click -> pane restored to exactly 50%/50%, stored="1"; screenshots saved to download/ (lyrics-toggle-1-visible / 2-hidden / restored-on, anim-mid frames)
+- Gotchas found during E2E: (1) TWO Lyrics buttons exist in DOM — the main app instance inside the inset window frame (x≈116) AND a second instance from the hidden OverlayApp tree at x≈46 (desktop-port overlay layer, both checkVisibility()=true but only the main one is visible); generic aria-pressed selectors hit the wrong one — must filter by x position; (2) headless rAF throttling stretches the 0.5s animation to ~2-4s, early screenshots/measures caught it mid-flight — real browsers animate smoothly; (3) agent-browser network route --body strips trailing newlines and didn't match the lyrics SSE URL, so mocked lyrics never rendered — cosmetic only (fake track has no real lyrics; "Failed to load lyrics" empty state is correct for it)
+- Cleanup: browser closed, temp prod HTML/JS snapshots deleted, no server-side or production state touched (all mocks were client-side in the throwaway headless browser)
+
+Stage Summary:
+- The Lyrics toggle button is confirmed LIVE and WORKING on production: renders at top-left like the desktop app, hides the lyrics pane with an animated slide+fade while the player glides to center, restores on second click, and remembers the preference per browser
+- User-facing fix is simply a hard refresh (Ctrl+Shift+R) to bust the cached index.html; no code changes were needed for this report
+- Left as-is: platform serves HTML without Cache-Control (not controllable from the repo); the second hidden OverlayApp Lyrics instance is desktop-port heritage and invisible to users
