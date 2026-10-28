@@ -52,7 +52,8 @@
       "search": "Buscar",
       "library": "Biblioteca",
       "settings": "Ajustes",
-      "local": "Música local"
+      "local": "Música local",
+      "profile": "Perfil"
     },
     "loading": "Cargando",
     "signed_in": "Sesión iniciada",
@@ -384,6 +385,8 @@
     "track_unavailable": "\"{title}\" no está disponible, pasando a la siguiente...",
     "track_unavailable_title": "Canción no disponible",
     "playback_stopped_too_many_errors": "Reproducción detenida: demasiadas canciones fallaron al cargar.",
+    "youtube_refused_title": "YouTube rechaza esta conexión",
+    "youtube_refused_description": "El audio de YouTube está bloqueado en esta red. Desactiva tu VPN o proxy, o prueba otra conexión.",
     "speed_pitch": "Velocidad y tono",
     "speed": "Velocidad",
     "pitch": "Tono",
@@ -423,7 +426,9 @@
       "preset_classical": "Clásica",
       "preset_electronic": "Electrónica",
       "preset_custom": "Personalizado"
-    }
+    },
+    "miniplayer": "Minirreproductor",
+    "close_miniplayer": "Cerrar minirreproductor"
   },
   "playlist": {
     "playlist": "Lista de reproducción",
@@ -488,7 +493,6 @@
       "about": "Acerca de",
       "playback": "Reproducción",
       "overlay": "Superposición",
-      "discord": "Discord RPC",
       "privacy": "Privacidad",
       "shortcuts": "Atajos",
       "customization": "Personalización",
@@ -525,56 +529,6 @@
       "always_on_top": {
         "title": "Siempre encima",
         "description": "Mantiene el reproductor flotando por encima de otras ventanas."
-      }
-    },
-    "discord": {
-      "description": "Muestra lo que estás escuchando en Discord con carátula, foto del artista y barra de progreso.",
-      "section_display": "Opciones de visualización",
-      "section_buttons": "Botones de perfil",
-      "enable": {
-        "title": "Discord Rich Presence",
-        "description": "Transmite tu música en reproducción activa a tu perfil de Discord."
-      },
-      "status_display": {
-        "title": "Línea de estado",
-        "description": "Elige qué se muestra en la cabecera 'Escuchando a...' de Discord.",
-        "artist": "Artista (Por defecto)",
-        "song": "Canción",
-        "artist_song": "Artista - Canción",
-        "song_artist": "Canción - Artista",
-        "app": "Liner (Nombre de app)"
-      },
-      "show_timeline": {
-        "title": "Línea de tiempo de reproducción",
-        "description": "Muestra una barra de progreso interactiva con el tiempo transcurrido y restante."
-      },
-      "show_artwork": {
-        "title": "Carátula de la canción",
-        "description": "Muestra la carátula de la pista o álbum en la tarjeta de actividad de Discord."
-      },
-      "show_artist_image": {
-        "title": "Insignia con foto del artista",
-        "description": "Muestra la foto del artista en una pequeña insignia circular en la esquina inferior."
-      },
-      "show_paused": {
-        "title": "Mostrar en pausa",
-        "description": "Mantiene el estado visible en Discord con un indicador de pausa al pausar la música."
-      },
-      "show_button": {
-        "title": "Botón 'Escuchar en Liner'",
-        "description": "Añade un botón interactivo con enlace a la canción en Liner."
-      },
-      "show_download_button": {
-        "title": "Botón 'Descargar Liner'",
-        "description": "Añade un botón interactivo que enlaza a tryliner.fun para descargar la aplicación."
-      },
-      "status": {
-        "connected": "Conectado a Discord ({user})",
-        "disconnected": "Discord no conectado",
-        "ready": "Listo",
-        "waiting": "Esperando a Discord",
-        "disabled": "Desactivado",
-        "via_arrpc": "Conectado mediante arRPC"
       }
     },
     "audio_data": {
@@ -681,8 +635,7 @@
       "description": "Elige la apariencia general de la aplicación.",
       "light": "Claro",
       "dark": "Oscuro",
-      "system": "Sistema",
-      "disabled_for_glass": "El tema claro se desactiva cuando se usa el fondo personalizado con efecto cristal."
+      "system": "Sistema"
     },
     "branding": {
       "title": "Color de énfasis",
@@ -949,6 +902,39 @@
       "error_forbidden": "Solo JayJoice puede enviar anuncios.",
       "error_rate_limited": "¡Tranquilo! Espera unos segundos entre anuncios.",
       "error_generic": "No se pudo enviar el anuncio. Inténtalo de nuevo."
+    },
+    "user_finder": {
+      "account_created": "Cuenta creada",
+      "ban_status": "Estado de bloqueo",
+      "banned": "Bloqueado ({type}) — {reason}",
+      "description": "Busca cualquier cuenta de Liner en este sitio: perfil, última visita y lo que reprodujo. Solo tú puedes usarlo.",
+      "email": "Correo electrónico",
+      "error_forbidden": "El buscador de usuarios solo está disponible para el propietario del sitio.",
+      "error_generic": "La búsqueda falló; inténtalo de nuevo.",
+      "error_unauthorized": "Tu sesión expiró: inicia sesión de nuevo e inténtalo otra vez.",
+      "error_username": "Introduce un nombre de usuario de Liner válido (a-z, 0-9, _, 3-30 caracteres).",
+      "find": "Buscar",
+      "last_ip": "Última dirección de red",
+      "last_seen": "Visto por última vez",
+      "no_songs": "Aún no hay reproducciones registradas de esta cuenta en este sitio.",
+      "not_found": "Aún no se sabe nada de @{username}: no ha iniciado sesión en este sitio web.",
+      "recent_songs": "Canciones reproducidas recientemente en este sitio",
+      "search_placeholder": "Introduce un nombre de usuario (p. ej. liner)",
+      "searching": "Buscando…",
+      "title": "Buscador de usuarios",
+      "unknown": "Desconocido",
+      "followers": "Seguidores",
+      "follow_stats": "{followers} seguidores · {following} siguiendo",
+      "source_live": "En vivo desde Liner",
+      "source_cache": "De la caché del sitio"
+    },
+    "cross_tab_miniplayer": {
+      "title": "Minirreproductor",
+      "description": "Abre un minirreproductor al cambiar a otra pestaña y ciérralo en cuanto vuelvas."
+    },
+    "sound_wave": {
+      "title": "Visualizador de onda de sonido",
+      "description": "Muestra una onda de sonido en vivo sincronizada con la musica en el reproductor a pantalla completa."
     }
   },
   "toast": {
@@ -1129,6 +1115,8 @@
     "play_all": "Reproducir todo",
     "scan_complete": "Escaneo completado: {count} pistas",
     "scan_failed": "Falló el escaneo: {reason}",
+    "scan_no_folders": "Aún no hay carpetas que escanear: añade una carpeta o suelta archivos de audio primero",
+    "scan_no_audio": "No se encontraron archivos de audio en esa carpeta",
     "folder_added": "Carpeta añadida: {name}",
     "files_added": "{count} pistas añadidas",
     "missing_file": "Falta el archivo local — vuelve a escanear tu biblioteca",

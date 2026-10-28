@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { sidebarNavItems } from "@/features/navigation/data/navigation";
 import { useTranslation } from "@/languages";
+import { useModalStore } from "@/features/library";
 import { Tooltip } from "@/shared/ui";
 import { cn } from "@/shared/lib";
 
@@ -15,6 +16,8 @@ export function SidebarNavItems({
 }: SidebarNavItemsProps) {
   const { pathname } = useLocation();
   const { t } = useTranslation();
+  const settingsOpen = useModalStore((state) => state.settingsOpen);
+  const toggleSettings = useModalStore((state) => state.toggleSettings);
 
   const isRouteActive = (href: string) => {
     if (href === "/") {
@@ -33,7 +36,6 @@ export function SidebarNavItems({
   return (
     <>
       {sidebarNavItems
-        .filter((item) => item.id !== "settings")
         .map((item) => {
           const active = isItemActive(item.id, item.href);
           const Icon = item.Icon;
@@ -58,6 +60,36 @@ export function SidebarNavItems({
                     className={cn(
                       "relative z-10 text-text-primary transition-opacity duration-150 ease-out",
                       active
+                        ? "opacity-100"
+                        : "opacity-55 group-hover:opacity-90",
+                    )}
+                  />
+                </button>
+              </Tooltip>
+            );
+          }
+
+          // Settings lives in the nav list right after "Local Music" and
+          // opens the settings modal (it is a button, not a route).
+          if (item.id === "settings") {
+            return (
+              <Tooltip
+                key={item.id}
+                content={tooltipLabel}
+                side="right"
+                sideOffset={12}
+              >
+                <button
+                  type="button"
+                  aria-pressed={settingsOpen}
+                  onClick={toggleSettings}
+                  className="group relative inline-flex items-center justify-center bg-transparent border-0 p-0 cursor-pointer active:scale-[0.96] transition-transform duration-100"
+                >
+                  <Icon
+                    size={26}
+                    className={cn(
+                      "relative z-10 text-text-primary transition-opacity duration-150 ease-out",
+                      settingsOpen
                         ? "opacity-100"
                         : "opacity-55 group-hover:opacity-90",
                     )}

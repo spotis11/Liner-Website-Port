@@ -5,6 +5,7 @@ import {
   pickBestStandIn,
   resolveSoundCloudStandIn,
   standInQuery,
+  compactTitleScore,
 } from "./soundcloudStandIn";
 
 vi.mock("@/shared/media/soundcloud/soundcloudCatalogRequest", () => ({
@@ -47,6 +48,22 @@ describe("normalizeForMatch", () => {
   });
 });
 
+describe("compactTitleScore", () => {
+  it("joins word-boundary gaps (Blacksunrise vs Black Sunrise)", () => {
+    // bracketed suffixes are stripped before compacting -> plain equality
+    expect(compactTitleScore("Blacksunrise", "Black Sunrise [NCS Release]")).toBe(1);
+    expect(compactTitleScore("Black Sunrise", "Blacksunrise (extended)")).toBe(1);
+    expect(compactTitleScore("Flashback", "JD Smith - Flashback")).toBe(0.95);
+    expect(compactTitleScore("Black Sunrise", "Black Sunrise")).toBe(1);
+  });
+
+  it("never contain-matches short needles", () => {
+    expect(compactTitleScore("Neon", "Neonlights (remix)")).toBe(0);
+    expect(compactTitleScore("Flash", "Flashback by someone")).toBe(0);
+    expect(compactTitleScore("Sunrise", "Blacksunrise")).toBe(0.95); // 7 chars is long enough
+  });
+});
+
 describe("scoreStandInCandidate", () => {
   it("accepts an exact title+artist match", () => {
     const score = scoreStandInCandidate(track, {
@@ -78,6 +95,24 @@ describe("scoreStandInCandidate", () => {
         durationMs: 264_000,
       }),
     ).toBe(0);
+  });
+
+  it("accepts a space-mangled title when the artists still match (Blacksunrise)", () => {
+    // youtube import stored the title without spaces; soundcloud has the NCS upload
+    const score = scoreStandInCandidate(
+      {
+        title: "Blacksunrise",
+        artists: "Andreas Stone, Denniz Jamm",
+        durationMs: 232_000,
+      },
+      {
+        id: "sc:ncs",
+        title: "Andreas Stone With Denniz Jamm - Black Sunrise [NCS Release]",
+        artist: "NCS",
+        durationMs: 232_000,
+      },
+    );
+    expect(score).toBeGreaterThan(2.5);
   });
 
   it("tolerates duration gaps up to the tolerance window", () => {
@@ -179,6 +214,59 @@ describe("resolveSoundCloudStandIn", () => {
     await expect(
       resolveSoundCloudStandIn(track, { signal: controller.signal }),
     ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("retries with the bare title when the full query finds no confident match", async () => {
+    mockedGetJson.mockImplementation((_path: string, params: Record<string, string>) => {
+      if (params.q === "Black Sunrise") {
+        return Promise.resolve({
+          collection: [
+            sc(
+              947190253,
+              "Andreas Stone With Denniz Jamm - Black Sunrise [NCS Release]",
+              "NCS",
+              232_000,
+            ),
+          ],
+        });
+      }
+      // the long "title artists" query drifts away on soundcloud's ranking
+      return Promise.resolve({
+        collection: [sc(1, "Unrelated Song", "Someone", 100_000)],
+      });
+    });
+    mockedResolve.mockResolvedValue({
+      url: "https://cf-media.sndcdn.com/x",
+      mimeType: "audio/mpeg",
+      codec: "aac" as const,
+      bitrate: 128_000,
+      expiresAt: null,
+    });
+
+    const stream = await resolveSoundCloudStandIn({
+      id: "RCuIzEZU2KQ",
+      title: "Black Sunrise",
+      artists: "Andreas Stone, Denniz Jamm",
+      durationMs: 232_000,
+    });
+
+    expect(mockedGetJson).toHaveBeenCalledTimes(2);
+    expect(mockedGetJson).toHaveBeenNthCalledWith(
+      1,
+      "/search/tracks",
+      { q: "Black Sunrise Andreas Stone Denniz Jamm", limit: "12" },
+      undefined,
+    );
+    expect(mockedGetJson).toHaveBeenNthCalledWith(
+      2,
+      "/search/tracks",
+      { q: "Black Sunrise", limit: "12" },
+      undefined,
+    );
+    expect(mockedResolve).toHaveBeenCalledWith("sc:947190253", {
+      signal: undefined,
+    });
+    expect(stream.url).toContain("sndcdn.com");
   });
 });
 

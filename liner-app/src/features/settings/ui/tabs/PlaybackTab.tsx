@@ -38,6 +38,16 @@ export function PlaybackTab({ searchQuery }: { searchQuery?: string }) {
   const setSoundcloudFallback = usePlayerStore(
     (state) => state.setSoundcloudFallback,
   );
+  const miniPlayerEnabled = usePlayerStore(
+    (state) => state.miniPlayerEnabled,
+  );
+  const setMiniPlayerEnabled = usePlayerStore(
+    (state) => state.setMiniPlayerEnabled,
+  );
+  const soundWaveEnabled = usePlayerStore((state) => state.soundWaveEnabled);
+  const setSoundWaveEnabled = usePlayerStore(
+    (state) => state.setSoundWaveEnabled,
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -70,6 +80,34 @@ export function PlaybackTab({ searchQuery }: { searchQuery?: string }) {
           <ToggleSwitch
             checked={soundcloudFallback}
             onChange={setSoundcloudFallback}
+          />
+        }
+      />
+
+      <SettingRow
+        title={t("settings.cross_tab_miniplayer.title")}
+        description={t("settings.cross_tab_miniplayer.description")}
+        titleKey="settings.cross_tab_miniplayer.title"
+        descKey="settings.cross_tab_miniplayer.description"
+        searchQuery={searchQuery}
+        control={
+          <ToggleSwitch
+            checked={miniPlayerEnabled}
+            onChange={setMiniPlayerEnabled}
+          />
+        }
+      />
+
+      <SettingRow
+        title={t("settings.sound_wave.title")}
+        description={t("settings.sound_wave.description")}
+        titleKey="settings.sound_wave.title"
+        descKey="settings.sound_wave.description"
+        searchQuery={searchQuery}
+        control={
+          <ToggleSwitch
+            checked={soundWaveEnabled}
+            onChange={setSoundWaveEnabled}
           />
         }
       />

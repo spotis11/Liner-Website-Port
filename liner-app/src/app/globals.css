@@ -320,6 +320,110 @@ img {
   filter: none !important;
 }
 
+/* Banned wall (website moderation) entrance */
+@keyframes ban-wall-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ban-wall-card-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+.ban-wall-fade {
+  animation: ban-wall-fade-in 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.ban-wall-card {
+  animation: ban-wall-card-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ban-wall-fade,
+  .ban-wall-card {
+    animation: none;
+  }
+}
+
+/* Banned wall avatar — red banned treatment, every step plays exactly once */
+@keyframes ban-avatar-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes ban-ring-burst {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.88);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.62);
+  }
+}
+@keyframes ban-avatar-flash {
+  0% {
+    opacity: 0;
+  }
+  28% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes ban-stamp-in {
+  0% {
+    opacity: 0;
+    transform: rotate(-16deg) scale(2.2);
+  }
+  55% {
+    opacity: 1;
+    transform: rotate(-8deg) scale(0.94);
+  }
+  74% {
+    transform: rotate(-11deg) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-10deg) scale(1);
+  }
+}
+.ban-avatar-pop {
+  animation: ban-avatar-pop 0.35s cubic-bezier(0.2, 0.7, 0.3, 1.2) 1 both;
+}
+.ban-ring-burst {
+  animation: ban-ring-burst 0.85s ease-out 0.12s 1 both;
+}
+.ban-avatar-flash {
+  animation: ban-avatar-flash 0.95s ease-in-out 0.18s 1 both;
+}
+.ban-stamp-badge {
+  opacity: 1;
+  transform: rotate(-10deg);
+  animation: ban-stamp-in 0.55s cubic-bezier(0.2, 0.7, 0.3, 1.1) 0.55s 1 both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ban-avatar-pop,
+  .ban-ring-burst,
+  .ban-avatar-flash,
+  .ban-stamp-badge {
+    animation: none;
+  }
+}
+
 .apple-glass-pill,
 .apple-glass-action,
 .apple-glass-static,
@@ -487,4 +591,125 @@ body[data-edge-to-edge="true"] {
 
 html[data-hover-reset] [data-window-controls] button:hover {
   background-color: transparent !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Welcome / onboarding flows (sign-in greeting + sign-up wizard finale)
+   All one-shot (default iteration count 1), base styles = final frame so
+   reduced-motion users simply see the settled state.
+--------------------------------------------------------------------------- */
+
+@keyframes welcome-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes welcome-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes welcome-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  62% {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes welcome-ring-burst {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.55);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.05);
+  }
+}
+
+@keyframes welcome-check-draw {
+  from {
+    stroke-dashoffset: 26;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes welcome-confetti-fly {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--cx, 0px)), calc(-50% + var(--cy, 0px))) scale(0.35);
+  }
+}
+
+.welcome-fade {
+  animation: welcome-fade-in 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.welcome-card {
+  animation: welcome-card-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.welcome-pop {
+  animation: welcome-pop-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) 0.1s both;
+}
+
+.welcome-ring {
+  animation: welcome-ring-burst 1s cubic-bezier(0.2, 0.7, 0.2, 1) 0.35s both;
+}
+
+.welcome-ring-slow {
+  animation-duration: 1.4s;
+  animation-delay: 0.5s;
+}
+
+.welcome-check {
+  stroke-dasharray: 26;
+  animation: welcome-check-draw 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.4s both;
+}
+
+.welcome-confetti {
+  opacity: 0;
+  animation: welcome-confetti-fly 0.9s cubic-bezier(0.16, 0.84, 0.44, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-fade,
+  .welcome-card,
+  .welcome-pop,
+  .welcome-ring,
+  .welcome-ring-slow,
+  .welcome-confetti {
+    animation: none;
+  }
+  .welcome-confetti {
+    display: none;
+  }
+  .welcome-check {
+    stroke-dasharray: none;
+    animation: none;
+  }
 }

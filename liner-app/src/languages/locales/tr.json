@@ -52,7 +52,8 @@
       "search": "Ara",
       "library": "Kitaplık",
       "settings": "Ayarlar",
-      "local": "Yerel Müzik"
+      "local": "Yerel Müzik",
+      "profile": "Profil"
     },
     "loading": "Yükleniyor",
     "signed_in": "Giriş yapıldı",
@@ -382,6 +383,8 @@
     "track_unavailable": "\"{title}\" kullanılamıyor, atlanıyor...",
     "track_unavailable_title": "Parça kullanılamıyor",
     "playback_stopped_too_many_errors": "Çalma durduruldu: çok fazla parça yüklenemedi.",
+    "youtube_refused_title": "YouTube bu bağlantıyı reddediyor",
+    "youtube_refused_description": "YouTube sesi bu ağda engelleniyor. VPN'i veya proxy'yi kapatın ya da başka bir bağlantı deneyin.",
     "speed_pitch": "Hız ve Perde",
     "speed": "Hız",
     "pitch": "Perde",
@@ -421,7 +424,9 @@
       "preset_classical": "Klasik",
       "preset_electronic": "Elektronik",
       "preset_custom": "Özel"
-    }
+    },
+    "miniplayer": "Mini oynatıcı",
+    "close_miniplayer": "Mini oynatıcıyı kapat"
   },
   "playlist": {
     "playlist": "Çalma listesi",
@@ -683,8 +688,7 @@
       "description": "Uygulamanın genel görünümünü seç.",
       "light": "Açık",
       "dark": "Koyu",
-      "system": "Sistem",
-      "disabled_for_glass": "Özel duvar kâğıdıyla cam efekti kullanılırken açık tema devre dışıdır."
+      "system": "Sistem"
     },
     "branding": {
       "title": "Marka",
@@ -895,6 +899,39 @@
       "error_forbidden": "Sadece JayJoice duyuru gönderebilir.",
       "error_rate_limited": "Sakin! Duyurular arasında birkaç saniye bekle.",
       "error_generic": "Duyuru gönderilemedi. Lütfen tekrar dene."
+    },
+    "user_finder": {
+      "account_created": "Hesap oluşturulma",
+      "ban_status": "Yasak durumu",
+      "banned": "Yasaklı ({type}) — {reason}",
+      "description": "Bu sitedeki herhangi bir Liner hesabını ara: profil, son görülme ve dinledikleri. Bunu sadece sen kullanabilirsin.",
+      "email": "E-posta",
+      "error_forbidden": "Kullanıcı Bulucu yalnızca site sahibine açıktır.",
+      "error_generic": "Arama başarısız — tekrar dene.",
+      "error_unauthorized": "Oturumun doldu — tekrar giriş yap ve yeniden dene.",
+      "error_username": "Geçerli bir Liner kullanıcı adı gir (a-z, 0-9, _, 3-30 karakter).",
+      "find": "Bul",
+      "last_ip": "Son ağ adresi",
+      "last_seen": "Sitede son görülme",
+      "no_songs": "Bu hesap için bu sitede kayıtlı çalma yok.",
+      "not_found": "@{username} hakkında henüz bilgi yok — bu hesap bu siteye hiç girmedi.",
+      "recent_songs": "Bu sitede yakın zamanda çalınan şarkılar",
+      "search_placeholder": "Bir kullanıcı adı gir (ör. liner)",
+      "searching": "Aranıyor…",
+      "title": "Kullanıcı Bulucu",
+      "unknown": "Bilinmiyor",
+      "followers": "Takipçiler",
+      "follow_stats": "{followers} takipçi · {following} takip",
+      "source_live": "Liner'dan canlı",
+      "source_cache": "Site önbelleğinden"
+    },
+    "cross_tab_miniplayer": {
+      "title": "Mini oynatıcı",
+      "description": "Başka bir sekmeye geçtiğinizde mini oynatıcıyı açar ve geri döner dönmez kapatır."
+    },
+    "sound_wave": {
+      "title": "Ses dalgasi gorsellestirici",
+      "description": "Tam ekran oynaticida muzige senkronize canli bir ses dalgasi goster."
     }
   },
   "toast": {
@@ -1074,6 +1111,8 @@
     "play_all": "Tümünü çal",
     "scan_complete": "Tarama tamamlandı: {count} parça",
     "scan_failed": "Tarama başarısız: {reason}",
+    "scan_no_folders": "Taranacak klasör yok — önce bir klasör ekleyin veya ses dosyası bırakın",
+    "scan_no_audio": "O klasörde ses dosyası bulunamadı",
     "folder_added": "Klasör eklendi: {name}",
     "files_added": "{count} parça eklendi",
     "missing_file": "Yerel dosya eksik — kütüphanenizi yeniden tarayın",

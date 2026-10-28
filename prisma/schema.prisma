@@ -57,9 +57,11 @@ model PlayHistory {
   artistId String?
   artwork  String?
   duration Int      @default(0)
+  username String?
   playedAt DateTime @default(now())
 
   @@index([playedAt])
+  @@index([username])
 }
 
 // Website-port global announcement (broadcast by the site owner only).
@@ -76,4 +78,69 @@ model Announcement {
 
   @@index([showAt])
   @@index([createdAt])
+}
+
+// Website-port moderation: a ban applied to a Liner account on this website
+// only (the upstream Liner API is untouched). type "normal" blocks the
+// account; type "ip" additionally blocks the account's known network
+// addresses site-wide. expiresAt null = forever.
+model Ban {
+  id        String    @id @default(cuid())
+  username  String    @unique
+  type      String    @default("normal")
+  reason    String?
+  createdBy String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  @@index([expiresAt])
+}
+
+// Best-effort map of which network address was last seen for which account,
+// collected from the public ban-check probe so an "ip" ban can freeze the
+// account's known IPs at ban time.
+model IpSeen {
+  ip        String   @id
+  username  String
+  updatedAt DateTime @updatedAt
+
+  @@index([username])
+}
+
+// Frozen network addresses banned site-wide (snapshot taken when an "ip"
+// ban is created, plus any new address the banned account shows up from).
+model BanIp {
+  ip        String   @id
+  username  String
+  createdAt DateTime @default(now())
+
+  @@index([username])
+}
+
+// Website-port User Finder (site owner only): best-effort profile cache for
+// every account that has ever opened the website while signed in. Populated
+// from the verified ban-check probe (the client's own access token proves the
+// identity — the upstream /v1/me answer is cached verbatim).
+model UserSeen {
+  username    String   @id
+  email       String?
+  userId      String?
+  displayName String?
+  avatarUrl   String?
+  bio         String?
+  accountCreatedAt DateTime?
+  raw         String?
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now()) @updatedAt
+
+  @@index([lastSeenAt])
+}
+
+// Small server-side key/value store for secrets that must survive
+// republishes (the sqlite db file outlives .next rebuilds). Holds the HMAC
+// key that signs the website admin gate cookie.
+model SystemKey {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

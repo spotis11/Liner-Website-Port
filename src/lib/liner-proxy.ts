@@ -59,17 +59,19 @@ export function isAllowedFetchHost(hostname: string): boolean {
   return FETCH_HOSTS.some((suffix) => hostMatches(hostname, suffix));
 }
 
-// SABR UMP streaming targets: serverAbrStreamingUrl lives at
+// SABR UMP streaming targets: serverAbrStreamingUrl usually lives at
 // /api/manifest/... on www.youtube.com (googlevideo fallback hosts keep the
-// same path when the SabrStream rotates r-nodes). Nothing else may be fetched
-// through /api/yt/sabr.
+// same path when the SabrStream rotates r-nodes), but some player responses
+// hand out a plain /videoplayback URL instead — both carry the UMP protobuf
+// POST stream. Nothing else may be fetched through /api/yt/sabr.
 export function isAllowedSabrTarget(url: URL): boolean {
   const host = url.hostname;
   const hostOk =
     hostMatches(host, "youtube.com") || hostMatches(host, "googlevideo.com");
   const pathOk =
     url.pathname === "/api/manifest" ||
-    url.pathname.startsWith("/api/manifest/");
+    url.pathname.startsWith("/api/manifest/") ||
+    url.pathname === "/videoplayback";
   return hostOk && pathOk;
 }
 

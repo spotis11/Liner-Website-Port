@@ -7,7 +7,11 @@ import {
   resolveWebRemixAudioStream,
 } from "./webRemixAudio";
 import { resolveWithProfile } from "./profileAudio";
-import { assertStreamReachable } from "./streamProbe";
+import {
+  assertStreamReachable,
+  isBotCheckRefusal,
+  isStreamRefused,
+} from "./streamProbe";
 import type { ResolvedAudioStream } from "./innertubeAudioFormats";
 
 export type { ResolvedAudioStream } from "./innertubeAudioFormats";
@@ -100,6 +104,10 @@ export function toVideoId(trackId: string): string | null {
   return /^[a-zA-Z0-9_-]{11}$/.test(videoId) ? videoId : null;
 }
 
+/** start of the error message when googlevideo refused the stream of every profile */
+export const STREAMS_REFUSED_MESSAGE =
+  "YouTube refused every audio stream from this network";
+
 export async function resolveDirectAudioStream(
   trackId: string,
   options: ResolveAudioOptions = {},
@@ -108,6 +116,8 @@ export async function resolveDirectAudioStream(
   if (!videoId)
     throw new InnertubeError(`Track ${trackId} is not a YouTube video.`, 400);
   const failures: string[] = [];
+  let profilesTried = 0;
+  let profilesRefused = 0;
   if (!options.profiles && Date.now() >= webRemixRetryAt) {
     const stream = await resolveViaWebRemix(videoId, options, failures);
     if (stream) return stream;
@@ -117,17 +127,24 @@ export async function resolveDirectAudioStream(
   for (const profile of orderedProfiles(
     options.profiles ?? PLAYBACK_PROFILES,
   )) {
+    profilesTried += 1;
     try {
       const stream = await resolveWithProfile(videoId, profile, options);
       lastWorkingProfile = profile;
       return stream;
     } catch (error) {
       if (options.signal?.aborted) throw error;
+      if (isStreamRefused(error) || isBotCheckRefusal(error)) profilesRefused += 1;
       const message = error instanceof Error ? error.message : String(error);
       failures.push(`${profile.clientName}: ${message}`);
       recordPlaybackFailure("profile", `${profile.clientName}: ${message}`, videoId);
     }
   }
+  if (profilesTried > 0 && profilesRefused === profilesTried)
+    throw new InnertubeError(
+      `${STREAMS_REFUSED_MESSAGE} (${failures.join("; ")}).`,
+      403,
+    );
   throw new InnertubeError(
     `Direct audio resolution failed (${failures.join("; ")}).`,
     502,

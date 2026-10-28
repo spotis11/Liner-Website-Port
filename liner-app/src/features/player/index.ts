@@ -4,6 +4,13 @@ export {
   type PlayerStatus,
   type PlayerStatus as PlaybackStatus,
 } from "./engine/playerEngine";
+export {
+  isMiniPipSupported,
+  isMiniPipOpen,
+  openMiniPip,
+  closeMiniPip,
+  attachMiniPipAutoBehavior,
+} from "./engine/miniPipController";
 export { toVolumeGain, toVolumeLevel } from "./engine/volume";
 export { isRadioContext, nextRepeatMode } from "./engine/radioMode";
 export {
@@ -23,6 +30,7 @@ export {
 } from "./hooks/useSongMenuItems";
 
 export { default as MiniPlayer, type MiniPlayerProps } from "./ui/MiniPlayer";
+export { default as MiniPipPlayer, type MiniPipPlayerProps } from "./ui/MiniPipPlayer";
 export {
   FullscreenPlayer,
   default as PlayerPage,

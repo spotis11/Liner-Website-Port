@@ -52,7 +52,8 @@
       "search": "Szukaj",
       "library": "Biblioteka",
       "settings": "Ustawienia",
-      "local": "Muzyka lokalna"
+      "local": "Muzyka lokalna",
+      "profile": "Profil"
     },
     "loading": "Ładowanie",
     "signed_in": "Zalogowano",
@@ -386,6 +387,8 @@
     "track_unavailable": "„{title}” jest niedostępny, pomijam...",
     "track_unavailable_title": "Utwór niedostępny",
     "playback_stopped_too_many_errors": "Odtwarzanie zatrzymane: zbyt wielu utworów nie udało się wczytać.",
+    "youtube_refused_title": "YouTube odrzuca to połączenie",
+    "youtube_refused_description": "Dźwięk z YouTube jest zablokowany w tej sieci. Wyłącz VPN lub proxy albo spróbuj innego połączenia.",
     "speed_pitch": "Tempo i wysokość",
     "speed": "Tempo",
     "pitch": "Wysokość",
@@ -425,7 +428,9 @@
       "preset_classical": "Klasyka",
       "preset_electronic": "Elektroniczna",
       "preset_custom": "Własny"
-    }
+    },
+    "miniplayer": "Miniodtwarzacz",
+    "close_miniplayer": "Zamknij miniodtwarzacz"
   },
   "playlist": {
     "playlist": "Playlista",
@@ -687,8 +692,7 @@
       "description": "Wybierz ogólny wygląd aplikacji.",
       "light": "Jasny",
       "dark": "Ciemny",
-      "system": "Systemowy",
-      "disabled_for_glass": "Jasny motyw jest wyłączony przy efekcie szkła z własną tapetą."
+      "system": "Systemowy"
     },
     "branding": {
       "title": "Logo",
@@ -899,6 +903,39 @@
       "error_forbidden": "Tylko JayJoice może wysyłać ogłoszenia.",
       "error_rate_limited": "Spokojnie! Odczekaj kilka sekund między ogłoszeniami.",
       "error_generic": "Nie udało się wysłać ogłoszenia. Spróbuj ponownie."
+    },
+    "user_finder": {
+      "account_created": "Konto utworzone",
+      "ban_status": "Status bana",
+      "banned": "Zbanowany ({type}) — {reason}",
+      "description": "Wyszukaj dowolne konto Liner na tej stronie: profil, ostatnia obecność i co odtwarzano. Tylko właściciel strony może z tego korzystać.",
+      "email": "E-mail",
+      "error_forbidden": "Wyszukiwarka użytkowników jest dostępna tylko dla właściciela strony.",
+      "error_generic": "Wyszukiwanie nie powiodło się — spróbuj ponownie.",
+      "error_unauthorized": "Sesja wygasła — zaloguj się ponownie i spróbuj jeszcze raz.",
+      "error_username": "Podaj prawidłową nazwę użytkownika Liner (a-z, 0-9, _, 3-30 znaków).",
+      "find": "Szukaj",
+      "last_ip": "Ostatni adres sieciowy",
+      "last_seen": "Ostatnio widziany na stronie",
+      "no_songs": "Brak zapisanych odtworzeń tego konta na tej stronie.",
+      "not_found": "Brak informacji o @{username} — to konto nie logowało się jeszcze na tej stronie.",
+      "recent_songs": "Ostatnio odtwarzane utwory na tej stronie",
+      "search_placeholder": "Wpisz nazwę użytkownika (np. liner)",
+      "searching": "Szukam…",
+      "title": "Wyszukiwarka użytkowników",
+      "unknown": "Nieznane",
+      "followers": "Obserwujący",
+      "follow_stats": "{followers} obserwujących · {following} obserwowanych",
+      "source_live": "Na żywo z Liner",
+      "source_cache": "Z pamięci podręcznej witryny"
+    },
+    "cross_tab_miniplayer": {
+      "title": "Miniodtwarzacz",
+      "description": "Otwiera miniodtwarzacz po przejściu do innej karty i zamyka go od razu po powrocie."
+    },
+    "sound_wave": {
+      "title": "Wizualizacja fali dzwiekowej",
+      "description": "Pokaz zywa fale dzwiekowa zsynchronizowana z muzyka w odtwarzaczu pelnoekranowym."
     }
   },
   "toast": {
@@ -1078,6 +1115,8 @@
     "play_all": "Odtwórz wszystko",
     "scan_complete": "Skanowanie zakończone: {count} utworów",
     "scan_failed": "Skanowanie nie powiodło się: {reason}",
+    "scan_no_folders": "Brak folderów do skanowania — najpierw dodaj folder lub przeciągnij pliki audio",
+    "scan_no_audio": "Nie znaleziono plików audio w tym folderze",
     "folder_added": "Folder dodany: {name}",
     "files_added": "Dodano {count} utworów",
     "missing_file": "Brak lokalnego pliku — przeskanuj bibliotekę",

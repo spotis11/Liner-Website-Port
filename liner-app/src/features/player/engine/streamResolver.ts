@@ -23,6 +23,7 @@ import {
   type PlaybackStream,
 } from "./playbackStream";
 import { findYoutubeStandIn } from "./youtubeStandIn";
+import { findExactSongVersion } from "./exactSongVersion";
 import { localMusicDb } from "@/features/local-music/lib/localMusicDb";
 import {
   recordPlaybackFailure,
@@ -50,7 +51,9 @@ export interface ResolveStreamOptions {
 // rescue chain actually gets its chance; the runtime-level watchdog in
 // playerRuntime stays as the outer backstop.
 const RESOLVE_TIMEOUT_MS = 30_000;
-const STANDIN_TIMEOUT_MS = 15_000;
+// the stand-in may need to assemble an HLS blob (playlist + ~60 segments at
+// concurrency 6) — 15s was too tight on ordinary residential connections
+const STANDIN_TIMEOUT_MS = 25_000;
 
 export class ResolveTimeoutError extends Error {
   constructor(ms: number) {
@@ -145,11 +148,21 @@ async function resolveSoundCloud(
 
 async function resolveYoutubeTrack(
   track: PlayableTrack,
-  videoId: string,
+  rowVideoId: string,
   progressive: boolean,
   signal?: AbortSignal,
   options: ResolveStreamOptions = {},
 ): Promise<PlaybackStream> {
+  const songId = track.audioVariant
+    ? await findExactSongVersion(track, rowVideoId, signal)
+    : null;
+  if (songId)
+    log(
+      "cyan",
+      "playback",
+      `album row ${rowVideoId} is a ${track.audioVariant}, playing the song ${songId}`,
+    );
+  const videoId = songId ?? rowVideoId;
   if (!options.skipLinerCache) {
     const liner = await resolveLinerStream(videoId, signal);
     if (liner) {
@@ -209,7 +222,10 @@ export async function resolvePlaybackStream(
     recordPlaybackFailure("unresolved", error, track.title);
     // last resort: the same song often exists on SoundCloud, which has no
     // datacenter bot-checks. Off by default only if the user turns it off.
-    if (usePlayerStore.getState().soundcloudFallback && !toSoundCloudTrackId(track.id)) {
+    // Native SoundCloud tracks are included too: when their specific upload
+    // is gone/blocked there is no YouTube rescue (resolveSoundCloud already
+    // tried that), so searching by title/artist is the only path left.
+    if (usePlayerStore.getState().soundcloudFallback) {
       try {
         const stream = fromSoundCloudStream(
           await withDeadline(

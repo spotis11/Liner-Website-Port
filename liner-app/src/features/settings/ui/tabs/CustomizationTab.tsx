@@ -25,6 +25,10 @@ import {
   MAX_DIM,
   MIN_WALLPAPER_BLUR,
 } from "../../store/customizationStore";
+import {
+  useAppearanceStore,
+  selectIsColorThemeActive,
+} from "../../store/appearanceStore";
 
 const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
 
@@ -36,6 +40,9 @@ export function CustomizationTab({ searchQuery }: { searchQuery?: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeBlock, setActiveBlock] = useState<BlockTarget>("sidebar");
   const [isDragOver, setIsDragOver] = useState(false);
+
+  const colorThemeActive = useAppearanceStore(selectIsColorThemeActive);
+  const colorThemeId = useAppearanceStore((s) => s.colorThemeId);
 
   const backgroundImage = useCustomizationStore((s) => s.backgroundImage);
   const backgroundBlur = useCustomizationStore((s) => s.backgroundBlur);
@@ -62,6 +69,15 @@ export function CustomizationTab({ searchQuery }: { searchQuery?: string }) {
 
   const handleFileChange = useCallback(
     (file: File) => {
+      // Interlock: a custom wallpaper is not allowed while a color theme is applied.
+      if (colorThemeId !== null) {
+        toast(
+          t("settings.appearance.wallpaper_blocked_with_theme") ||
+            "Wallpaper is not allowed while a color theme is applied. Remove the theme first.",
+          "info",
+        );
+        return;
+      }
       if (!file.type.startsWith("image/")) {
         toast(t("settings.customization.invalid_file_type") || "Please select an image or GIF file", "error");
         return;
@@ -92,7 +108,7 @@ export function CustomizationTab({ searchQuery }: { searchQuery?: string }) {
       };
       reader.readAsDataURL(file);
     },
-    [setBackgroundImage, toast, t, isDark],
+    [setBackgroundImage, toast, t, isDark, colorThemeId],
   );
 
   const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,14 +144,34 @@ export function CustomizationTab({ searchQuery }: { searchQuery?: string }) {
         <SettingBlock
           title={t("settings.customization.wallpaper_title") || "Window Wallpaper"}
           description={
-            t("settings.customization.wallpaper_description") ||
-            "Set a custom image or animated GIF as the full window background."
+            colorThemeActive
+              ? t("settings.appearance.wallpaper_blocked_with_theme") ||
+                "Wallpaper is not allowed while a color theme is applied. Remove the theme first."
+              : t("settings.customization.wallpaper_description") ||
+                "Set a custom image or animated GIF as the full window background."
           }
           titleKey="settings.customization.wallpaper_title"
-          descKey="settings.customization.wallpaper_description"
+          descKey={
+            colorThemeActive ? undefined : "settings.customization.wallpaper_description"
+          }
           searchQuery={searchQuery}
         >
-          {backgroundImage ? (
+          {colorThemeActive ? (
+            <div
+              className="flex flex-col items-center justify-center gap-[8px] rounded-xl border border-dashed border-border-secondary py-[24px] px-[16px] text-center opacity-55 select-none"
+              aria-disabled="true"
+            >
+              <div className="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-border-alpha-14 text-text-tertiary">
+                <Gallery size={20} />
+              </div>
+              <div className="flex flex-col gap-[2px]">
+                <span className="text-text-primary text-[13px] font-[500]" style={font}>
+                  {t("settings.appearance.wallpaper_blocked_with_theme") ||
+                    "Wallpaper is not allowed while a color theme is applied. Remove the theme first."}
+                </span>
+              </div>
+            </div>
+          ) : backgroundImage ? (
             <div className="flex flex-col gap-[12px]">
               <div className="relative h-[120px] w-full overflow-hidden rounded-lg bg-black/40">
                 <img

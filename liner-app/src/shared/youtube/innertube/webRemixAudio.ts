@@ -67,19 +67,32 @@ export async function getWebPlayer(): Promise<WebPlayer> {
   return player;
 }
 
-async function mintContentPoToken(videoId: string): Promise<string> {
-  // desktop: the native signer mints in a hidden Electron window.
+async function mintContentPoToken(
+  videoId: string,
+  visitorData: string,
+): Promise<{ poToken: string; visitorData: string }> {
+  // desktop: the native signer mints in a hidden Electron window (same
+  // visitor session as playback — always consistent).
   // website port: the shell mints server-side (BotGuard in a jsdom realm —
-  // see src/app/api/po-token/route.ts) and hands the token back here.
+  // see src/app/api/po-token/route.ts) and hands the token back here. The
+  // mint must be bound to THIS browser's visitorData: YouTube validates a
+  // content-bound PO token against the visitor session that ran BotGuard, so
+  // a token minted for a foreign session fails with "Sign in to confirm
+  // you're not a bot". The route echoes the binding back; the session below
+  // pins to it.
   const mint =
     typeof window === "undefined"
       ? undefined
       : window.linerElectron?.mintPoToken;
-  if (mint) return mint(videoId);
-  const response = await fetch(
-    `/api/po-token?videoId=${encodeURIComponent(videoId)}`,
-    { signal: AbortSignal.timeout(20_000) },
-  );
+  if (mint) {
+    const token = await mint(videoId);
+    return { poToken: token, visitorData };
+  }
+  const params = new URLSearchParams({ videoId });
+  if (visitorData) params.set("visitorData", visitorData);
+  const response = await fetch(`/api/po-token?${params.toString()}`, {
+    signal: AbortSignal.timeout(20_000),
+  });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as {
       error?: string;
@@ -89,10 +102,17 @@ async function mintContentPoToken(videoId: string): Promise<string> {
       502,
     );
   }
-  const body = (await response.json()) as { poToken?: string };
+  const body = (await response.json()) as {
+    poToken?: string;
+    visitorData?: string;
+  };
   if (!body.poToken)
     throw new InnertubeError("PO token minting returned an empty token", 502);
-  return body.poToken;
+  // trust the server's echo: it is the session the token is actually valid for
+  return {
+    poToken: body.poToken,
+    visitorData: body.visitorData || visitorData,
+  };
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
@@ -105,10 +125,14 @@ export async function resolveWebRemixAudioStream(
   options: { signal?: AbortSignal; preferredCodec?: "opus" | "aac" } = {},
 ): Promise<ResolvedAudioStream> {
   installPlayerEvaluator();
-  const [poToken, visitorData] = await Promise.all([
-    mintContentPoToken(videoId),
-    getClientVisitorData(),
-  ]);
+  // visitorData FIRST, then mint bound to it — the pair must describe the
+  // same visitor session or YouTube bot-checks the player request
+  const browserVisitorData = await getClientVisitorData();
+  throwIfAborted(options.signal);
+  const { poToken, visitorData } = await mintContentPoToken(
+    videoId,
+    browserVisitorData,
+  );
   throwIfAborted(options.signal);
   const { innertube } = await getSession(visitorData);
   throwIfAborted(options.signal);

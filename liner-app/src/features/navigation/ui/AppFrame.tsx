@@ -41,6 +41,7 @@ import {
   playerEngine,
   MiniPlayer,
   usePlayerStore,
+  attachMiniPipAutoBehavior,
 } from "@/features/player";
 import SearchResultsList from "@/features/search/ui/SearchResultsList";
 import { SearchHistoryList, useSearchHistoryStore } from "@/features/search";
@@ -115,6 +116,11 @@ export default function AppFrame({ children }: AppFrameProps) {
       localStorage.removeItem(key);
     }
   }, []);
+
+  // Spotify-style miniplayer: detect tab switches / Chrome media controls and
+  // pop the floating mini player window (Chromium only — silently no-ops
+  // elsewhere). Returns its detach function for unmount cleanup.
+  useEffect(() => attachMiniPipAutoBehavior(), []);
 
   const handleQueuePopupToggle = useCallback((open: boolean) => {
     setQueuePopupOpen(open);

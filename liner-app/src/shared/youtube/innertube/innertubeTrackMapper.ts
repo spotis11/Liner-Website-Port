@@ -104,24 +104,80 @@ function resolveVideoId(
   );
 }
 
-function fallbackArtistFromColumn(renderer: JsonRecord): TrackArtist {
-  const runs = getRuns(
-    columnText(
-      renderer,
-      "flexColumns",
-      "musicResponsiveListItemFlexColumnRenderer",
-      1,
+const RESULT_TYPE_LABELS = new Set([
+  "song",
+  "video",
+  "episode",
+  "podcast",
+  "single",
+  "ep",
+  "album",
+  "playlist",
+  "artist",
+  "profile",
+]);
+
+const ARTIST_JOINERS = /^\s*(?:,|&|and|x|feat\.?|ft\.?)\s*$/i;
+
+function splitSegments(runs: JsonRecord[]): JsonRecord[][] {
+  const segments: JsonRecord[][] = [[]];
+  for (const run of runs) {
+    const text = typeof run.text === "string" ? run.text : "";
+    if (text.trim() === "•") {
+      segments.push([]);
+    } else {
+      segments[segments.length - 1]!.push(run);
+    }
+  }
+  return segments.filter((segment) =>
+    segment.some((run) => typeof run.text === "string" && run.text.trim()),
+  );
+}
+
+function segmentText(segment: JsonRecord[]): string {
+  return segment
+    .map((run) => (typeof run.text === "string" ? run.text : ""))
+    .join("")
+    .trim();
+}
+
+export function fallbackArtistsFromRuns(runs: JsonRecord[]): TrackArtist[] {
+  const segments = splitSegments(runs);
+  if (
+    segments.length > 1 &&
+    RESULT_TYPE_LABELS.has(segmentText(segments[0]!).toLowerCase())
+  ) {
+    segments.shift();
+  }
+  const segment = segments[0];
+  if (!segment || parseDurationMs(segmentText(segment)) !== undefined) {
+    return [{ id: "unknown", name: "Unknown Artist" }];
+  }
+  const artists = segment.flatMap((run): TrackArtist[] => {
+    const text = typeof run.text === "string" ? run.text.trim() : "";
+    if (!text || ARTIST_JOINERS.test(text)) return [];
+    const linked = runsToArtists([run]);
+    if (linked.length > 0) return linked;
+    return text
+      .split(/\s*(?:,|\s&\s)\s*/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name) => ({ id: "unknown", name }));
+  });
+  return artists.length > 0 ? artists : [{ id: "unknown", name: "Unknown Artist" }];
+}
+
+function fallbackArtistsFromColumn(renderer: JsonRecord): TrackArtist[] {
+  return fallbackArtistsFromRuns(
+    getRuns(
+      columnText(
+        renderer,
+        "flexColumns",
+        "musicResponsiveListItemFlexColumnRenderer",
+        1,
+      ),
     ),
   );
-  const first = runs.find(
-    (run) =>
-      typeof run.text === "string" &&
-      run.text.trim() &&
-      run.text.trim() !== "•",
-  );
-  const name =
-    typeof first?.text === "string" ? first.text.trim() : "Unknown Artist";
-  return { id: "unknown", name };
 }
 
 export function mapInnertubeTrack(
@@ -149,7 +205,7 @@ export function mapInnertubeTrack(
       ? rowArtists
       : fallbackArtists.length > 0
         ? fallbackArtists
-        : [fallbackArtistFromColumn(renderer)];
+        : fallbackArtistsFromColumn(renderer);
 
   return {
     id,

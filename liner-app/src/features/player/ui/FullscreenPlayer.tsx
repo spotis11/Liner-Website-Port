@@ -10,6 +10,7 @@ import {
 } from "@/features/lyrics";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlayerUiElements } from "./PlayerUiElements";
+import SoundWave, { useSoundWaveEnabled } from "./SoundWave";
 import { DownLine } from "@mingcute/react";
 import { preloadCoverArt, useCoverSrc } from "@/features/covers";
 import "@braccato/core/element";
@@ -411,6 +412,9 @@ export function FullscreenPlayer({
     !lyricsError &&
     plainLyrics === "[INSTRUMENTAL]";
 
+  // live sound wave — Web Audio analyser tap on the master output bus
+  const soundWaveEnabled = useSoundWaveEnabled();
+
   return (
     <div
       data-theme="dark"
@@ -434,6 +438,22 @@ export function FullscreenPlayer({
       </div>
 
       <div className="absolute inset-0 z-[1] bg-black/40" />
+
+      {/* sound wave visualizer — bottom strip behind the player UI, synced to
+          the real audio graph (only when enabled in Settings > Playback) */}
+      {soundWaveEnabled ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-[38vh]"
+          style={{
+            maskImage:
+              "linear-gradient(to top, black 40%, rgba(0,0,0,0.6) 70%, transparent)",
+            WebkitMaskImage:
+              "linear-gradient(to top, black 40%, rgba(0,0,0,0.6) 70%, transparent)",
+          }}
+        >
+          <SoundWave className="h-full w-full" />
+        </div>
+      ) : null}
 
       <div className="absolute inset-0 z-10 flex">
         {/* left: player UI — glides from half-width to centered when the

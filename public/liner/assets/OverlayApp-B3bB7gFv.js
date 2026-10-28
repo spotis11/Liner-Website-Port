@@ -1,0 +1,1 @@
+import{n as e}from"./index-XVIql84q.js";import{J as t,M as n,k as r,t as i}from"./globals-Do6WU0BB.js";var a=e();function o(){return n()?(0,a.jsxs)(t,{attribute:`data-theme`,defaultTheme:`dark`,enableSystem:!1,forcedTheme:`dark`,children:[(0,a.jsx)(r,{}),(0,a.jsx)(i,{})]}):(window.linerElectron?.closeOverlay?.(),null)}export{o as default};

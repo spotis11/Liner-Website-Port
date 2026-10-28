@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { SidebarNavItems } from "./SidebarNavItems";
-import { SidebarSettingsButton } from "./SidebarSettingsButton";
+import { SidebarProfileButton } from "./SidebarProfileButton";
 import { cn } from "@/shared/lib";
 import { useBlockCustomizationStyle } from "@/features/settings/store/customizationStore";
 
@@ -27,7 +27,7 @@ function Sidebar({ searchOpen, onSearchToggle }: SidebarProps) {
       </nav>
 
       <div className="pt-[16px] pb-[16px] shrink-0 flex flex-col justify-center items-center gap-[20px]">
-        <SidebarSettingsButton />
+        <SidebarProfileButton />
       </div>
     </div>
   );

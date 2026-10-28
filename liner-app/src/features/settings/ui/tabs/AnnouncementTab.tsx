@@ -71,8 +71,9 @@ export function AnnouncementTab({ searchQuery }: { searchQuery?: string }) {
     }
     setSending(true);
     try {
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) throw new AnnouncementError("unauthorized", 401);
+      // null is fine — the website admin cookie can vouch for the browser
+      // when the Liner session is dead (the server decides, not the client)
+      const accessToken = await getValidAccessToken().catch(() => null);
       await sendAnnouncement(trimmed, accessToken);
       setMessage("");
       setConfirmOpen(true);

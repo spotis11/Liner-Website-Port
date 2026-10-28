@@ -101,7 +101,12 @@ interface ModalState {
 
   // Settings modal
   settingsOpen: boolean;
+  // Tab the settings modal should land on the next time it opens
+  // (consumed by SettingsModal; e.g. the sidebar Profile button requests "Account").
+  settingsRequestedTab: string | null;
   openSettings: () => void;
+  openSettingsTo: (tabId: string) => void;
+  consumeSettingsRequestedTab: () => void;
   closeSettings: () => void;
   toggleSettings: () => void;
 }
@@ -188,7 +193,16 @@ export const useModalStore = create<ModalState>((set) => ({
   toggleSearch: () => set((state) => ({ searchOpen: !state.searchOpen })),
 
   settingsOpen: false,
-  openSettings: () => set({ settingsOpen: true }),
-  closeSettings: () => set({ settingsOpen: false }),
-  toggleSettings: () => set((state) => ({ settingsOpen: !state.settingsOpen })),
+  settingsRequestedTab: null,
+  openSettings: () => set({ settingsOpen: true, settingsRequestedTab: null }),
+  openSettingsTo: (tabId) =>
+    set({ settingsOpen: true, settingsRequestedTab: tabId }),
+  consumeSettingsRequestedTab: () => set({ settingsRequestedTab: null }),
+  closeSettings: () =>
+    set({ settingsOpen: false, settingsRequestedTab: null }),
+  toggleSettings: () =>
+    set((state) => ({
+      settingsOpen: !state.settingsOpen,
+      settingsRequestedTab: null,
+    })),
 }));

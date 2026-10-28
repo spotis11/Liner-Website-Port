@@ -50,6 +50,19 @@ interface MinterEntry {
   expiresAt: number;
 }
 
+/**
+ * The browser sends the visitorData its innertube session uses (fetched from
+ * sw.js_data on the user's IP). YouTube validates content-bound PO tokens
+ * against the visitor session the BotGuard challenge ran in — a token minted
+ * for visitor X but presented by visitor Y fails with "Sign in to confirm
+ * you're not a bot". The desktop never had this split (its hidden Electron
+ * window minted and played in the same session), so the web port must bind
+ * the minter to the caller's visitorData.
+ */
+function isValidVisitorData(value: string | null): value is string {
+  return typeof value === "string" && value.length >= 16 && value.length <= 512;
+}
+
 function readChallenge(raw: RawChallenge | undefined): BotguardChallenge {
   const interpreterUrl =
     raw?.interpreterUrl?.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue;
@@ -65,7 +78,7 @@ function readChallenge(raw: RawChallenge | undefined): BotguardChallenge {
   };
 }
 
-async function fetchWebChallenge(): Promise<BotguardChallenge> {
+async function fetchWebChallenge(visitorData?: string): Promise<BotguardChallenge> {
   const response = await fetch(
     "https://www.youtube.com/youtubei/v1/att/get?prettyPrint=false",
     {
@@ -78,6 +91,9 @@ async function fetchWebChallenge(): Promise<BotguardChallenge> {
             clientVersion: WEB_CLIENT_VERSION,
             hl: "en",
             gl: "US",
+            // binding the challenge to the caller's visitor session is what
+            // makes the minted token valid for that session's player requests
+            ...(visitorData ? { visitorData } : {}),
           },
         },
         engagementType: "ENGAGEMENT_TYPE_UNBOUND",
@@ -123,8 +139,8 @@ async function generateWebIntegrityToken(
   return { token, ...(ttlSeconds ? { ttlSeconds } : {}) };
 }
 
-async function createMinterEntry(): Promise<MinterEntry> {
-  const challenge = await fetchWebChallenge();
+async function createMinterEntry(visitorData?: string): Promise<MinterEntry> {
+  const challenge = await fetchWebChallenge(visitorData);
 
   // Run YouTube's interpreter VM inside a jsdom window: the VM attests
   // properly only in a browser-like realm (a bare Node realm mints nothing —
@@ -198,24 +214,37 @@ async function createMinterEntry(): Promise<MinterEntry> {
   }
 }
 
-let current: MinterEntry | null = null;
-let pending: Promise<MinterEntry> | null = null;
+// one minter per visitor session — the browser re-mints against its own
+// visitorData, the legacy flow (no param) keeps its own entry
+const MAX_MINTER_ENTRIES = 4;
+const minters = new Map<string, MinterEntry>();
+const pendings = new Map<string, Promise<MinterEntry>>();
 
-async function getMinter(): Promise<MinterEntry> {
-  if (current && Date.now() < current.expiresAt) return current;
-  pending ??= createMinterEntry()
-    .then((entry) => {
-      current = entry;
-      return entry;
-    })
-    .catch((error) => {
-      current = null;
-      throw error;
-    })
-    .finally(() => {
-      pending = null;
-    });
-  return pending;
+function minterKey(visitorData?: string): string {
+  return visitorData ?? "";
+}
+
+async function getMinter(visitorData?: string): Promise<MinterEntry> {
+  const key = minterKey(visitorData);
+  const cached = minters.get(key);
+  if (cached && Date.now() < cached.expiresAt) return cached;
+  pendings.set(
+    key,
+    (pendings.get(key) ?? createMinterEntry(visitorData))
+      .then((entry) => {
+        minters.set(key, entry);
+        while (minters.size > MAX_MINTER_ENTRIES) {
+          const oldest = minters.keys().next().value;
+          if (oldest === undefined) break;
+          minters.delete(oldest);
+        }
+        return entry;
+      })
+      .finally(() => {
+        pendings.delete(key);
+      }),
+  );
+  return pendings.get(key)!;
 }
 
 export async function GET(request: NextRequest) {
@@ -226,17 +255,21 @@ export async function GET(request: NextRequest) {
       { status: 400 },
     );
   }
+  const visitorParam = request.nextUrl.searchParams.get("visitorData");
+  const visitorData = isValidVisitorData(visitorParam) ? visitorParam : undefined;
 
   try {
-    const { minter } = await getMinter();
+    const { minter } = await getMinter(visitorData);
     const poToken = await minter.mintAsWebsafeString(videoId);
     if (!poToken)
       return Response.json(
         { error: "PO token minting returned an empty token" },
         { status: 502 },
       );
+    // echo the binding back so the caller can pin its innertube session to
+    // the exact visitor data this token was minted for
     return Response.json(
-      { poToken },
+      { poToken, ...(visitorData ? { visitorData } : {}) },
       { headers: { "cache-control": "private, max-age=300" } },
     );
   } catch (error) {

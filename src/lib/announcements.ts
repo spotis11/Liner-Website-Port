@@ -108,7 +108,57 @@ interface LinerMe {
 
 export type AdminVerification =
   | { ok: true; me: LinerMe & { username: string } }
-  | { ok: false; reason: "invalid_token" | "not_admin" };
+  | { ok: false; reason: "invalid_token" | "not_admin" | "upstream_unreachable" };
+
+/**
+ * Some edge rules treat non-browser user agents differently, and a single
+ * timed-out probe must never read as "session expired" — so admin token
+ * verification goes out with browser-like headers and retries once on
+ * transport errors / upstream 5xx before concluding anything.
+ */
+const LINER_VERIFY_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+async function fetchLinerMe(accessToken: string, timeoutMs: number): Promise<Response | null> {
+  try {
+    return await fetch(`${LINER_PRIMARY_API}/v1/me`, {
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        accept: "application/json",
+        "user-agent": LINER_VERIFY_UA,
+      },
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Shared upstream /v1/me probe: returns the parsed profile when the token is
+ * alive, null when the token is dead, and "unreachable" when the upstream
+ * itself could not be reached reliably (transport error or 5xx after one
+ * retry) — callers must not confuse that with a rejected token.
+ */
+export async function fetchLinerMeVerified(
+  accessToken: string,
+  timeoutMs = 10_000,
+): Promise<{ status: "ok"; me: LinerMe } | { status: "invalid" } | { status: "unreachable" }> {
+  let res = await fetchLinerMe(accessToken, timeoutMs);
+  if (!res || res.status >= 500) {
+    // one retry — a single upstream hiccup must not fail the request
+    res = await fetchLinerMe(accessToken, timeoutMs);
+  }
+  if (!res || res.status >= 500) return { status: "unreachable" };
+  if (!res.ok) return { status: "invalid" };
+  try {
+    const me = (await res.json()) as LinerMe;
+    return { status: "ok", me };
+  } catch {
+    return { status: "invalid" };
+  }
+}
 
 /**
  * Verify a Liner access token against the upstream API and make sure the
@@ -118,21 +168,16 @@ export type AdminVerification =
 export async function verifyAnnouncementAdmin(
   accessToken: string,
 ): Promise<AdminVerification> {
-  let me: LinerMe | null = null;
-  try {
-    const res = await fetch(`${LINER_PRIMARY_API}/v1/me`, {
-      headers: { authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) {
-      return { ok: false, reason: "invalid_token" };
-    }
-    me = (await res.json()) as LinerMe;
-  } catch {
-    // upstream unreachable — fail closed
+  const probe = await fetchLinerMeVerified(accessToken, 10_000);
+  if (probe.status === "unreachable") {
+    // upstream down/unreachable is NOT a dead token — report it as its own
+    // thing so the client shows "try again" instead of "session expired"
+    return { ok: false, reason: "upstream_unreachable" };
+  }
+  if (probe.status === "invalid") {
     return { ok: false, reason: "invalid_token" };
   }
+  const me = probe.me;
 
   const username = typeof me?.username === "string" ? me.username.trim().toLowerCase() : "";
   if (!username) {

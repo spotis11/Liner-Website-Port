@@ -340,4 +340,97 @@ describe("auth-session token system", () => {
       expect(getAuthSession()?.refreshToken).toBe("rt_1");
     });
   });
+
+  describe("stale-token self-healing (session-expired fix)", () => {
+    const base = (): AuthTokens => ({
+      accessToken: "old_token",
+      refreshToken: "rt_1",
+      accessTokenExpiresAt: new Date(Date.now() - 1000).toISOString(),
+      user: { id: "u1", email: "user@example.com" },
+    });
+
+    it("ignores a 200 refresh response without an access token and keeps the session", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      setAuthSession(base());
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ error: "something broke" }),
+      }) as any;
+      expect(await refreshAuthSession()).toBeNull();
+      // session untouched — no zombie overwrite, no sign-out
+      expect(getAuthSession()?.refreshToken).toBe("rt_1");
+      expect(getAuthSession()?.accessToken).toBe("old_token");
+      expect(warn.mock.calls.flat().join(" ")).toContain("no access token");
+    });
+
+    it("does not let a refresh response wipe expiry metadata with nulls", async () => {
+      setAuthSession(base());
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          accessToken: "new_token",
+          refreshToken: "rt_2",
+          accessTokenExpiresAt: null,
+          user: null,
+        }),
+      }) as any;
+      const res = await refreshAuthSession();
+      expect(res?.accessToken).toBe("new_token");
+      const stored = getAuthSession();
+      expect(stored?.refreshToken).toBe("rt_2");
+      // null expiry was skipped and a conservative one synthesized
+      expect(getSessionExpiryMs(stored) ?? 0).toBeGreaterThan(Date.now());
+      // user survived the null
+      expect(stored?.user.id).toBe("u1");
+    });
+
+    it("proactively refreshes an old session whose expiry metadata is missing", async () => {
+      vi.useFakeTimers();
+      try {
+        setAuthSession({
+          accessToken: "stale_no_metadata",
+          refreshToken: "rt_nm",
+          accessTokenExpiresAt: undefined as unknown as string,
+          user: { id: "u1", email: "user@example.com" },
+        });
+        // age the in-memory session past the unknown-expiry refresh threshold
+        vi.setSystemTime(Date.now() + 6 * 60_000);
+        globalThis.fetch = vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            accessToken: "fresh_no_metadata",
+            refreshToken: "rt_nm2",
+            accessTokenExpiresAt: new Date(Date.now() + 1800_000).toISOString(),
+          }),
+        }) as any;
+        const token = await getValidAccessToken();
+        expect(token).toBe("fresh_no_metadata");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("returns the current token (no crash) when the unknown-expiry refresh fails", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.useFakeTimers();
+      try {
+        setAuthSession({
+          accessToken: "stale_keep",
+          refreshToken: "rt_k",
+          accessTokenExpiresAt: undefined as unknown as string,
+          user: { id: "u1", email: "user@example.com" },
+        });
+        vi.setSystemTime(Date.now() + 6 * 60_000);
+        globalThis.fetch = vi.fn().mockResolvedValue({
+          ok: false,
+          status: 500,
+        }) as any;
+        const token = await getValidAccessToken();
+        expect(token).toBe("stale_keep");
+      } finally {
+        vi.useRealTimers();
+        warn.mockRestore();
+      }
+    });
+  });
 });

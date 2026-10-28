@@ -52,7 +52,8 @@
       "search": "Suche",
       "library": "Mediathek",
       "settings": "Einstellungen",
-      "local": "Lokale Musik"
+      "local": "Lokale Musik",
+      "profile": "Profil"
     },
     "minimize": "Minimieren",
     "exitFullscreen": "Vollbild beenden",
@@ -387,6 +388,8 @@
     "track_unavailable": "„{title}“ ist nicht verfügbar und wird übersprungen…",
     "track_unavailable_title": "Titel nicht verfügbar",
     "playback_stopped_too_many_errors": "Wiedergabe gestoppt – zu viele Titel konnten nicht geladen werden.",
+    "youtube_refused_title": "YouTube lehnt diese Verbindung ab",
+    "youtube_refused_description": "Audio von YouTube ist in diesem Netzwerk blockiert. Schalte VPN oder Proxy aus oder nutze eine andere Verbindung.",
     "speed_pitch": "Tempo & Tonhöhe",
     "speed": "Tempo",
     "pitch": "Tonhöhe",
@@ -426,7 +429,9 @@
       "preset_classical": "Klassik",
       "preset_electronic": "Elektronisch",
       "preset_custom": "Benutzerdefiniert"
-    }
+    },
+    "miniplayer": "Miniplayer",
+    "close_miniplayer": "Miniplayer schließen"
   },
   "playlist": {
     "playlist": "Playlist",
@@ -628,8 +633,7 @@
       "description": "Wähle das allgemeine Erscheinungsbild der App.",
       "light": "Hell",
       "dark": "Dunkel",
-      "system": "System",
-      "disabled_for_glass": "Das helle Design ist deaktiviert, wenn ein eigener Hintergrund mit Glassmorphismus verwendet wird."
+      "system": "System"
     },
     "branding": {
       "title": "Branding",
@@ -840,6 +844,39 @@
       "error_forbidden": "Nur JayJoice kann Ankündigungen senden.",
       "error_rate_limited": "Ganz ruhig! Warte ein paar Sekunden zwischen Ankündigungen.",
       "error_generic": "Ankündigung konnte nicht gesendet werden. Bitte versuche es erneut."
+    },
+    "user_finder": {
+      "account_created": "Konto erstellt",
+      "ban_status": "Sperrstatus",
+      "banned": "Gesperrt ({type}) — {reason}",
+      "description": "Suche jedes Liner-Konto auf dieser Website: Profil, zuletzt gesehen und was gehört wurde. Nur du kannst das nutzen.",
+      "email": "E-Mail",
+      "error_forbidden": "Der Benutzer-Finder ist nur für den Website-Inhaber verfügbar.",
+      "error_generic": "Benutzersuche fehlgeschlagen — bitte erneut versuchen.",
+      "error_unauthorized": "Sitzung abgelaufen — bitte neu anmelden und erneut versuchen.",
+      "error_username": "Gib einen gültigen Liner-Benutzernamen ein (a-z, 0-9, _, 3-30 Zeichen).",
+      "find": "Suchen",
+      "last_ip": "Letzte Netzwerkadresse",
+      "last_seen": "Zuletzt auf der Website",
+      "no_songs": "Für dieses Konto wurden auf dieser Website noch keine Wiedergaben erfasst.",
+      "not_found": "Noch nichts über @{username} bekannt — die Person war noch nicht auf dieser Website angemeldet.",
+      "recent_songs": "Kürzlich auf dieser Website gespielte Songs",
+      "search_placeholder": "Benutzernamen eingeben (z. B. liner)",
+      "searching": "Suche…",
+      "title": "Benutzer-Finder",
+      "unknown": "Unbekannt",
+      "followers": "Follower",
+      "follow_stats": "{followers} Follower · {following} folgt",
+      "source_live": "Live von Liner",
+      "source_cache": "Aus dem Website-Cache"
+    },
+    "cross_tab_miniplayer": {
+      "title": "Mini-Player",
+      "description": "Öffnet einen Mini-Player beim Wechsel zu einem anderen Tab und schließt ihn, sobald du zurückkommst."
+    },
+    "sound_wave": {
+      "title": "Soundwave-Visualisierer",
+      "description": "Zeige eine live Soundwelle, synchron zur Musik, im Vollbild-Player."
     }
   },
   "toast": {
@@ -1018,6 +1055,8 @@
     "play_all": "Alles abspielen",
     "scan_complete": "Scan abgeschlossen: {count} Titel",
     "scan_failed": "Scan fehlgeschlagen: {reason}",
+    "scan_no_folders": "Noch keine Ordner zum Scannen — füge zuerst einen Ordner hinzu oder ziehe Audiodateien hinein",
+    "scan_no_audio": "Keine Audiodateien in diesem Ordner gefunden",
     "folder_added": "Ordner hinzugefügt: {name}",
     "files_added": "{count} Titel hinzugefügt",
     "missing_file": "Lokale Datei fehlt — scanne deine Bibliothek erneut",

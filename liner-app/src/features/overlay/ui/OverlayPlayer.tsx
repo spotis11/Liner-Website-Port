@@ -11,6 +11,7 @@ import { HeartFill, HeartLine } from "@mingcute/react";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import { ScrollableText } from "@/shared/ui/ScrollableText";
 import { useDisableButtonFocus } from "@/features/navigation/hooks/useDisableButtonFocus";
+import { isLocalTrackId } from "@/shared/media/local/localTrackIds";
 import { getAuthSession } from "@/shared/api/auth-session";
 import type { OverlayAction, OverlayStatePayload } from "../contracts";
 import {
@@ -233,7 +234,7 @@ export function OverlayPlayer() {
       // Like
       if (matchesShortcut(e, miniplayer.likeTrack)) {
         e.preventDefault();
-        sendAction({ type: "like" });
+        if (!isLocalTrackId(state.track?.id)) sendAction({ type: "like" });
         return;
       }
 
@@ -254,7 +255,7 @@ export function OverlayPlayer() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPosMs, durationMs, sendAction, state.volume]);
+  }, [currentPosMs, durationMs, sendAction, state.volume, state.track?.id]);
 
   return (
     <div
@@ -360,30 +361,32 @@ export function OverlayPlayer() {
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              tabIndex={-1}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                sendAction({ type: "like" });
-              }}
-              className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-0 bg-transparent transition-colors outline-none cursor-pointer active:scale-90 ${
-                state.isLiked
-                  ? "text-[#ff3b5c]"
-                  : "text-white/40 hover:text-white"
-              }`}
-              aria-label={state.isLiked ? "Unlike" : "Like"}
-            >
-              {state.isLiked ? (
-                <HeartFill size={16} />
-              ) : (
-                <HeartLine size={16} />
-              )}
-            </button>
+            {!isLocalTrackId(state.track?.id) && (
+              <button
+                type="button"
+                tabIndex={-1}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  sendAction({ type: "like" });
+                }}
+                className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-0 bg-transparent transition-colors outline-none cursor-pointer active:scale-90 ${
+                  state.isLiked
+                    ? "text-[#ff3b5c]"
+                    : "text-white/40 hover:text-white"
+                }`}
+                aria-label={state.isLiked ? "Unlike" : "Like"}
+              >
+                {state.isLiked ? (
+                  <HeartFill size={16} />
+                ) : (
+                  <HeartLine size={16} />
+                )}
+              </button>
+            )}
 
             <button
               type="button"

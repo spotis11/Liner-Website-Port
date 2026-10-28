@@ -17,7 +17,7 @@ import {
   RepeatOne,
   Shuffle,
 } from "@solar-icons/react";
-import { HeartFill, HeartLine, AddLine } from "@mingcute/react";
+import { HeartFill, HeartLine, AddLine, MiniplayerLine } from "@mingcute/react";
 import { SliderHorizontal } from "@solar-icons/react";
 import { EqualizerModal } from "@/features/equalizer";
 
@@ -25,6 +25,10 @@ import { PlayerMorphIcon, ICON_PLAY, ICON_PAUSE } from "./morphPlayerIcons";
 
 import { usePlayerState } from "../hooks/usePlayerState";
 import { playerEngine } from "../engine/playerEngine";
+import {
+  isMiniPipSupported,
+  openMiniPip,
+} from "../engine/miniPipController";
 import { isRadioContext, nextRepeatMode } from "../engine/radioMode";
 import Button from "@/shared/ui/Button";
 import SongCard from "./SongCard";
@@ -200,6 +204,9 @@ function extractColorsFromCanvas(
   };
 }
 
+// Computed once — the API availability never changes within a session.
+const miniPipSupported = isMiniPipSupported();
+
 export interface MiniPlayerProps {
   onQueueOpenChange?: (open: boolean) => void;
   onQueueToggle?: () => void;
@@ -222,6 +229,7 @@ function MiniPlayer({
     : typeof document !== "undefined" &&
       document.documentElement.getAttribute("data-theme") === "light";
   const miniPlayerStyle = usePlayerStore((state) => state.miniPlayerStyle);
+  const miniPlayerEnabled = usePlayerStore((state) => state.miniPlayerEnabled);
   const usesRoundedStyle = !embedded && miniPlayerStyle === "rounded";
   const usesBackgroundProgress = true;
   const hasPageBackdrop = useHasPageBackdrop();
@@ -998,6 +1006,22 @@ function MiniPlayer({
               >
                 <MaximizeSquare3 size={18} weight="Outline" />
               </button>
+              {miniPipSupported && miniPlayerEnabled && (
+                <button
+                  type="button"
+                  aria-label={t("player.miniplayer")}
+                  title={t("player.miniplayer")}
+                  className={iconButtonClass}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    setSpeedOpen(false);
+                    setVolumeOpen(false);
+                    void openMiniPip().catch(() => {});
+                  }}
+                >
+                  <MiniplayerLine size={18} />
+                </button>
+              )}
               <span
                 className="mx-[3px] h-[16px] w-px bg-border-toolbox-divider"
                 aria-hidden="true"

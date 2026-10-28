@@ -1,0 +1,1099 @@
+     1→import { memo } from "react";
+     2→import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+     3→import { AnimatePresence, motion } from "framer-motion";
+     4→import {
+     5→  Radio,
+     6→  Sidebar,
+     7→  SkipNext,
+     8→  SkipPrevious,
+     9→  MaximizeSquare3,
+    10→  TrashBin2,
+    11→  Bookmark,
+    12→  PlaybackSpeed,
+    13→  VolumeCross,
+    14→  VolumeSmall,
+    15→  VolumeLoud,
+    16→  Repeat,
+    17→  RepeatOne,
+    18→  Shuffle,
+    19→} from "@solar-icons/react";
+    20→import { HeartFill, HeartLine, AddLine } from "@mingcute/react";
+    21→import { SliderHorizontal } from "@solar-icons/react";
+    22→import { EqualizerModal } from "@/features/equalizer";
+    23→
+    24→import { PlayerMorphIcon, ICON_PLAY, ICON_PAUSE } from "./morphPlayerIcons";
+    25→
+    26→import { usePlayerState } from "../hooks/usePlayerState";
+    27→import { playerEngine } from "../engine/playerEngine";
+    28→import { isRadioContext, nextRepeatMode } from "../engine/radioMode";
+    29→import Button from "@/shared/ui/Button";
+    30→import SongCard from "./SongCard";
+    31→import { useTranslation } from "@/languages";
+    32→import {
+    33→  useIsTrackLiked,
+    34→  useLikeTrack,
+    35→  useUnlikeTrack,
+    36→} from "@/features/library/hooks";
+    37→import { usePlayerStore } from "../store/playerStore";
+    38→import { useAddCurrentTrackToPlaylist } from "../hooks/useAddCurrentTrackToPlaylist";
+    39→import { toVolumeGain, toVolumeLevel } from "../engine/volume";
+    40→import { VolumeColumn } from "./VolumeColumn";
+    41→import { SpeedPitchPicker } from "./SpeedPitchPicker";
+    42→import { TimelineSlider } from "./TimelineSlider";
+    43→import { useTheme } from "next-themes";
+    44→import { useCoverReady, CoverImage } from "@/features/covers";
+    45→import {
+    46→  useBlockCustomizationStyle,
+    47→  useHasPageBackdrop,
+    48→} from "@/features/settings/store/customizationStore";
+    49→import { ArtistLink } from "@/features/artist";
+    50→
+    51→function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+    52→  r /= 255;
+    53→  g /= 255;
+    54→  b /= 255;
+    55→  const max = Math.max(r, g, b);
+    56→  const min = Math.min(r, g, b);
+    57→  let h = 0;
+    58→  let s = 0;
+    59→  const l = (max + min) / 2;
+    60→
+    61→  if (max !== min) {
+    62→    const d = max - min;
+    63→    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    64→    switch (max) {
+    65→      case r:
+    66→        h = (g - b) / d + (g < b ? 6 : 0);
+    67→        break;
+    68→      case g:
+    69→        h = (b - r) / d + 2;
+    70→        break;
+    71→      case b:
+    72→        h = (r - g) / d + 4;
+    73→        break;
+    74→    }
+    75→    h /= 6;
+    76→  }
+    77→  return [h, s, l];
+    78→}
+    79→
+    80→function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+    81→  let r: number, g: number, b: number;
+    82→  if (s === 0) {
+    83→    r = g = b = l;
+    84→  } else {
+    85→    const hue2rgb = (p: number, q: number, t: number) => {
+    86→      if (t < 0) t += 1;
+    87→      if (t > 1) t -= 1;
+    88→      if (t < 1 / 6) return p + (q - p) * 6 * t;
+    89→      if (t < 1 / 2) return q;
+    90→      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    91→      return p;
+    92→    };
+    93→    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    94→    const p = 2 * l - q;
+    95→    r = hue2rgb(p, q, h + 1 / 3);
+    96→    g = hue2rgb(p, q, h);
+    97→    b = hue2rgb(p, q, h - 1 / 3);
+    98→  }
+    99→  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+   100→}
+   101→
+   102→function extractColorsFromCanvas(
+   103→  canvas: HTMLCanvasElement,
+   104→  isLight = false,
+   105→): {
+   106→  accentColor: string;
+   107→  accentColorSolid: string;
+   108→} {
+   109→  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+   110→  if (!ctx) {
+   111→    return {
+   112→      accentColor: "rgba(255, 255, 255, 0.12)",
+   113→      accentColorSolid: "rgb(255, 255, 255)",
+   114→    };
+   115→  }
+   116→
+   117→  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+   118→  let totalWeight = 0;
+   119→  let weightedR = 0;
+   120→  let weightedG = 0;
+   121→  let weightedB = 0;
+   122→  let totalR = 0;
+   123→  let totalG = 0;
+   124→  let totalB = 0;
+   125→  const count = data.length / 4;
+   126→
+   127→  for (let i = 0; i < data.length; i += 4) {
+   128→    const r = data[i];
+   129→    const g = data[i + 1];
+   130→    const b = data[i + 2];
+   131→    totalR += r;
+   132→    totalG += g;
+   133→    totalB += b;
+   134→
+   135→    const [, s, l] = rgbToHsl(r, g, b);
+   136→    if (l > 0.08 && l < 0.95 && s > 0.1) {
+   137→      const vibrancy = s * (1 - Math.abs(l - 0.5) * 1.5);
+   138→      const weight = Math.max(0.01, vibrancy * vibrancy);
+   139→      weightedR += r * weight;
+   140→      weightedG += g * weight;
+   141→      weightedB += b * weight;
+   142→      totalWeight += weight;
+   143→    }
+   144→  }
+   145→
+   146→  let finalR = Math.round(
+   147→    totalWeight > 0.5 ? weightedR / totalWeight : totalR / count,
+   148→  );
+   149→  let finalG = Math.round(
+   150→    totalWeight > 0.5 ? weightedG / totalWeight : totalG / count,
+   151→  );
+   152→  let finalB = Math.round(
+   153→    totalWeight > 0.5 ? weightedB / totalWeight : totalB / count,
+   154→  );
+   155→
+   156→  const [h, s, l] = rgbToHsl(finalR, finalG, finalB);
+   157→
+   158→  if (isLight) {
+   159→    if (s < 0.12) {
+   160→      return {
+   161→        accentColor: "rgba(0, 0, 0, 0.045)",
+   162→        accentColorSolid: "rgb(30, 30, 30)",
+   163→      };
+   164→    }
+   165→    // Luminous vibrant tint for light theme card progress fill
+   166→    const tintL = 0.5;
+   167→    const tintS = Math.max(0.8, s);
+   168→    const [tintR, tintG, tintB] = hslToRgb(h, tintS, tintL);
+   169→
+   170→    // Deep high-contrast tone for bottom timeline line
+   171→    const solidL = Math.max(0.36, Math.min(0.46, l > 0.55 ? 0.4 : l));
+   172→    const solidS = Math.max(0.75, s);
+   173→    const [solidR, solidG, solidB] = hslToRgb(h, solidS, solidL);
+   174→
+   175→    return {
+   176→      accentColor: `rgba(${tintR}, ${tintG}, ${tintB}, 0.09)`,
+   177→      accentColorSolid: `rgb(${solidR}, ${solidG}, ${solidB})`,
+   178→    };
+   179→  }
+   180→
+   181→  // If mostly achromatic / monochrome (black, white, or gray cover)
+   182→  if (s < 0.12) {
+   183→    return {
+   184→      accentColor:
+   185→        l < 0.5 ? "rgba(255, 255, 255, 0.14)" : "rgba(255, 255, 255, 0.09)",
+   186→      accentColorSolid: "rgb(255, 255, 255)",
+   187→    };
+   188→  }
+   189→
+   190→  // Ensure high contrast and vibrant visibility on dark backgrounds
+   191→  const solidL = Math.max(0.65, Math.min(0.82, l < 0.45 ? 0.7 : l));
+   192→  const solidS = Math.max(0.7, s);
+   193→  const [solidR, solidG, solidB] = hslToRgb(h, solidS, solidL);
+   194→
+   195→  const bgOpacity = l < 0.25 ? 0.22 : l < 0.5 ? 0.18 : 0.12;
+   196→
+   197→  return {
+   198→    accentColor: `rgba(${solidR}, ${solidG}, ${solidB}, ${bgOpacity})`,
+   199→    accentColorSolid: `rgb(${solidR}, ${solidG}, ${solidB})`,
+   200→  };
+   201→}
+   202→
+   203→export interface MiniPlayerProps {
+   204→  onQueueOpenChange?: (open: boolean) => void;
+   205→  onQueueToggle?: () => void;
+   206→  onFullscreenOpen?: () => void;
+   207→  embedded?: boolean;
+   208→}
+   209→
+   210→function MiniPlayer({
+   211→  onQueueOpenChange,
+   212→  onQueueToggle,
+   213→  onFullscreenOpen,
+   214→  embedded = false,
+   215→}: MiniPlayerProps) {
+   216→  const player = usePlayerState();
+   217→  const { t } = useTranslation();
+   218→  const { resolvedTheme } = useTheme();
+   219→  const miniplayerCustomStyle = useBlockCustomizationStyle("miniplayer");
+   220→  const isLight = resolvedTheme
+   221→    ? resolvedTheme === "light"
+   222→    : typeof document !== "undefined" &&
+   223→      document.documentElement.getAttribute("data-theme") === "light";
+   224→  const miniPlayerStyle = usePlayerStore((state) => state.miniPlayerStyle);
+   225→  const usesRoundedStyle = !embedded && miniPlayerStyle === "rounded";
+   226→  const usesBackgroundProgress = true;
+   227→  const hasPageBackdrop = useHasPageBackdrop();
+   228→  const [accentColor, setAccentColor] = useState(
+   229→    isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.12)",
+   230→  );
+   231→
+   232→  const [accentColorSolid, setAccentColorSolid] = useState(
+   233→    isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)",
+   234→  );
+   235→  const [contextAccentColorSolid, setContextAccentColorSolid] = useState(
+   236→    isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)",
+   237→  );
+   238→
+   239→  const coverUrl = player.currentTrack?.coverUrl || "";
+   240→
+   241→  useEffect(() => {
+   242→    if (!player.playbackContextCover) {
+   243→      return;
+   244→    }
+   245→    const img = new window.Image();
+   246→    img.crossOrigin = "anonymous";
+   247→    img.onload = () => {
+   248→      try {
+   249→        const canvas = document.createElement("canvas");
+   250→        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+   251→        if (!ctx) return;
+   252→        canvas.width = 64;
+   253→        canvas.height = 64;
+   254→        ctx.drawImage(img, 0, 0, 64, 64);
+   255→        const { accentColorSolid: acs } = extractColorsFromCanvas(
+   256→          canvas,
+   257→          isLight,
+   258→        );
+   259→        setContextAccentColorSolid(acs);
+   260→      } catch {
+   261→        setContextAccentColorSolid(
+   262→          isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)",
+   263→        );
+   264→      }
+   265→    };
+   266→    img.src = player.playbackContextCover;
+   267→  }, [player.playbackContextCover, isLight]);
+   268→
+   269→  useEffect(() => {
+   270→    if (!coverUrl) {
+   271→      setAccentColor(
+   272→        isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.12)",
+   273→      );
+   274→      setAccentColorSolid(isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)");
+   275→      return;
+   276→    }
+   277→    const img = new window.Image();
+   278→    img.crossOrigin = "anonymous";
+   279→    img.onload = () => {
+   280→      try {
+   281→        const canvas = document.createElement("canvas");
+   282→        canvas.width = 64;
+   283→        canvas.height = 64;
+   284→        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+   285→        if (!ctx) return;
+   286→        ctx.drawImage(img, 0, 0, 64, 64);
+   287→        const { accentColor: ac, accentColorSolid: acs } =
+   288→          extractColorsFromCanvas(canvas, isLight);
+   289→        setAccentColor(ac);
+   290→        setAccentColorSolid(acs);
+   291→      } catch {
+   292→        setAccentColor(
+   293→          isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.12)",
+   294→        );
+   295→        setAccentColorSolid(isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)");
+   296→      }
+   297→    };
+   298→    img.src = coverUrl;
+   299→  }, [coverUrl, isLight]);
+   300→
+   301→  const extractAccentColor = useCallback(
+   302→    (img: HTMLImageElement) => {
+   303→      try {
+   304→        const canvas = document.createElement("canvas");
+   305→        canvas.width = 64;
+   306→        canvas.height = 64;
+   307→        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+   308→        if (!ctx) return;
+   309→        ctx.drawImage(img, 0, 0, 64, 64);
+   310→        const { accentColor: ac, accentColorSolid: acs } =
+   311→          extractColorsFromCanvas(canvas, isLight);
+   312→        setAccentColor(ac);
+   313→        setAccentColorSolid(acs);
+   314→      } catch {
+   315→        setAccentColor(
+   316→          isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.12)",
+   317→        );
+   318→        setAccentColorSolid(isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)");
+   319→      }
+   320→    },
+   321→    [isLight],
+   322→  );
+   323→
+   324→  const [queueLimit, setQueueLimit] = useState(50);
+   325→  const [volumeOpen, setVolumeOpen] = useState(false);
+   326→  const [equalizerOpen, setEqualizerOpen] = useState(false);
+   327→  const [volumePopupStyle, setVolumePopupStyle] = useState<React.CSSProperties>(
+   328→    { bottom: 52 },
+   329→  );
+   330→  const [speedOpen, setSpeedOpen] = useState(false);
+   331→  const [speedPopupStyle, setSpeedPopupStyle] = useState<React.CSSProperties>(
+   332→    {},
+   333→  );
+   334→  const miniPlayerRootRef = useRef<HTMLDivElement>(null);
+   335→  const queuePopupRef = useRef<HTMLDivElement>(null);
+   336→  const volumePopupRef = useRef<HTMLDivElement>(null);
+   337→  const volumeToggleRef = useRef<HTMLButtonElement>(null);
+   338→  const speedPopupRef = useRef<HTMLDivElement>(null);
+   339→  const speedToggleRef = useRef<HTMLButtonElement>(null);
+   340→  const volumeHoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+   341→    null,
+   342→  );
+   343→  const [isVolumeDragging, setIsVolumeDragging] = useState(false);
+   344→  const lastNonZeroVolumeRef = useRef<number>(0.7);
+   345→
+   346→  const currentTrack = player.currentTrack;
+   347→  const volumeLevel = toVolumeLevel(player.volume);
+   348→  const isLiked = useIsTrackLiked(currentTrack?.id);
+   349→  const likeMutation = useLikeTrack();
+   350→  const unlikeMutation = useUnlikeTrack();
+   351→  const togglingRef = useRef(false);
+   352→  const { openAddToPlaylist: addCurrentTrackToPlaylist } =
+   353→    useAddCurrentTrackToPlaylist();
+   354→
+   355→  const handleLikeToggle = useCallback(() => {
+   356→    if (!currentTrack || togglingRef.current) return;
+   357→    togglingRef.current = true;
+   358→    const onSettled = () => {
+   359→      togglingRef.current = false;
+   360→    };
+   361→    if (isLiked) {
+   362→      unlikeMutation.mutate(currentTrack.id, { onSettled });
+   363→    } else {
+   364→      likeMutation.mutate(currentTrack.id, { onSettled });
+   365→    }
+   366→  }, [currentTrack, isLiked, likeMutation, unlikeMutation]);
+   367→
+   368→  const durationMs =
+   369→    player.durationMs > 0
+   370→      ? player.durationMs
+   371→      : (player.currentTrack?.durationMs ?? 0);
+   372→  const progress =
+   373→    durationMs > 0
+   374→      ? Math.min(1, Math.max(0, player.positionMs / durationMs))
+   375→      : 0;
+   376→
+   377→  const isPlaying = player.status === "playing";
+   378→  const isLoading = player.status === "loading";
+   379→  const trackTitle = player.currentTrack?.title ?? t("player.nothing_playing");
+   380→  const trackArtists = player.currentTrack?.artists ?? t("player.choose_track");
+   381→
+   382→  const isCoverLoaded = useCoverReady(coverUrl);
+   383→
+   384→  const queueItems = useMemo(() => {
+   385→    return player.queue.slice(0, queueLimit).map((item, index) => {
+   386→      const isCurrent = index === player.currentIndex;
+   387→      return (
+   388→        <SongCard
+   389→          key={`${item.id}-${index}`}
+   390→          title={item.title}
+   391→          artists={item.artists}
+   392→          artistId={item.artistId}
+   393→          artistList={item.artistList}
+   394→          coverUrl={item.coverUrl || ""}
+   395→          duration={
+   396→            item.durationMs
+   397→              ? `${Math.floor(item.durationMs / 60000)}:${Math.floor(
+   398→                  (item.durationMs % 60000) / 1000,
+   399→                )
+   400→                  .toString()
+   401→                  .padStart(2, "0")}`
+   402→              : undefined
+   403→          }
+   404→          explicit={item.explicit}
+   405→          onPlay={() => {
+   406→            void playerEngine.playTrack(
+   407→              item,
+   408→              player.queue,
+   409→              player.playbackContext,
+   410→              player.playbackContextCover,
+   411→              index,
+   412→              true,
+   413→            );
+   414→          }}
+   415→          className={`rounded-[12px] px-[8px] py-[10px] text-left transition-all duration-200 ${
+   416→            isCurrent
+   417→              ? "bg-black/[0.065] dark:bg-white/[0.08]"
+   418→              : "bg-transparent hover:bg-black/[0.035] dark:hover:bg-white/[0.04]"
+   419→          }`}
+   420→        />
+   421→      );
+   422→    });
+   423→  }, [
+   424→    player.queue,
+   425→    queueLimit,
+   426→    player.currentIndex,
+   427→    player.playbackContext,
+   428→    player.playbackContextCover,
+   429→  ]);
+   430→
+   431→  // off -> all (loop the whole queue/playlist) -> one (loop the track) -> off
+   432→  const repeatIcon = useMemo(() => {
+   433→    if (player.repeat === "one")
+   434→      return <RepeatOne size={18} weight="Outline" />;
+   435→    return <Repeat size={18} weight="Outline" />;
+   436→  }, [player.repeat]);
+   437→  const repeatLabel = t(`player.repeat_${player.repeat}`);
+   438→
+   439→  // "on" state for the shuffle / repeat toggles: the hover tint, but opaque, so the
+   440→  // progress fill sliding underneath never changes it. Values are the hover tint
+   441→  // pre-composited over the toolbox on bg-primary (dark #0a0a0a, light #f5f5f7).
+   442→  // The toolbox pill itself is the opaque bg-toolbox equivalent for the same reason.
+   443→  const activeToggleClass = hasPageBackdrop
+   444→    ? "!bg-black/[0.08] dark:!bg-white/[0.14] !text-text-primary"
+   445→    : "!bg-[#dfdfe1] dark:!bg-[#292929] !text-text-primary";
+   446→
+   447→  const iconButtonClass =
+   448→    "inline-flex h-[30px] w-[30px] items-center justify-center rounded-md text-text-secondary transition-colors duration-150 hover:bg-black/[0.05] dark:hover:bg-white/[0.09] hover:text-text-primary active:scale-[0.96] border-none bg-transparent cursor-pointer";
+   449→
+   450→  const clearVolumeHoverTimer = useCallback(() => {
+   451→    if (volumeHoverCloseTimerRef.current) {
+   452→      clearTimeout(volumeHoverCloseTimerRef.current);
+   453→      volumeHoverCloseTimerRef.current = null;
+   454→    }
+   455→  }, []);
+   456→
+   457→  const updateVolumePopupPosition = useCallback(() => {
+   458→    const toggle = volumeToggleRef.current;
+   459→    const root = miniPlayerRootRef.current;
+   460→    if (!toggle || !root) return;
+   461→    const toggleRect = toggle.getBoundingClientRect();
+   462→    const rootRect = root.getBoundingClientRect();
+   463→    const bar =
+   464→      toggle.closest<HTMLElement>(".bg-bg-toolbox") || toggle.parentElement;
+   465→    const barRect = bar?.getBoundingClientRect();
+   466→
+   467→    const popupW = 46;
+   468→    const btnW = toggleRect.width;
+   469→    const right = rootRect.right - toggleRect.right + (btnW - popupW) / 2;
+   470→    const targetTop = barRect ? barRect.top : toggleRect.top;
+   471→    const bottom = rootRect.bottom - targetTop + 2;
+   472→
+   473→    setVolumePopupStyle({
+   474→      right: Math.max(8, right),
+   475→      bottom: Math.round(bottom),
+   476→    });
+   477→  }, []);
+   478→
+   479→  const handleVolumeMouseEnter = useCallback(() => {
+   480→    clearVolumeHoverTimer();
+   481→    updateVolumePopupPosition();
+   482→    setSpeedOpen(false);
+   483→    setVolumeOpen(true);
+   484→  }, [clearVolumeHoverTimer, updateVolumePopupPosition]);
+   485→
+   486→  const handleVolumeMouseLeave = useCallback(() => {
+   487→    clearVolumeHoverTimer();
+   488→    // Keep open while user is actively dragging the slider
+   489→    if (isVolumeDragging) return;
+   490→    volumeHoverCloseTimerRef.current = setTimeout(() => {
+   491→      setVolumeOpen(false);
+   492→    }, 140);
+   493→  }, [clearVolumeHoverTimer, isVolumeDragging]);
+   494→
+   495→  const handleToggleMute = useCallback(() => {
+   496→    if (volumeLevel > 0) {
+   497→      lastNonZeroVolumeRef.current = volumeLevel;
+   498→      playerEngine.setVolume(0);
+   499→    } else {
+   500→      const restore = lastNonZeroVolumeRef.current || 0.7;
+   501→      playerEngine.setVolume(toVolumeGain(restore));
+   502→    }
+   503→  }, [volumeLevel]);
+   504→
+   505→  const handleVolumeWheel = useCallback(
+   506→    (e: React.WheelEvent) => {
+   507→      e.stopPropagation();
+   508→      e.preventDefault();
+   509→      const delta = e.deltaY < 0 ? 0.04 : -0.04;
+   510→      const nextLevel = Math.min(1, Math.max(0, volumeLevel + delta));
+   511→      playerEngine.setVolume(toVolumeGain(nextLevel));
+   512→      setVolumeOpen(true);
+   513→      clearVolumeHoverTimer();
+   514→      volumeHoverCloseTimerRef.current = setTimeout(() => {
+   515→        setVolumeOpen(false);
+   516→      }, 1200);
+   517→    },
+   518→    [clearVolumeHoverTimer, volumeLevel],
+   519→  );
+   520→
+   521→  const handleVolumeDraggingChange = useCallback((dragging: boolean) => {
+   522→    setIsVolumeDragging(dragging);
+   523→  }, []);
+   524→
+   525→  useEffect(() => {
+   526→    return () => {
+   527→      clearVolumeHoverTimer();
+   528→    };
+   529→  }, [clearVolumeHoverTimer]);
+   530→
+   531→  useEffect(() => {
+   532→    if (!volumeOpen) return;
+   533→    updateVolumePopupPosition();
+   534→  }, [volumeOpen, updateVolumePopupPosition]);
+   535→
+   536→  useEffect(() => {
+   537→    if (!speedOpen) return;
+   538→    const toggle = speedToggleRef.current;
+   539→    const root = miniPlayerRootRef.current;
+   540→    if (!toggle || !root) return;
+   541→    const toggleRect = toggle.getBoundingClientRect();
+   542→    const rootRect = root.getBoundingClientRect();
+   543→    const popupW = 300;
+   544→    const btnW = toggleRect.width;
+   545→    const right = rootRect.right - toggleRect.right + (btnW - popupW) / 2;
+   546→    setSpeedPopupStyle({ right: Math.max(8, right) });
+   547→  }, [speedOpen]);
+   548→
+   549→  useEffect(() => {
+   550→    const onDocumentPointerDown = (event: MouseEvent) => {
+   551→      const target = event.target as Node | null;
+   552→      if (!target) {
+   553→        return;
+   554→      }
+   555→
+   556→      if (volumeOpen) {
+   557→        const clickedVolumePopup = volumePopupRef.current?.contains(target);
+   558→        const clickedVolumeToggle = volumeToggleRef.current?.contains(target);
+   559→        if (!clickedVolumePopup && !clickedVolumeToggle) {
+   560→          clearVolumeHoverTimer();
+   561→          setVolumeOpen(false);
+   562→        }
+   563→      }
+   564→
+   565→      if (speedOpen) {
+   566→        const clickedSpeedPopup = speedPopupRef.current?.contains(target);
+   567→        const clickedSpeedToggle = speedToggleRef.current?.contains(target);
+   568→        if (!clickedSpeedPopup && !clickedSpeedToggle) {
+   569→          setSpeedOpen(false);
+   570→        }
+   571→      }
+   572→    };
+   573→
+   574→    const onDocumentKeyDown = (event: KeyboardEvent) => {
+   575→      if (event.key === "Escape") {
+   576→        if (volumeOpen) {
+   577→          event.preventDefault();
+   578→          event.stopPropagation();
+   579→          clearVolumeHoverTimer();
+   580→          setVolumeOpen(false);
+   581→        }
+   582→        if (speedOpen) {
+   583→          event.preventDefault();
+   584→          event.stopPropagation();
+   585→          setSpeedOpen(false);
+   586→        }
+   587→      }
+   588→    };
+   589→
+   590→    document.addEventListener("mousedown", onDocumentPointerDown, true);
+   591→    document.addEventListener("keydown", onDocumentKeyDown, true);
+   592→    return () => {
+   593→      document.removeEventListener("mousedown", onDocumentPointerDown, true);
+   594→      document.removeEventListener("keydown", onDocumentKeyDown, true);
+   595→    };
+   596→  }, [clearVolumeHoverTimer, speedOpen, volumeOpen]);
+   597→
+   598→  const [scrubRatio, setScrubRatio] = useState<number | null>(null);
+   599→  const activeProgress = scrubRatio !== null ? scrubRatio : progress;
+   600→
+   601→  return (
+   602→    <div
+   603→      ref={miniPlayerRootRef}
+   604→      className="relative h-[64px] w-full select-none"
+   605→    >
+   606→      <AnimatePresence>
+   607→        {volumeOpen && (
+   608→          <motion.div
+   609→            key="volume-popup"
+   610→            ref={volumePopupRef}
+   611→            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+   612→            animate={{ opacity: 1, y: 0, scale: 1 }}
+   613→            exit={{ opacity: 0, y: 6, scale: 0.96 }}
+   614→            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+   615→            className="absolute bottom-[52px] z-[99] w-[46px] rounded-[11px] p-[4px] bg-black/[0.05] backdrop-blur-2xl backdrop-saturate-150 dark:bg-white/[0.07] prevent-seek"
+   616→            style={volumePopupStyle}
+   617→            onPointerDown={(e) => e.stopPropagation()}
+   618→            onMouseEnter={clearVolumeHoverTimer}
+   619→            onMouseLeave={handleVolumeMouseLeave}
+   620→          >
+   621→            {/* Seamless invisible hit zone bridging popup and toggle button */}
+   622→            <div className="absolute -inset-x-3 -bottom-[22px] top-0 pointer-events-auto" />
+   623→
+   624→            <VolumeColumn onDraggingChange={handleVolumeDraggingChange} />
+   625→          </motion.div>
+   626→        )}
+   627→      </AnimatePresence>
+   628→
+   629→      <AnimatePresence>
+   630→        {speedOpen && (
+   631→          <motion.div
+   632→            key="speed-popup"
+   633→            ref={speedPopupRef}
+   634→            initial={{ opacity: 0, y: 10, scale: 0.985 }}
+   635→            animate={{ opacity: 1, y: 0, scale: 1 }}
+   636→            exit={{ opacity: 0, y: 10, scale: 0.985 }}
+   637→            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+   638→            className="absolute bottom-[74px] z-[92] w-[300px] rounded-[14px] p-[16px] bg-black/[0.05] backdrop-blur-2xl backdrop-saturate-150 dark:bg-white/[0.07] prevent-seek"
+   639→            style={speedPopupStyle}
+   640→            onPointerDown={(e) => e.stopPropagation()}
+   641→          >
+   642→            <SpeedPitchPicker onClose={() => setSpeedOpen(false)} />
+   643→          </motion.div>
+   644→        )}
+   645→      </AnimatePresence>
+   646→
+   647→      <div
+   648→        className={`relative h-[64px] w-full overflow-hidden cursor-pointer ${
+   649→          usesRoundedStyle
+   650→            ? "rounded-full border-[0.5px] border-border-tertiary bg-bg-primary"
+   651→            : embedded
+   652→              ? `rounded-[12px] ${
+   653→                  hasPageBackdrop
+   654→                    ? "bg-bg-glass backdrop-blur-[48px] backdrop-saturate-50"
+   655→                    : "bg-bg-primary"
+   656→                }`
+   657→              : "rounded-3xl border-[0.5px] border-border-tertiary bg-bg-primary"
+   658→        }`}
+   659→        style={miniplayerCustomStyle}
+   660→        onPointerDown={(e) => {
+   661→          if (e.button !== 0) return;
+   662→          const target = e.target as Element | null;
+   663→          if (
+   664→            !target ||
+   665→            target.closest?.(
+   666→              "button, a, input, [role='button'], [role='slider'], .prevent-seek",
+   667→            )
+   668→          ) {
+   669→            return;
+   670→          }
+   671→          const card = e.currentTarget;
+   672→          const rect = card.getBoundingClientRect();
+   673→          if (!rect.width || !durationMs) return;
+   674→
+   675→          const calcRatio = (clientX: number) =>
+   676→            Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+   677→
+   678→          const initialRatio = calcRatio(e.clientX);
+   679→          setScrubRatio(initialRatio);
+   680→
+   681→          const onMove = (ev: PointerEvent) => {
+   682→            const r = calcRatio(ev.clientX);
+   683→            setScrubRatio(r);
+   684→          };
+   685→
+   686→          const onUp = (ev: PointerEvent) => {
+   687→            const finalRatio = calcRatio(ev.clientX);
+   688→            setScrubRatio(null);
+   689→            playerEngine.seek(finalRatio * durationMs);
+   690→            window.removeEventListener("pointermove", onMove);
+   691→            window.removeEventListener("pointerup", onUp);
+   692→            window.removeEventListener("pointercancel", onUp);
+   693→          };
+   694→
+   695→          window.addEventListener("pointermove", onMove);
+   696→          window.addEventListener("pointerup", onUp);
+   697→          window.addEventListener("pointercancel", onUp);
+   698→        }}
+   699→      >
+   700→        {usesBackgroundProgress && (
+   701→          <div
+   702→            className="absolute inset-y-0 left-0 z-0 pointer-events-none"
+   703→            style={{
+   704→              backgroundColor: accentColor,
+   705→              width: `${activeProgress * 100}%`,
+   706→              willChange: "width",
+   707→              transition:
+   708→                scrubRatio !== null
+   709→                  ? "none"
+   710→                  : "width 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+   711→            }}
+   712→          />
+   713→        )}
+   714→
+   715→        {embedded ? null : (
+   716→          <div
+   717→            className={`absolute z-30 prevent-seek ${
+   718→              usesRoundedStyle
+   719→                ? "left-[18px] right-[18px] bottom-[2px]"
+   720→                : "left-[8px] right-[8px] bottom-[2px]"
+   721→            }`}
+   722→            onPointerDown={(e) => e.stopPropagation()}
+   723→          >
+   724→            <TimelineSlider
+   725→              positionMs={player.positionMs}
+   726→              durationMs={durationMs}
+   727→              onSeek={(pos) => playerEngine.seek(pos)}
+   728→              size="xs"
+   729→              fillColor={accentColorSolid || undefined}
+   730→              fillClassName={
+   731→                !accentColorSolid
+   732→                  ? isLight
+   733→                    ? "bg-text-primary"
+   734→                    : "bg-white"
+   735→                  : undefined
+   736→              }
+   737→              trackBg={
+   738→                isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.15)"
+   739→              }
+   740→              trackActiveBg={
+   741→                isLight ? "rgba(0, 0, 0, 0.16)" : "rgba(255, 255, 255, 0.32)"
+   742→              }
+   743→              className="!h-[14px]"
+   744→            />
+   745→          </div>
+   746→        )}
+   747→        <div
+   748→          className={`relative grid h-full pointer-events-none ${
+   749→            embedded
+   750→              ? "grid-cols-[280px_minmax(0,1fr)_260px]"
+   751→              : "grid-cols-[286px_minmax(0,1fr)]"
+   752→          } ${!usesRoundedStyle && !embedded ? "pb-[4px]" : ""}`}
+   753→        >
+   754→          <div className="flex h-full items-center gap-[16px] px-[18px] pt-[1px] pointer-events-none cursor-default">
+   755→            <div
+   756→              role="button"
+   757→              tabIndex={0}
+   758→              aria-label="Open player"
+   759→              className={`relative h-[38px] w-[38px] shrink-0 overflow-hidden rounded-[8px] bg-bg-elevated cursor-pointer pointer-events-auto prevent-seek ${
+   760→                coverUrl && !isCoverLoaded ? "animate-pulse" : ""
+   761→              }`}
+   762→              onClick={onFullscreenOpen}
+   763→              onPointerDown={(e) => e.stopPropagation()}
+   764→            >
+   765→              <CoverImage
+   766→                key={coverUrl}
+   767→                src={coverUrl}
+   768→                alt="Track artwork"
+   769→                width={38}
+   770→                height={38}
+   771→                priority
+   772→                draggable={false}
+   773→                onLoad={(e) => {
+   774→                  extractAccentColor(e.currentTarget as HTMLImageElement);
+   775→                }}
+   776→                className="h-[38px] w-[38px] object-cover rounded-[8px]"
+   777→              />
+   778→            </div>
+   779→            <div className="flex min-w-0 flex-col pointer-events-none">
+   780→              <p
+   781→                className="m-0 truncate text-[16px] font-[400] text-text-primary flex items-center gap-[6px] pointer-events-none"
+   782→                style={{
+   783→                  fontFamily: "var(--font-inter), sans-serif",
+   784→                  lineHeight: "18px",
+   785→                  letterSpacing: "0",
+   786→                }}
+   787→              >
+   788→                <span
+   789→                  role="button"
+   790→                  tabIndex={0}
+   791→                  aria-label="Open player"
+   792→                  className="min-w-0 truncate cursor-pointer pointer-events-auto prevent-seek"
+   793→                  onClick={onFullscreenOpen}
+   794→                  onPointerDown={(e) => e.stopPropagation()}
+   795→                  onKeyDown={(e) => {
+   796→                    if (e.key === "Enter" || e.key === " ") {
+   797→                      e.preventDefault();
+   798→                      onFullscreenOpen?.();
+   799→                    }
+   800→                  }}
+   801→                >
+   802→                  {trackTitle}
+   803→                </span>
+   804→              </p>
+   805→              <p
+   806→                className="m-0 mt-[4px] flex min-w-0 items-center gap-[5px] text-[13px] font-[300] text-text-tertiary pointer-events-none"
+   807→                style={{
+   808→                  fontFamily: "var(--font-inter), sans-serif",
+   809→                  lineHeight: "15px",
+   810→                }}
+   811→              >
+   812→                {player.currentTrack?.explicit && (
+   813→                  <span className="inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-[3.5px] bg-black/[0.1] dark:bg-white/[0.14] text-[8px] font-[600] leading-none text-text-secondary">
+   814→                    <span className="translate-y-[0.5px] [text-box:trim-both_cap_alphabetic]">
+   815→                      E
+   816→                    </span>
+   817→                  </span>
+   818→                )}
+   819→                <ArtistLink
+   820→                  name={trackArtists}
+   821→                  artistId={player.currentTrack?.artistId}
+   822→                  artistList={player.currentTrack?.artistList}
+   823→                  className="text-text-tertiary pointer-events-auto"
+   824→                />
+   825→              </p>
+   826→            </div>
+   827→            <button
+   828→              type="button"
+   829→              aria-label={isLiked ? "Unlike" : "Like"}
+   830→              className={`${iconButtonClass} shrink-0 transition-colors duration-150 pointer-events-auto prevent-seek ${
+   831→                isLiked
+   832→                  ? "text-accent-primary"
+   833→                  : "text-text-secondary hover:text-text-primary"
+   834→              }`}
+   835→              onPointerDown={(e) => e.stopPropagation()}
+   836→              onClick={handleLikeToggle}
+   837→              style={{ cursor: "pointer" }}
+   838→            >
+   839→              {isLiked ? <HeartFill size={20} /> : <HeartLine size={20} />}
+   840→            </button>
+   841→            <button
+   842→              type="button"
+   843→              aria-label={t("common.add_to_playlist")}
+   844→              title={t("common.add_to_playlist")}
+   845→              className={`${iconButtonClass} shrink-0 transition-colors duration-150 pointer-events-auto prevent-seek text-text-secondary hover:text-text-primary`}
+   846→              onPointerDown={(e) => e.stopPropagation()}
+   847→              onClick={addCurrentTrackToPlaylist}
+   848→              style={{ cursor: "pointer" }}
+   849→            >
+   850→              <AddLine size={20} />
+   851→            </button>
+   852→          </div>
+   853→
+   854→          <div
+   855→            className={`flex h-full items-center pl-[10px] pr-[18px] pointer-events-none ${
+   856→              embedded ? "col-start-3" : ""
+   857→            }`}
+   858→          >
+   859→            <div
+   860→              className={`ml-auto flex items-center gap-[2px] rounded-lg p-[3px] pointer-events-auto prevent-seek cursor-default ${
+   861→                hasPageBackdrop
+   862→                  ? "bg-black/[0.04] dark:bg-white/[0.06]"
+   863→                  : "bg-[#ebebed] dark:bg-[#141414]"
+   864→              }`}
+   865→              onPointerDown={(e) => e.stopPropagation()}
+   866→            >
+   867→              <button
+   868→                type="button"
+   869→                aria-label="Shuffle"
+   870→                title={
+   871→                  player.shuffle
+   872→                    ? t("player.shuffle_on")
+   873→                    : t("player.shuffle_off")
+   874→                }
+   875→                className={`${iconButtonClass} ${
+   876→                  player.shuffle ? activeToggleClass : ""
+   877→                }`}
+   878→                onPointerDown={(e) => e.stopPropagation()}
+   879→                onClick={() => playerEngine.setShuffle(!player.shuffle)}
+   880→              >
+   881→                <Shuffle size={18} weight="Outline" />
+   882→              </button>
+   883→              <button
+   884→                type="button"
+   885→                aria-label={repeatLabel}
+   886→                title={repeatLabel}
+   887→                className={`${iconButtonClass} ${
+   888→                  player.repeat !== "off" ? activeToggleClass : ""
+   889→                }`}
+   890→                onPointerDown={(e) => e.stopPropagation()}
+   891→                onClick={() =>
+   892→                  playerEngine.setRepeat(
+   893→                    // radio has no repeat-all: it refills instead of looping
+   894→                    nextRepeatMode(
+   895→                      player.repeat,
+   896→                      isRadioContext(player.playbackContext),
+   897→                    ),
+   898→                  )
+   899→                }
+   900→              >
+   901→                {repeatIcon}
+   902→              </button>
+   903→              <button
+   904→                ref={speedToggleRef}
+   905→                type="button"
+   906→                aria-label="Speed and Pitch"
+   907→                title={`${t("player.speed_pitch")}: x${(player.playbackRate ?? 1).toFixed(2)}`}
+   908→                className={`${iconButtonClass} ${
+   909→                  speedOpen ||
+   910→                  Math.abs((player.playbackRate ?? 1) - 1) > 0.001 ||
+   911→                  Math.abs(player.pitchSemitones ?? 0) > 0.001
+   912→                    ? "bg-white/[0.09] text-white"
+   913→                    : ""
+   914→                }`}
+   915→                onPointerDown={(e) => e.stopPropagation()}
+   916→                onClick={() => {
+   917→                  setVolumeOpen(false);
+   918→                  onQueueOpenChange?.(false);
+   919→                  setSpeedOpen((prev) => !prev);
+   920→                }}
+   921→                style={{ cursor: "pointer" }}
+   922→              >
+   923→                <motion.div
+   924→                  animate={{
+   925→                    scale: speedOpen ? 1.08 : 1,
+   926→                  }}
+   927→                  transition={{ type: "spring", stiffness: 350, damping: 22 }}
+   928→                  className="flex items-center justify-center"
+   929→                >
+   930→                  <PlaybackSpeed
+   931→                    size={18}
+   932→                    weight={
+   933→                      Math.abs((player.playbackRate ?? 1) - 1) > 0.001 ||
+   934→                      Math.abs(player.pitchSemitones ?? 0) > 0.001
+   935→                        ? "Bold"
+   936→                        : "Outline"
+   937→                    }
+   938→                  />
+   939→                </motion.div>
+   940→              </button>
+   941→              <button
+   942→                type="button"
+   943→                aria-label={t("player.equalizer.title")}
+   944→                title={t("player.equalizer.title")}
+   945→                className={`${iconButtonClass} ${
+   946→                  equalizerOpen ? "bg-bg-toolbox-active text-text-primary" : ""
+   947→                }`}
+   948→                onPointerDown={(e) => e.stopPropagation()}
+   949→                onClick={() => {
+   950→                  setSpeedOpen(false);
+   951→                  setVolumeOpen(false);
+   952→                  onQueueOpenChange?.(false);
+   953→                  setEqualizerOpen(true);
+   954→                }}
+   955→                style={{ cursor: "pointer" }}
+   956→              >
+   957→                <SliderHorizontal size={18} weight="Outline" />
+   958→              </button>
+   959→              <button
+   960→                ref={volumeToggleRef}
+   961→                type="button"
+   962→                aria-label="Volume"
+   963→                className={`${iconButtonClass} ${
+   964→                  volumeOpen ? "bg-bg-toolbox-active text-text-primary" : ""
+   965→                }`}
+   966→                onPointerDown={(e) => e.stopPropagation()}
+   967→                onMouseEnter={handleVolumeMouseEnter}
+   968→                onMouseLeave={handleVolumeMouseLeave}
+   969→                onWheel={handleVolumeWheel}
+   970→                onClick={(e) => {
+   971→                  e.stopPropagation();
+   972→                  setSpeedOpen(false);
+   973→                  onQueueOpenChange?.(false);
+   974→                  handleToggleMute();
+   975→                  setVolumeOpen(true);
+   976→                }}
+   977→                style={{ cursor: "pointer" }}
+   978→              >
+   979→                {volumeLevel === 0 ? (
+   980→                  <VolumeCross size={18} weight="Outline" />
+   981→                ) : volumeLevel < 0.33 ? (
+   982→                  <VolumeSmall size={18} weight="Outline" />
+   983→                ) : (
+   984→                  <VolumeLoud size={18} weight="Outline" />
+   985→                )}
+   986→              </button>
+   987→              <button
+   988→                type="button"
+   989→                aria-label={t("player.open_player")}
+   990→                title={t("player.open_player")}
+   991→                className={iconButtonClass}
+   992→                onPointerDown={(e) => e.stopPropagation()}
+   993→                onClick={() => {
+   994→                  setSpeedOpen(false);
+   995→                  setVolumeOpen(false);
+   996→                  onFullscreenOpen?.();
+   997→                }}
+   998→              >
+   999→                <MaximizeSquare3 size={18} weight="Outline" />
+  1000→              </button>
+  1001→              <span
+  1002→                className="mx-[3px] h-[16px] w-px bg-border-toolbox-divider"
+  1003→                aria-hidden="true"
+  1004→              />
+  1005→              <button
+  1006→                type="button"
+  1007→                aria-label={t("player.queue")}
+  1008→                title={t("player.queue")}
+  1009→                className={iconButtonClass}
+  1010→                onPointerDown={(e) => e.stopPropagation()}
+  1011→                onClick={() => {
+  1012→                  setSpeedOpen(false);
+  1013→                  setVolumeOpen(false);
+  1014→                  setQueueLimit(50);
+  1015→                  onQueueToggle?.();
+  1016→                }}
+  1017→                style={{ cursor: "pointer" }}
+  1018→              >
+  1019→                <Sidebar size={18} weight="Outline" />
+  1020→              </button>
+  1021→            </div>
+  1022→          </div>
+  1023→        </div>
+  1024→
+  1025→        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+  1026→          <div
+  1027→            className="pointer-events-auto flex items-center gap-[8px] prevent-seek cursor-default"
+  1028→            onPointerDown={(e) => e.stopPropagation()}
+  1029→          >
+  1030→            <button
+  1031→              type="button"
+  1032→              aria-label="Previous track"
+  1033→              className={`${iconButtonClass} text-text-secondary hover:text-text-primary`}
+  1034→              onPointerDown={(e) => e.stopPropagation()}
+  1035→              onClick={() => {
+  1036→                void playerEngine.skipPrevious();
+  1037→              }}
+  1038→              style={{ cursor: "pointer" }}
+  1039→            >
+  1040→              <SkipPrevious size={18} weight="Bold" />
+  1041→            </button>
+  1042→            <button
+  1043→              type="button"
+  1044→              aria-label={isPlaying ? "Pause" : "Play"}
+  1045→              className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full bg-btn-primary-bg text-btn-primary-text transition-all duration-150 ease-out hover:scale-105 active:scale-[0.96] border-none cursor-pointer shadow-sm"
+  1046→              onPointerDown={(e) => e.stopPropagation()}
+  1047→              onClick={() => {
+  1048→                void playerEngine.togglePlayPause();
+  1049→              }}
+  1050→              style={{ cursor: "pointer" }}
+  1051→            >
+  1052→              {/* keep the morph icon mounted through the loading state
+  1053→                  (spinner overlays it) — swapping it out on "loading" would
+  1054→                  remount MorphIcon when the track starts, which skips the
+  1055→                  play -> pause morph animation. */}
+  1056→              <span className="relative flex h-[16px] w-[16px] items-center justify-center">
+  1057→                <span
+  1058→                  className={`absolute inset-0 flex items-center justify-center ${
+  1059→                    isLoading ? "opacity-0" : ""
+  1060→                  } transition-transform ${
+  1061→                    isPlaying ? "" : "translate-x-[0.5px]"
+  1062→                  }`}
+  1063→                >
+  1064→                  <PlayerMorphIcon
+  1065→                    icon={isPlaying ? ICON_PAUSE : ICON_PLAY}
+  1066→                    size={16}
+  1067→                  />
+  1068→                </span>
+  1069→                {isLoading && (
+  1070→                  <span
+  1071→                    className="absolute h-[16px] w-[16px] animate-spin rounded-full border-[2px] border-current border-t-transparent"
+  1072→                    aria-label="Loading playback"
+  1073→                  />
+  1074→                )}
+  1075→              </span>
+  1076→            </button>
+  1077→            <button
+  1078→              type="button"
+  1079→              aria-label="Next track"
+  1080→              className={`${iconButtonClass} text-text-secondary hover:text-text-primary`}
+  1081→              onPointerDown={(e) => e.stopPropagation()}
+  1082→              onClick={() => {
+  1083→                void playerEngine.skipNext();
+  1084→              }}
+  1085→              style={{ cursor: "pointer" }}
+  1086→            >
+  1087→              <SkipNext size={18} weight="Bold" />
+  1088→            </button>
+  1089→          </div>
+  1090→        </div>
+  1091→      </div>
+  1092→
+  1093→      <EqualizerModal open={equalizerOpen} onOpenChange={setEqualizerOpen} />
+  1094→    </div>
+  1095→  );
+  1096→}
+  1097→
+  1098→export default memo(MiniPlayer);
+  1099→

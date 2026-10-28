@@ -288,13 +288,24 @@ describe("useWindowState", () => {
     expect(latestState?.isFullScreen).toBe(false);
   });
 
-  it("prevents default on F11 keydown to disable uncoordinated fullscreen", async () => {
+  it("prevents default on F11 keydown in electron mode only", async () => {
+    // electron mode: uncoordinated OS fullscreen must stay disabled
     await mount();
 
-    const event = new KeyboardEvent("keydown", { key: "F11", cancelable: true });
-    window.dispatchEvent(event);
+    const electronEvent = new KeyboardEvent("keydown", { key: "F11", cancelable: true });
+    window.dispatchEvent(electronEvent);
+    expect(electronEvent.defaultPrevented).toBe(true);
+  });
 
-    expect(event.defaultPrevented).toBe(true);
+  it("lets F11 through in browser mode so real fullscreen works", async () => {
+    delete (window as any).linerElectron;
+
+    await mount();
+
+    const browserEvent = new KeyboardEvent("keydown", { key: "F11", cancelable: true });
+    window.dispatchEvent(browserEvent);
+    // the browser's own F11 handler performs the real fullscreen
+    expect(browserEvent.defaultPrevented).toBe(false);
   });
 
   it("updates document.body classes and data-edge-to-edge attribute", async () => {

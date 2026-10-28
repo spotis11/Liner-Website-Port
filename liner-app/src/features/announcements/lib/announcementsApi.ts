@@ -6,6 +6,8 @@
  * this exists only on the website port.
  */
 
+import { refreshAuthSession } from "@/shared/api/auth-session";
+
 export interface Announcement {
   id: string;
   message: string;
@@ -75,17 +77,44 @@ export async function fetchCurrentAnnouncement(
 /**
  * Broadcast a new announcement. `accessToken` is the poster's Liner token;
  * the server verifies it against the upstream API and only accepts the
- * site owner's account.
+ * site owner's account. May be null when the Liner session is already
+ * unusable — the website admin cookie (issued on any previously verified
+ * owner session) then vouches for the browser on its own.
+ *
+ * Self-healing: if the server rejects the token (401 — stale access token,
+ * clock skew, missing expiry metadata), exactly one session refresh is
+ * forced and the broadcast retried before surfacing "session expired". The
+ * retry runs even when the refresh produces nothing, because the website
+ * admin cookie rides along with every same-origin request.
  */
 export async function sendAnnouncement(
   message: string,
-  accessToken: string,
+  accessToken: string | null,
   timeoutMs = 15_000,
+): Promise<Announcement> {
+  try {
+    return await sendAnnouncementOnce(message, accessToken, timeoutMs);
+  } catch (err) {
+    if (err instanceof AnnouncementError && err.code === "unauthorized") {
+      const refreshed = await refreshAuthSession().catch(() => null);
+      // retry with whatever we have — the website admin cookie rides along
+      // with the request and can vouch for the browser on its own
+      const nextToken = refreshed?.accessToken ?? accessToken;
+      return sendAnnouncementOnce(message, nextToken, timeoutMs);
+    }
+    throw err;
+  }
+}
+
+async function sendAnnouncementOnce(
+  message: string,
+  accessToken: string | null,
+  timeoutMs: number,
 ): Promise<Announcement> {
   const res = await fetch("/api/announcements", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message, accessToken }),
+    body: JSON.stringify({ message, accessToken: accessToken || undefined }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) {

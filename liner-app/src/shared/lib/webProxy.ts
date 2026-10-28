@@ -118,17 +118,29 @@ export function rewriteForWeb(rawUrl: string, method?: string): string {
     return host === "www.youtube.com" ? `/api/yt/www${rest}` : `/api/yt${rest}`;
   }
 
-  // SABR UMP streaming: serverAbrStreamingUrl (/api/manifest/...) on
-  // youtube.com or any googlevideo fallback host. These are long-lived binary
-  // protobuf POST streams that deliver media chunks progressively — the
-  // generic /api/fetch proxy buffers the whole body and 30s-times-out (the
-  // SabrStream client watchdog aborts long before the buffered body arrives)
-  // and /api/media is GET/HEAD-only. Dedicated streaming proxy: /api/yt/sabr.
+  // SABR UMP streaming: serverAbrStreamingUrl on youtube.com or any
+  // googlevideo fallback host. These are long-lived binary protobuf POST
+  // streams that deliver media chunks progressively — the generic /api/fetch
+  // proxy buffers the whole body and 30s-times-out (the SabrStream client
+  // watchdog aborts long before the buffered body arrives) and /api/media is
+  // a Range proxy, not a chunk-pump. Dedicated streaming proxy: /api/yt/sabr.
+  //
+  // The streaming URL is usually /api/manifest/... but some player responses
+  // hand out a plain /videoplayback?... URL directly (googlevideo r-nodes).
+  // UMP streaming is ALWAYS a POST — GET range downloads (the <audio> element
+  // and chunkedAudioDownload) must keep going through /api/media, so the
+  // method decides: POST + manifest|videoplayback -> /api/yt/sabr.
   if (
-    (hostMatches(host, "youtube.com") || hostMatches(host, "googlevideo.com")) &&
-    (url.pathname === "/api/manifest" || url.pathname.startsWith("/api/manifest/"))
+    hostMatches(host, "youtube.com") ||
+    hostMatches(host, "googlevideo.com")
   ) {
-    return `/api/yt/sabr?u=${encodeURIComponent(url.toString())}`;
+    const isManifestPath =
+      url.pathname === "/api/manifest" ||
+      url.pathname.startsWith("/api/manifest/");
+    const isVideoPlaybackPath = url.pathname === "/videoplayback";
+    if (isManifestPath || (isVideoPlaybackPath && method?.toUpperCase() === "POST")) {
+      return `/api/yt/sabr?u=${encodeURIComponent(url.toString())}`;
+    }
   }
 
   // SoundCloud API: api-v2.soundcloud.com/<...> -> /api/sc/<...>

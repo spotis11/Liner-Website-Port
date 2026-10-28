@@ -124,4 +124,41 @@ describe("announcementsApi — website-port announcement admin gate", () => {
       status: 429,
     });
   });
+
+  it("sendAnnouncement forces one refresh and retries when the served token went stale", async () => {
+    const { setAuthSession } = await import("@/shared/api/auth-session");
+    setAuthSession({
+      accessToken: "stale",
+      refreshToken: "rt-1",
+      accessTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      user: { id: "u1" },
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("{}", { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            accessToken: "fresh",
+            refreshToken: "rt-2",
+            accessTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+            user: { id: "u1" },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ announcement: liveAnnouncement }), { status: 201 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await sendAnnouncement("hi", "stale");
+
+    expect(result.id).toBe("ann_1");
+    const urls = fetchMock.mock.calls.map((call) => call[0]);
+    expect(urls[0]).toBe("/api/announcements");
+    expect(String(urls[1])).toContain("/v1/auth/refresh");
+    expect(urls[2]).toBe("/api/announcements");
+    const retryBody = JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
+    expect(retryBody.accessToken).toBe("fresh");
+  });
 });

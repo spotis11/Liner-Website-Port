@@ -85,6 +85,28 @@ describe("rewriteForWeb — Liner API method awareness", () => {
     );
   });
 
+  it("routes POST videoplayback SABR streams to the streaming proxy, GET stays media", () => {
+    // some player responses hand out a plain /videoplayback serverAbrStreamingUrl
+    // — UMP streaming is always a POST, and those must NOT hit /api/media
+    // (GET/HEAD-only route => 405 retry loop)
+    const stream =
+      "https://rr2---sn-i3b7knse.googlevideo.com/videoplayback?expire=1&cpn=abc&rn=0";
+    expect(rewriteForWeb(stream, "POST")).toBe(
+      `/api/yt/sabr?u=${encodeURIComponent(stream)}`,
+    );
+    expect(rewriteForWeb(stream, "post")).toBe(
+      `/api/yt/sabr?u=${encodeURIComponent(stream)}`,
+    );
+    // range GETs (audio element / chunked downloads) keep the media proxy
+    expect(rewriteForWeb(stream, "GET")).toBe(
+      `/api/media?u=${encodeURIComponent(stream)}`,
+    );
+    // HEAD probes keep the media proxy too
+    expect(rewriteForWeb(stream, "HEAD")).toBe(
+      `/api/media?u=${encodeURIComponent(stream)}`,
+    );
+  });
+
   it("leaves other hosts' behavior unchanged", () => {
     expect(
       rewriteForWeb("https://music.youtube.com/youtubei/v1/search?key=x", "POST"),

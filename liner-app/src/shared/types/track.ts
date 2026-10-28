@@ -1,4 +1,7 @@
-import type { TrackArtist as ContractTrackArtist } from "../contracts";
+import type {
+  TrackArtist as ContractTrackArtist,
+  TrackAudioVariant,
+} from "../contracts";
 
 export interface TrackArtist {
   id?: string;
@@ -16,6 +19,7 @@ export interface Track {
   durationMs: number;
   playCount: number;
   explicit?: boolean;
+  audioVariant?: TrackAudioVariant;
   releaseDate?: string;
   album?: {
     id: string;

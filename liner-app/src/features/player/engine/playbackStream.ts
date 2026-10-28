@@ -21,6 +21,8 @@ export interface UrlPlaybackStream extends PlaybackStreamFormat {
   completed?: Promise<Blob>;
   needsFullSource?: () => boolean;
   release?: () => void;
+  /** the url came from the liner r2 cache — dead urls pause that source */
+  fromLiner?: boolean;
 }
 
 export interface BufferedPlaybackStream extends PlaybackStreamFormat {
@@ -30,13 +32,14 @@ export interface BufferedPlaybackStream extends PlaybackStreamFormat {
   completed?: undefined;
   needsFullSource?: undefined;
   release?: undefined;
+  fromLiner?: undefined;
 }
 
 export type PlaybackStream = UrlPlaybackStream | BufferedPlaybackStream;
 
 export type PlayableTrack = Pick<
   Track,
-  "id" | "title" | "artists" | "durationMs" | "localFileId"
+  "id" | "title" | "artists" | "durationMs" | "localFileId" | "artistList" | "audioVariant"
 >;
 
 function toTimestamp(value: string | null | undefined): number | null {
@@ -120,6 +123,7 @@ export function fromLinerStream(
     codec: stream.codec ?? "opus",
     bitrate: seconds > 0 ? Math.round((stream.size * 8) / seconds) : 0,
     expiresAtMs: toTimestamp(stream.expiresAt),
+    fromLiner: true,
     ...(stream.size ? { contentLength: stream.size } : {}),
   };
 }

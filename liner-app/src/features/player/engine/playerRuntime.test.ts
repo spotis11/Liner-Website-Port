@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mocks = vi.hoisted(() => ({ resolvePlaybackStream: vi.fn() }));
 
+vi.mock("./websitePlayReporter", () => ({
+  reportWebsitePlay: vi.fn(),
+}));
+
 vi.mock("./streamResolver", () => ({
   resolvePlaybackStream: mocks.resolvePlaybackStream,
 }));

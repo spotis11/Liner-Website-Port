@@ -14,10 +14,12 @@ import {
 } from "./innertubeJson";
 import { coverFromThumbnail } from "./innertubeThumbnail";
 import { mapInnertubeTrack } from "./innertubeTrackMapper";
+import { audioVariantOf } from "./innertubeAudioVariant";
 
 export function mapInnertubeBrowseTracks(
   body: unknown,
   fallbackArtists: TrackArtist[] = [],
+  markAudioVariants = false,
 ): Track[] {
   const tracks: Track[] = [];
   const seen = new Set<string>();
@@ -26,7 +28,10 @@ export function mapInnertubeBrowseTracks(
     const track = mapInnertubeTrack(record, fallbackArtists);
     if (track && !seen.has(track.id)) {
       seen.add(track.id);
-      tracks.push(track);
+      const audioVariant = markAudioVariants
+        ? audioVariantOf(record)
+        : undefined;
+      tracks.push(audioVariant ? { ...track, audioVariant } : track);
     }
     return true;
   });
@@ -59,7 +64,7 @@ export function mapInnertubeAlbumDetails(
   const cover = coverFromThumbnail(header?.thumbnail);
   const year = yearFromRuns(header?.subtitle);
   const trackCount = trackCountFrom(header?.secondSubtitle);
-  const tracks = mapInnertubeBrowseTracks(body, artists).map((track) => ({
+  const tracks = mapInnertubeBrowseTracks(body, artists, true).map((track) => ({
     ...track,
     cover: cover ?? track.cover,
     album: track.album ?? { id, title },

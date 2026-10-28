@@ -84,6 +84,7 @@ export function toClientTrack(source: any): Track {
     durationMs: source.durationMs ?? source.duration_ms ?? 0,
     playCount: source.playCount ?? 0,
     explicit: source.explicit,
+    ...(source.audioVariant ? { audioVariant: source.audioVariant } : {}),
     album: album && (album.id || album.title) ? album : undefined,
   };
 }

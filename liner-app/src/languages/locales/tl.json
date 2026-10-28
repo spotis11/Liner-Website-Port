@@ -52,7 +52,8 @@
       "search": "Maghanap",
       "library": "Library",
       "settings": "Mga Setting",
-      "local": "Local na Musika"
+      "local": "Local na Musika",
+      "profile": "Profile"
     },
     "minimize": "I-minimize",
     "exitFullscreen": "Labas sa fullscreen",
@@ -389,6 +390,8 @@
     "track_unavailable": "Hindi available ang \"{title}\", lalaktawan...",
     "track_unavailable_title": "Hindi available ang track",
     "playback_stopped_too_many_errors": "Huminto ang pagplay — masyadong maraming track na hindi na-load.",
+    "youtube_refused_title": "Tinatanggihan ng YouTube ang koneksyong ito",
+    "youtube_refused_description": "Naka-block ang audio mula sa YouTube sa network na ito. I-off ang VPN o proxy, o subukan ang ibang koneksyon.",
     "speed_pitch": "Bilis at Pitch",
     "speed": "Bilis",
     "pitch": "Pitch",
@@ -428,7 +431,9 @@
       "preset_classical": "Classical",
       "preset_electronic": "Electronic",
       "preset_custom": "Custom"
-    }
+    },
+    "miniplayer": "Miniplayer",
+    "close_miniplayer": "Isara ang miniplayer"
   },
   "playlist": {
     "playlist": "Playlist",
@@ -494,7 +499,6 @@
       "playback": "Pagplay",
       "shortcuts": "Mga Shortcut",
       "overlay": "Overlay",
-      "discord": "Discord RPC",
       "youtube": "YouTube",
       "privacy": "Privacy",
       "customization": "Customization",
@@ -609,56 +613,6 @@
       "signed_out_title": "Hindi naka-sign in",
       "signed_out_description": "Mag-sign in para tumuloy ang pagplay sa YouTube"
     },
-    "discord": {
-      "description": "Ipakita kung ano ang pinapakinggan mo sa Discord na may album art, artist badge at progress bar.",
-      "section_display": "Mga Opsyonal sa Pagpapakita",
-      "section_buttons": "Mga Button sa Profile",
-      "enable": {
-        "title": "Discord Rich Presence",
-        "description": "I-broadcast sa Discord profile mo ang kasalukuyan mong pinapakinggan."
-      },
-      "status_display": {
-        "title": "Format ng Status",
-        "description": "Pumili ng lalabas sa 'Listening to...' status header ng Discord.",
-        "artist": "Artist (Default)",
-        "song": "Pamagat ng Kanta",
-        "artist_song": "Artist - Kanta",
-        "song_artist": "Kanta - Artist",
-        "app": "Liner (Pangalan ng app)"
-      },
-      "show_timeline": {
-        "title": "Timeline ng Pagplay",
-        "description": "Magpakita ng interactive na progress bar na may lumipas at natitirang oras."
-      },
-      "show_artwork": {
-        "title": "Artwork ng Track",
-        "description": "Ipakita ang cover ng track o album sa Discord activity card."
-      },
-      "show_artist_image": {
-        "title": "Badge ng Foto ng Artist",
-        "description": "Ipakita ang foto ng artist sa maliit na bilog na badge sa sulok sa ibaba."
-      },
-      "show_paused": {
-        "title": "Ipakita kapag Naka-pause",
-        "description": "Panatilihing nakikita ang status sa Discord na may pause indicator kapag naka-pause ang musika."
-      },
-      "show_button": {
-        "title": "'Makinig sa Liner' Button",
-        "description": "Magdagdag ng interactive na button na humahantong sa kanta sa Liner."
-      },
-      "show_download_button": {
-        "title": "'I-download ang Liner' Button",
-        "description": "Magdagdag ng interactive na button na humahantong sa tryliner.fun para i-download ang app."
-      },
-      "status": {
-        "connected": "Nakakonekta sa Discord ({user})",
-        "disconnected": "Hindi nakakonekta ang Discord",
-        "ready": "Handa na",
-        "waiting": "Naghihintay sa Discord",
-        "disabled": "Naka-disable",
-        "via_arrpc": "Nakakonekta via arRPC"
-      }
-    },
     "audio_data": {
       "description": "Kalidad ng streaming, offline cache at diagnostics ng koneksyon."
     },
@@ -763,8 +717,7 @@
       "description": "Pumili ng pangkalahatang itsura ng app.",
       "light": "Maliwanag",
       "dark": "Madilim",
-      "system": "System",
-      "disabled_for_glass": "Naka-off ang light theme kapag gumagamit ng custom wallpaper glassmorphism."
+      "system": "System"
     },
     "branding": {
       "title": "Branding",
@@ -975,6 +928,39 @@
       "error_forbidden": "Si JayJoice lang ang maaaring magpadala ng mga anunsiyo.",
       "error_rate_limited": "Dahan-dahan! Maghintay ng ilang segundo bago muli.",
       "error_generic": "Hindi naipadala ang anunsiyo. Subukan muli."
+    },
+    "user_finder": {
+      "account_created": "Petnatal ng account",
+      "ban_status": "Katayuan ng ban",
+      "banned": "Na-ban ({type}) — {reason}",
+      "description": "Hanapin ang kahit anong Liner account sa website na ito: profile, huling pagbisita, at mga kanta na pinakinggan. Para lang sayo ito.",
+      "email": "Email",
+      "error_forbidden": "Ang User Finder ay para lang sa may-ari ng website.",
+      "error_generic": "Nabigo ang paghahanap — subukan muli.",
+      "error_unauthorized": "Nag-expire ang session mo — mag-sign in ulit at subukan muli.",
+      "error_username": "Maglagay ng wastong Liner username (a-z, 0-9, _, 3-30 na character).",
+      "find": "Hanapin",
+      "last_ip": "Huling network address",
+      "last_seen": "Huling nakita sa website",
+      "no_songs": "Walang naitalang pag-play para sa account na ito sa website na ito.",
+      "not_found": "Wala pang alam tungkol sa @{username} — hindi pa pumasok ang account na iyon sa website na ito.",
+      "recent_songs": "Mga kantang kailang pinatugtog sa website na ito",
+      "search_placeholder": "Maglagay ng username (hal. liner)",
+      "searching": "Naghahanap…",
+      "title": "User Finder",
+      "unknown": "Hindi alam",
+      "followers": "Mga tagasunod",
+      "follow_stats": "{followers} tagasunod · {following} sinusundan",
+      "source_live": "Live mula sa Liner",
+      "source_cache": "Mula sa website cache"
+    },
+    "cross_tab_miniplayer": {
+      "title": "Miniplayer",
+      "description": "Nagbubukas ng mini player kapag pumalit ka sa ibang tab at isinasara ito agad kapag bumalik ka."
+    },
+    "sound_wave": {
+      "title": "Sound wave visualizer",
+      "description": "Magpakita ng live na sound wave na naka-sync sa musika sa fullscreen player."
     }
   },
   "toast": {
@@ -1165,6 +1151,8 @@
     "play_all": "I-play lahat",
     "scan_complete": "Tapos na ang scan: {count} tracks",
     "scan_failed": "Nabigo ang scan: {reason}",
+    "scan_no_folders": "Walang folder na i-scan pa — magdagdag muna ng folder o mag-drop ng audio files",
+    "scan_no_audio": "Walang nahanap na audio files sa folder na iyon",
     "folder_added": "Naidagdag ang folder: {name}",
     "files_added": "Naidagdag na {count} tracks",
     "missing_file": "Nawawala ang lokal na file — i-rescan ang library mo",

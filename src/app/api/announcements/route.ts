@@ -9,8 +9,9 @@ import {
   normalizeAvatarUrl,
   pruneOldAnnouncements,
   serializeAnnouncement,
-  verifyAnnouncementAdmin,
 } from "@/lib/announcements";
+import { ANNOUNCEMENT_ADMIN_USERNAME } from "@/lib/announcements";
+import { authenticateAdmin, issueAdminCookie } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,10 @@ export const dynamic = "force-dynamic";
  * Body: { message: string, accessToken: string }
  * The access token is the poster's Liner token; it is verified against the
  * upstream API server-side and only the site owner's account is accepted.
+ * When the token cannot be verified (dead upstream session), the website
+ * admin cookie from a previous successful verification vouches for the
+ * browser instead — the owner is never locked out of their own broadcast
+ * tool by upstream session churn (Task 28).
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -38,17 +43,13 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  if (!accessToken) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
 
-  const verification = await verifyAnnouncementAdmin(accessToken);
-  if (!verification.ok) {
-    const status = verification.reason === "not_admin" ? 403 : 401;
-    return NextResponse.json(
-      { error: verification.reason },
-      { status },
-    );
+  const auth = await authenticateAdmin(accessToken, req);
+  if (!auth.ok) {
+    // 403 = not the owner, 502 = upstream unreachable (NOT a dead token —
+    // the client must show a neutral "try again" instead of "session expired"),
+    // 401 = neither token nor admin cookie vouches for the caller
+    return NextResponse.json({ error: auth.reason }, { status: auth.status });
   }
 
   // accidental double-send guard (the client promise is "sends within 10s")
@@ -68,20 +69,21 @@ export async function POST(req: NextRequest) {
   const created = await db.announcement.create({
     data: {
       message,
-      senderUsername: verification.me.username,
+      senderUsername: auth.me.username || ANNOUNCEMENT_ADMIN_USERNAME,
       senderName:
-        (verification.me.displayName?.trim() || ANNOUNCEMENT_DEFAULT_SENDER_NAME).slice(0, 60),
-      senderAvatarUrl: normalizeAvatarUrl(verification.me.avatarUrl),
+        (auth.me.displayName?.trim() || ANNOUNCEMENT_DEFAULT_SENDER_NAME).slice(0, 60),
+      senderAvatarUrl: normalizeAvatarUrl(auth.me.avatarUrl),
       // "the message will send globally within 10 seconds" — enforced here so
       // the timing is identical for every client, not just the sender's.
       showAt: new Date(now + ANNOUNCEMENT_BROADCAST_DELAY_MS),
     },
   });
 
-  return NextResponse.json(
+  const createdRes = NextResponse.json(
     { announcement: serializeAnnouncement(created) },
     { status: 201 },
   );
+  return issueAdminCookie(createdRes, ANNOUNCEMENT_ADMIN_USERNAME);
 }
 
 /**

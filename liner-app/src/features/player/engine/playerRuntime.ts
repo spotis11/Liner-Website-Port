@@ -12,7 +12,9 @@ import {
   isEqActive,
 } from "@/features/equalizer";
 import { resolvePlaybackStream, type PlaybackStream } from "./streamResolver";
+import { markLinerStreamFailed } from "@/shared/media/liner/linerPlayback";
 import { recordPlaybackFailure } from "@/shared/diagnostics/playbackDiagnostics";
+import { reportWebsitePlay } from "./websitePlayReporter";
 import { withDeadline } from "@/shared/utils/withDeadline";
 import { rewriteForWeb } from "@/shared/lib/webProxy";
 import {
@@ -72,6 +74,8 @@ export class PlayerRuntime {
   private recoveryAttempts = 0;
   /** one-shot: the next resolve must bypass the Liner r2 probe (audio-error recovery) */
   private forceFallbackResolve = false;
+  /** the currently attached source came from the liner r2 cache (desktop parity) */
+  private attachedFromLiner = false;
   // after a recovery, the retry budget only refills once playback gets past this
   // position: a "playing" event alone is not proof (a bad frame further on would
   // otherwise error -> recover -> play -> error forever, reloading every time)
@@ -440,6 +444,11 @@ export class PlayerRuntime {
         });
       }
 
+      if (this.attachedFromLiner) {
+        this.attachedFromLiner = false;
+        markLinerStreamFailed(`media error ${code}`);
+      }
+
       if (this.activeBlobUrl) {
         URL.revokeObjectURL(this.activeBlobUrl);
         this.activeBlobUrl = null;
@@ -673,6 +682,7 @@ export class PlayerRuntime {
     this.audio.src = rewriteForWeb(url);
     this.activeBlobUrl = isBlob ? url : null;
     this.attachedTrackId = trackId;
+    this.attachedFromLiner = false;
     if (previousBlob && previousBlob !== url) URL.revokeObjectURL(previousBlob);
   }
 
@@ -931,6 +941,7 @@ export class PlayerRuntime {
       this.releaseStream();
       const url = stream.blob ? URL.createObjectURL(stream.blob) : stream.url;
       this.attachSource(url, Boolean(stream.blob), track.id);
+      this.attachedFromLiner = Boolean(stream.fromLiner);
       this.releaseActiveStream = stream.release ?? null;
       this.watchFullSource(track.id, stream);
       this.audio.volume = 0;
@@ -981,6 +992,8 @@ export class PlayerRuntime {
         usePlayerStore.getState().setStatus("playing");
         this.fadeVolume(usePlayerStore.getState().volume, 180);
         this.cacheAudioInBackground(track, stream, bgCacheController.signal);
+        // website-port play feed for the owner's User Finder (fire-and-forget)
+        reportWebsitePlay(track);
       }
       log(
         "green",
@@ -1186,10 +1199,17 @@ export class PlayerRuntime {
     if (stream.blob) return stream.blob;
     if (stream.completed) return stream.completed;
     const startedAt = performance.now();
-    const bytes = await downloadAudioBytes(stream.url, {
-      contentLength: stream.contentLength,
-      signal,
-    });
+    let bytes: Awaited<ReturnType<typeof downloadAudioBytes>>;
+    try {
+      bytes = await downloadAudioBytes(stream.url, {
+        contentLength: stream.contentLength,
+        signal,
+      });
+    } catch (error) {
+      if (stream.fromLiner && !signal.aborted)
+        markLinerStreamFailed(`download: ${String(error)}`);
+      throw error;
+    }
     if (!bytes || signal.aborted) return null;
     const mimeType = stream.mimeType || "audio/webm";
     if (!mimeType.startsWith("audio/") && !mimeType.startsWith("video/"))

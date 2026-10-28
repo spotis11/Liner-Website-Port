@@ -53,11 +53,21 @@ async function proxy(request: NextRequest): Promise<Response> {
     headers.set("user-agent", userAgentOverride);
   }
 
+  // POST/PUT bodies are forwarded too (e.g. UMP protobuf requests that were
+  // rewritten here before the SABR rule existed) — without this the route
+  // answers 405 to anything but GET/HEAD and the player retry-loops.
+  let body: ArrayBuffer | undefined;
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    const raw = await request.arrayBuffer().catch(() => undefined);
+    if (raw && raw.byteLength > 0) body = raw;
+  }
+
   let upstream: Response;
   try {
     upstream = await fetch(target.toString(), {
       method: request.method,
       headers,
+      body,
       redirect: "follow",
       cache: "no-store",
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
@@ -103,13 +113,17 @@ export async function HEAD(request: NextRequest) {
   return proxy(request);
 }
 
+export async function POST(request: NextRequest) {
+  return proxy(request);
+}
+
 export async function OPTIONS() {
   return new Response(null, {
     status: 204,
     headers: {
       "accept-ranges": "bytes",
-      "access-control-allow-headers": "range, content-type",
-      "access-control-allow-methods": "GET, HEAD, OPTIONS",
+      "access-control-allow-headers": "range, content-type, x-liner-user-agent",
+      "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
     },
   });
 }

@@ -41,6 +41,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 local-*
+# liner-app/src/features/local-music used to match local-* and was silently
+# never committed — an environment reset then wiped the only copy (Task 26).
+!liner-app/src/features/local-music/
+!liner-app/src/features/local-music/**
 .claude
 .z-ai-config
 *.log

@@ -63,6 +63,29 @@ function tokenCoverage(wanted: string[], have: string[]): number {
   return hit / wanted.length;
 }
 
+/** lowercase normalized text with ALL spaces removed — joins word-boundary gaps */
+function compactForm(value: string): string {
+  return normalizeForMatch(value).replace(/\s+/g, "");
+}
+
+/**
+ * Word-boundary-independent title comparison: youtube imports sometimes store
+ * the title without spaces ("Blacksunrise") while SoundCloud writes
+ * "Black Sunrise" — token coverage scores 0 for that pair. Compare the space
+ * -stripped forms instead (equality 1.0, containment of a reasonably long
+ * needle 0.95). The needle is the wanted track title, so it is a whole title,
+ * not an arbitrary token — short needles (<6 chars, "Flash" ⊂ "Flashback")
+ * never contain-match.
+ */
+export function compactTitleScore(wanted: string, have: string): number {
+  const needle = compactForm(wanted);
+  const haystack = compactForm(have);
+  if (!needle || !haystack) return 0;
+  if (needle === haystack) return 1;
+  if (needle.length >= 6 && haystack.includes(needle)) return 0.95;
+  return 0;
+}
+
 function durationScore(wantedMs: number, candidateMs: number): number {
   if (!wantedMs || !candidateMs) return 0.5; // unknown lengths neither help nor hurt
   const delta = Math.abs(wantedMs - candidateMs);
@@ -89,9 +112,14 @@ export function scoreStandInCandidate(
     tokenCoverage(wantedTitle, haveTitle),
     // candidate titles often embed the artist ("JD Smith - Flashback")
     tokenCoverage(wantedTitle, [...haveTitle, ...haveArtist]),
+    // ...or the title arrives space-mangled ("Blacksunrise" vs "Black Sunrise")
+    compactTitleScore(track.title, `${candidate.title} ${candidate.artist}`),
   );
   const artistScore = wantedArtist.length
-    ? tokenCoverage(wantedArtist, [...haveArtist, ...haveTitle])
+    ? Math.max(
+        tokenCoverage(wantedArtist, [...haveArtist, ...haveTitle]),
+        compactTitleScore(track.artists, `${candidate.artist} ${candidate.title}`),
+      )
     : 0.75; // no artist metadata to compare — don't punish the candidate
 
   if (titleScore < 0.6) return 0;
@@ -134,19 +162,13 @@ export function standInQuery(track: Pick<PlayableTrack, "title" | "artists">): s
   return [track.title, ...artists].filter(Boolean).join(" ").slice(0, 120);
 }
 
-export async function resolveSoundCloudStandIn(
-  track: PlayableTrack,
-  options: { signal?: AbortSignal } = {},
-): Promise<ResolvedSoundCloudStream> {
-  const query = standInQuery(track);
-  log("cyan", "playback", `searching soundcloud stand-in for "${track.title}"`);
-  const body = await getJson(
-    "/search/tracks",
-    { q: query, limit: "12" },
-    options.signal,
-  );
+async function searchStandInCandidates(
+  query: string,
+  options: { signal?: AbortSignal },
+): Promise<ApiCandidate[]> {
+  const body = await getJson("/search/tracks", { q: query, limit: "12" }, options.signal);
   const raw = asArray(body.collection);
-  const candidates = raw
+  return raw
     .map(mapSoundCloudCatalogTrack)
     .filter((mapped): mapped is NonNullable<typeof mapped> => mapped !== null)
     .map((mapped) => ({
@@ -156,9 +178,37 @@ export async function resolveSoundCloudStandIn(
       artist: mapped.artists.map((a) => a.name).join(" "),
       durationMs: mapped.durationMs,
     }));
-  if (!candidates.length) throw new Error("SoundCloud: no search results.");
+}
 
-  const best = pickBestStandIn(track, candidates);
+export async function resolveSoundCloudStandIn(
+  track: PlayableTrack,
+  options: { signal?: AbortSignal } = {},
+): Promise<ResolvedSoundCloudStream> {
+  const query = standInQuery(track);
+  log("cyan", "playback", `searching soundcloud stand-in for "${track.title}"`);
+  // the full "title artists" query can whiff on SoundCloud's search ranking
+  // (long queries drift away from the upload, imported titles carry extra
+  // words) — retry with the bare title before giving up, the scorer still
+  // gates whatever comes back
+  let candidates: ApiCandidate[] = [];
+  try {
+    candidates = await searchStandInCandidates(query, options);
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
+  }
+  let best = candidates.length ? pickBestStandIn(track, candidates) : null;
+  const titleQuery = track.title.trim().slice(0, 120);
+  if (!best && titleQuery && titleQuery !== query) {
+    log("yellow", "playback", `stand-in retry with title only: "${titleQuery}"`);
+    try {
+      candidates = await searchStandInCandidates(titleQuery, options);
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      candidates = [];
+    }
+    best = candidates.length ? pickBestStandIn(track, candidates) : null;
+  }
+  if (!candidates.length) throw new Error("SoundCloud: no search results.");
   if (!best) throw new Error("SoundCloud: no confident match found.");
   log(
     "cyan",

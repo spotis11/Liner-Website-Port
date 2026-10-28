@@ -10,8 +10,12 @@ export interface WindowStateHookResult {
 let activeF11Count = 0;
 let activeWindowStateInstances = 0;
 
+// Electron: swallow F11 so the OS window fullscreen stays coordinated by the
+// main process. Plain browsers: F11 must fall through to the browser's own
+// real fullscreen (requestFullscreen-style, no preventDefault) — the website
+// port relies on it because there is no Electron window to coordinate.
 const handlePreventF11 = (e: KeyboardEvent) => {
-  if (e.key === "F11") {
+  if (e.key === "F11" && typeof window !== "undefined" && window.linerElectron) {
     e.preventDefault();
   }
 };

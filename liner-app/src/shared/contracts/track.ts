@@ -5,6 +5,8 @@ export interface TrackArtist {
   name: string;
 }
 
+export type TrackAudioVariant = 'music-video' | 'premium-only';
+
 export interface TrackAlbum {
   id: string;
   title: string;
@@ -18,6 +20,7 @@ export interface Track {
   durationMs: number;
   cover?: Cover;
   explicit?: boolean;
+  audioVariant?: TrackAudioVariant;
 }
 
 export interface ApiTrack extends Track {

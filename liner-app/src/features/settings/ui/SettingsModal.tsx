@@ -5,11 +5,12 @@ import {
   Search2Line,
   CloseCircleFill,
   ExitLine,
-  DiscordFill,
   KeyboardLine,
   User3Line,
   YoutubeFill,
   AnnouncementLine,
+  ForbidCircleLine,
+  UserSearchLine,
 } from "@mingcute/react";
 import {
   Play,
@@ -36,10 +37,11 @@ import {
   StorageTab,
   AboutTab,
   OverlayTab,
-  DiscordTab,
   YoutubeTab,
   AccountTab,
   AnnouncementTab,
+  UserFinderTab,
+  ModerationTab,
 } from "./tabs";
 import { isWebsiteAdmin } from "@/features/announcements";
 
@@ -48,13 +50,14 @@ type TabId =
   | "Playback"
   | "Shortcuts"
   | "Overlay"
-  | "Discord"
   | "Youtube"
   | "Appearance"
   | "Customization"
   | "Storage"
   | "About"
-  | "Announcement";
+  | "Announcement"
+  | "UserFinder"
+  | "Moderation";
 
 const navGroupClass =
   "flex flex-col gap-[1px] rounded-[14px] bg-bg-surface/70 p-[4px] dark:bg-white/[0.06]";
@@ -64,13 +67,14 @@ const TAB_ICONS: Record<TabId, React.ComponentType<any>> = {
   Playback: Play,
   Shortcuts: KeyboardLine,
   Overlay: Widget5,
-  Discord: DiscordFill,
   Youtube: YoutubeFill,
   Appearance: Palette,
   Customization: Gallery,
   Storage: Database,
   About: InfoCircle,
   Announcement: AnnouncementLine,
+  UserFinder: UserSearchLine,
+  Moderation: ForbidCircleLine,
 };
 
 type TabGroupKey =
@@ -85,10 +89,10 @@ const TAB_GROUPS: { labelKey: TabGroupKey; ids: TabId[] }[] = [
   { labelKey: "account", ids: ["Account"] },
   { labelKey: "player", ids: ["Playback", "Shortcuts"] },
   { labelKey: "interface", ids: ["Appearance", "Customization", "Overlay"] },
-  { labelKey: "integrations", ids: ["Youtube", "Discord"] },
+  { labelKey: "integrations", ids: ["Youtube"] },
   { labelKey: "application", ids: ["Storage", "About"] },
   // website-port group: only visible to the site owner (see visibleGroups)
-  { labelKey: "website", ids: ["Announcement"] },
+  { labelKey: "website", ids: ["Announcement", "UserFinder", "Moderation"] },
 ];
 
 const WEBSITE_GROUP_LABEL_KEY: TabGroupKey = "website";
@@ -247,42 +251,7 @@ const SETTING_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
     descKey: "settings.overlay.always_on_top.description",
   },
 
-  // Discord
-  {
-    tabId: "Discord",
-    titleKey: "settings.discord.enable.title",
-    descKey: "settings.discord.enable.description",
-  },
-  {
-    tabId: "Discord",
-    titleKey: "settings.discord.show_timeline.title",
-    descKey: "settings.discord.show_timeline.description",
-  },
-  {
-    tabId: "Discord",
-    titleKey: "settings.discord.show_artwork.title",
-    descKey: "settings.discord.show_artwork.description",
-  },
-  {
-    tabId: "Discord",
-    titleKey: "settings.discord.show_artist_image.title",
-    descKey: "settings.discord.show_artist_image.description",
-  },
-  {
-    tabId: "Discord",
-    titleKey: "settings.discord.show_paused.title",
-    descKey: "settings.discord.show_paused.description",
-  },
-  {
-    tabId: "Discord",
-    titleKey: "settings.discord.show_button.title",
-    descKey: "settings.discord.show_button.description",
-  },
-  {
-    tabId: "Discord",
-    titleKey: "settings.discord.show_download_button.title",
-    descKey: "settings.discord.show_download_button.description",
-  },
+  // Integrations
   {
     tabId: "Youtube",
     titleKey: "settings.youtube.account_playback.title",
@@ -307,8 +276,13 @@ const SETTING_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
   },
   {
     tabId: "Appearance",
-    titleKey: "settings.theme.title",
-    descKey: "settings.theme.description",
+    titleKey: "settings.appearance.same_as_device_title",
+    descKey: "settings.appearance.same_as_device_description",
+  },
+  {
+    tabId: "Appearance",
+    titleKey: "settings.appearance.color_themes_title",
+    descKey: "settings.appearance.color_themes_description",
   },
   {
     tabId: "Appearance",
@@ -367,18 +341,65 @@ const ANNOUNCEMENT_SEARCH_ITEMS: { tabId: TabId; titleKey: string; descKey?: str
   },
 ];
 
+// searchable entries for the website-owner-only User Finder tab
+const USER_FINDER_SEARCH_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
+  {
+    tabId: "UserFinder",
+    titleKey: "settings.user_finder.title",
+    descKey: "settings.user_finder.description",
+  },
+  {
+    tabId: "UserFinder",
+    titleKey: "settings.user_finder.recent_songs",
+  },
+];
+
+// searchable entries for the website-owner-only Moderation (bans) tab
+const MODERATION_SEARCH_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
+  {
+    tabId: "Moderation",
+    titleKey: "settings.moderation.section_title",
+    descKey: "settings.moderation.section_subtitle",
+  },
+  {
+    tabId: "Moderation",
+    titleKey: "settings.moderation.ban_title",
+    descKey: "settings.moderation.ban_hint",
+  },
+  {
+    tabId: "Moderation",
+    titleKey: "settings.moderation.unban_title",
+    descKey: "settings.moderation.unban_hint",
+  },
+];
+
 const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
 
 export default function SettingsModal() {
   const { t } = useTranslation();
   const open = useModalStore((state) => state.settingsOpen);
   const close = useModalStore((state) => state.closeSettings);
+  const requestedTab = useModalStore((state) => state.settingsRequestedTab);
+  const consumeSettingsRequestedTab = useModalStore(
+    (state) => state.consumeSettingsRequestedTab,
+  );
 
   const [activeTab, setActiveTab] = useState<TabId>("Account");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
-  // website-port owner gate: the Announcement tab exists only for @jayzeyluna
+  // The sidebar Profile button (and other deep links) can request a tab:
+  // honor it whenever the modal opens, then clear the request.
+  useEffect(() => {
+    if (!open || !requestedTab) return;
+    const validTabs = TAB_GROUPS.flatMap((group) => group.ids);
+    if ((validTabs as string[]).includes(requestedTab)) {
+      setActiveTab(requestedTab as TabId);
+    }
+    consumeSettingsRequestedTab();
+  }, [open, requestedTab, consumeSettingsRequestedTab]);
+
+  // website-port owner gate: the Announcement and Moderation tabs exist only for @jayzeyluna
   const authUser = useAuthStore((state) => state.user);
   const isAdmin = isWebsiteAdmin(authUser?.username);
   const visibleGroups = useMemo(
@@ -389,7 +410,10 @@ export default function SettingsModal() {
     [isAdmin],
   );
   const searchableItems = useMemo(
-    () => (isAdmin ? [...SETTING_ITEMS, ...ANNOUNCEMENT_SEARCH_ITEMS] : SETTING_ITEMS),
+    () =>
+      isAdmin
+        ? [...SETTING_ITEMS, ...ANNOUNCEMENT_SEARCH_ITEMS, ...USER_FINDER_SEARCH_ITEMS, ...MODERATION_SEARCH_ITEMS]
+        : SETTING_ITEMS,
     [isAdmin],
   );
   const {
@@ -409,13 +433,14 @@ export default function SettingsModal() {
     Playback: t("settings.tabs.playback"),
     Shortcuts: t("settings.tabs.shortcuts") || "Shortcuts",
     Overlay: t("settings.tabs.overlay") || "Overlay",
-    Discord: t("settings.tabs.discord") || "Discord RPC",
     Youtube: t("settings.tabs.youtube") || "YouTube",
     Appearance: t("settings.tabs.appearance"),
     Customization: t("settings.tabs.customization") || "Customization",
     Storage: t("settings.tabs.storage"),
     About: t("settings.tabs.about"),
     Announcement: t("settings.tabs.announcement") || "Announcement",
+    UserFinder: t("settings.user_finder.title") || "User Finder",
+    Moderation: t("settings.tabs.moderation") || "Moderation",
   };
 
   const tabDescriptions: Record<TabId, string> = {
@@ -429,9 +454,6 @@ export default function SettingsModal() {
     Overlay:
       t("settings.overlay.description") ||
       "Desktop overlay behavior, position and lyrics display.",
-    Discord:
-      t("settings.discord.description") ||
-      "Show what you're listening to on Discord with artwork, artist badge and progress bar.",
     Youtube:
       t("settings.youtube.description") ||
       "Sign in to your YouTube account to prevent playback errors.",
@@ -444,6 +466,10 @@ export default function SettingsModal() {
     Announcement:
       t("settings.announcement.description") ||
       "Broadcast a message to everyone on the website.",
+    UserFinder: t("settings.user_finder.description"),
+    Moderation:
+      t("settings.moderation.description") ||
+      "Ban accounts from this website and lift bans again.",
   };
 
   const matchingTabIds = useMemo(() => {
@@ -456,13 +482,13 @@ export default function SettingsModal() {
       Playback: "settings.tabs.playback",
       Shortcuts: "settings.tabs.shortcuts",
       Overlay: "settings.tabs.overlay",
-      Discord: "settings.tabs.discord",
       Youtube: "settings.tabs.youtube",
       Appearance: "settings.theme.title",
       Customization: "settings.tabs.customization",
       Storage: "settings.tabs.storage",
       About: "settings.tabs.about",
       ...(isAdmin ? { Announcement: "settings.tabs.announcement" } : {}),
+      ...(isAdmin ? { Moderation: "settings.tabs.moderation" } : {}),
     };
 
     const TAB_DESC_KEYS: Partial<Record<TabId, string>> = {
@@ -470,7 +496,6 @@ export default function SettingsModal() {
       Playback: "settings.playback.description",
       Shortcuts: "settings.shortcuts.description",
       Overlay: "settings.overlay.description",
-      Discord: "settings.discord.description",
       Youtube: "settings.youtube.description",
       Appearance: "settings.theme.description",
       Customization: "settings.customization.description",
@@ -478,6 +503,9 @@ export default function SettingsModal() {
       About: "settings.about.tagline",
       ...(isAdmin
         ? { Announcement: "settings.announcement.description" }
+        : {}),
+      ...(isAdmin
+        ? { Moderation: "settings.moderation.description" }
         : {}),
     };
 
@@ -786,9 +814,6 @@ export default function SettingsModal() {
               {activeTab === "Overlay" && (
                 <OverlayTab searchQuery={searchQuery} />
               )}
-              {activeTab === "Discord" && (
-                <DiscordTab searchQuery={searchQuery} />
-              )}
               {activeTab === "Youtube" && (
                 <YoutubeTab searchQuery={searchQuery} />
               )}
@@ -804,6 +829,12 @@ export default function SettingsModal() {
               {activeTab === "About" && <AboutTab searchQuery={searchQuery} />}
               {activeTab === "Announcement" && isAdmin && (
                 <AnnouncementTab searchQuery={searchQuery} />
+              )}
+              {activeTab === "UserFinder" && isAdmin && (
+                <UserFinderTab searchQuery={searchQuery} />
+              )}
+              {activeTab === "Moderation" && isAdmin && (
+                <ModerationTab searchQuery={searchQuery} />
               )}
             </motion.div>
           </div>

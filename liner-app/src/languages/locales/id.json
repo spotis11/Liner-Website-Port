@@ -52,7 +52,8 @@
       "search": "Cari",
       "library": "Pustaka",
       "settings": "Pengaturan",
-      "local": "Musik Lokal"
+      "local": "Musik Lokal",
+      "profile": "Profil"
     },
     "minimize": "Perkecil",
     "exitFullscreen": "Keluar dari layar penuh",
@@ -389,6 +390,8 @@
     "track_unavailable": "\"{title}\" tidak tersedia, melewati...",
     "track_unavailable_title": "Trek tidak tersedia",
     "playback_stopped_too_many_errors": "Pemutaran berhenti — terlalu banyak trek gagal dimuat.",
+    "youtube_refused_title": "YouTube menolak koneksi ini",
+    "youtube_refused_description": "Audio dari YouTube diblokir di jaringan ini. Matikan VPN atau proxy, atau coba koneksi lain.",
     "speed_pitch": "Kecepatan & Nada",
     "speed": "Kecepatan",
     "pitch": "Nada",
@@ -428,7 +431,9 @@
       "preset_classical": "Klasik",
       "preset_electronic": "Elektronik",
       "preset_custom": "Kustom"
-    }
+    },
+    "miniplayer": "Pemutar mini",
+    "close_miniplayer": "Tutup pemutar mini"
   },
   "playlist": {
     "playlist": "Playlist",
@@ -494,7 +499,6 @@
       "playback": "Pemutaran",
       "shortcuts": "Pintasan",
       "overlay": "Overlay",
-      "discord": "Discord RPC",
       "youtube": "YouTube",
       "privacy": "Privasi",
       "customization": "Kustomisasi",
@@ -609,56 +613,6 @@
       "signed_out_title": "Belum masuk",
       "signed_out_description": "Masuk agar pemutaran YouTube tetap berjalan"
     },
-    "discord": {
-      "description": "Tampilkan apa yang kamu dengarkan di Discord dengan sampul album, lencana artis, dan bilah progres.",
-      "section_display": "Opsi Tampilan",
-      "section_buttons": "Tombol Profil",
-      "enable": {
-        "title": "Discord Rich Presence",
-        "description": "Siarahkan pemutaran musik aktifmu ke profil Discord-mu."
-      },
-      "status_display": {
-        "title": "Format Status",
-        "description": "Pilih yang muncul di header status 'Listening to...' Discord.",
-        "artist": "Artis (Bawaan)",
-        "song": "Judul Lagu",
-        "artist_song": "Artis - Lagu",
-        "song_artist": "Lagu - Artis",
-        "app": "Liner (Nama aplikasi)"
-      },
-      "show_timeline": {
-        "title": "Garis Waktu Pemutaran",
-        "description": "Tampilkan bilah progres interaktif dengan waktu berjalan dan tersisa."
-      },
-      "show_artwork": {
-        "title": "Sampul Trek",
-        "description": "Tampilkan sampul trek atau album di kartu aktivitas Discord."
-      },
-      "show_artist_image": {
-        "title": "Lencana Foto Artis",
-        "description": "Tampilkan foto artis dalam lencana bulat kecil di sudut bawah."
-      },
-      "show_paused": {
-        "title": "Tampilkan saat Dijeda",
-        "description": "Tetap tampilkan status di Discord dengan indikator jeda saat musik dijeda."
-      },
-      "show_button": {
-        "title": "Tombol 'Dengarkan di Liner'",
-        "description": "Tambahkan tombol interaktif yang menautkan ke lagu di Liner."
-      },
-      "show_download_button": {
-        "title": "Tombol 'Unduh Liner'",
-        "description": "Tambahkan tombol interaktif yang menautkan ke tryliner.fun untuk mengunduh aplikasi."
-      },
-      "status": {
-        "connected": "Terhubung ke Discord ({user})",
-        "disconnected": "Discord tidak terhubung",
-        "ready": "Siap",
-        "waiting": "Menunggu Discord",
-        "disabled": "Nonaktif",
-        "via_arrpc": "Terhubung lewat arRPC"
-      }
-    },
     "audio_data": {
       "description": "Kualitas streaming, cache offline, dan diagnostik koneksi."
     },
@@ -763,8 +717,7 @@
       "description": "Pilih tampilan keseluruhan aplikasi.",
       "light": "Terang",
       "dark": "Gelap",
-      "system": "Sistem",
-      "disabled_for_glass": "Tema terang dinonaktifkan saat menggunakan glassmorphism wallpaper kustom."
+      "system": "Sistem"
     },
     "branding": {
       "title": "Branding",
@@ -975,6 +928,39 @@
       "error_forbidden": "Hanya JayJoice yang bisa mengirim pengumuman.",
       "error_rate_limited": "Perlahan! Tunggu beberapa detik antar pengumuman.",
       "error_generic": "Gagal mengirim pengumuman. Coba lagi."
+    },
+    "user_finder": {
+      "account_created": "Akun dibuat",
+      "ban_status": "Status larangan",
+      "banned": "Dilarang ({type}) — {reason}",
+      "description": "Cari akun Liner mana pun di situs ini: profil, terakhir terlihat, dan apa yang diputar. Hanya kamu yang bisa memakainya.",
+      "email": "Email",
+      "error_forbidden": "Pencari Pengguna hanya untuk pemilik situs.",
+      "error_generic": "Pencarian gagal — coba lagi.",
+      "error_unauthorized": "Sesimu berakhir — masuk lagi dan coba lagi.",
+      "error_username": "Masukkan nama pengguna Liner yang valid (a-z, 0-9, _, 3-30 karakter).",
+      "find": "Cari",
+      "last_ip": "Alamat jaringan terakhir",
+      "last_seen": "Terakhir terlihat di situs",
+      "no_songs": "Belum ada pemutaran yang tercatat untuk akun ini di situs ini.",
+      "not_found": "Belum ada info tentang @{username} — akun itu belum pernah masuk ke situs ini.",
+      "recent_songs": "Lagu yang baru diputar di situs ini",
+      "search_placeholder": "Masukkan nama pengguna (mis. liner)",
+      "searching": "Mencari…",
+      "title": "Pencari Pengguna",
+      "unknown": "Tidak diketahui",
+      "followers": "Pengikut",
+      "follow_stats": "{followers} pengikut · {following} mengikuti",
+      "source_live": "Langsung dari Liner",
+      "source_cache": "Dari cache situs"
+    },
+    "cross_tab_miniplayer": {
+      "title": "Pemutar mini",
+      "description": "Membuka pemutar mini saat berpindah ke tab lain dan menutupnya segera setelah kembali."
+    },
+    "sound_wave": {
+      "title": "Visualizer gelombang suara",
+      "description": "Tampilkan gelombang suara langsung yang sinkron dengan musik di pemutar layar penuh."
     }
   },
   "toast": {
@@ -1165,6 +1151,8 @@
     "play_all": "Putar semua",
     "scan_complete": "Pemindaian selesai: {count} lagu",
     "scan_failed": "Pemindaian gagal: {reason}",
+    "scan_no_folders": "Belum ada folder untuk dipindai — tambahkan folder atau jatuhkan file audio terlebih dahulu",
+    "scan_no_audio": "Tidak ada file audio yang ditemukan di folder itu",
     "folder_added": "Folder ditambahkan: {name}",
     "files_added": "{count} lagu ditambahkan",
     "missing_file": "File lokal hilang — pindai ulang perpustakaanmu",

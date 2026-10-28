@@ -1,33 +1,81 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useTranslation, LOCALE_OPTIONS } from "@/languages";
-import { MenuSelect, ToggleSwitch } from "@/shared/ui";
+import { MenuSelect, ToggleSwitch, useToast } from "@/shared/ui";
 import { revealThemeChange } from "@/shared/lib";
 import { SettingBlock, SettingRow, SettingSection } from "../controls";
-import { ThemeCard } from "./ThemeCard";
 import {
-  useCustomizationStore,
-  selectIsGlassThemeActive,
-  useHasCustomBackground,
-} from "../../store/customizationStore";
+  COLOR_THEMES,
+  useAppearanceStore,
+  selectIsColorThemeActive,
+} from "../../store/appearanceStore";
+import { themeSwatchGradient } from "../../store/colorThemes";
+import { useCustomizationStore } from "../../store/customizationStore";
+import { ColorThemeCard } from "./ColorThemeCard";
 
 export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
   const { t, locale, setLocale } = useTranslation();
   const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const isGlassActive = useCustomizationStore(selectIsGlassThemeActive);
-  const coverGlow = useCustomizationStore((s) => s.coverGlow);
-  const wallpaperActive = useHasCustomBackground();
-  const setCoverGlow = useCustomizationStore((s) => s.setCoverGlow);
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const { toast } = useToast();
+
+  const colorThemeId = useAppearanceStore((s) => s.colorThemeId);
+  const sameAsDevice = useAppearanceStore((s) => s.sameAsDevice);
+  const setColorTheme = useAppearanceStore((s) => s.setColorTheme);
+  const setSameAsDevice = useAppearanceStore((s) => s.setSameAsDevice);
+  const colorThemeActive = useAppearanceStore(selectIsColorThemeActive);
+
+  const wallpaperImage = useCustomizationStore((s) => s.backgroundImage);
+  const clearWallpaper = useCustomizationStore((s) => s.setBackgroundImage);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const systemIsLight =
-    mounted &&
-    typeof window !== "undefined" &&
-    !window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const handleSameAsDevice = (value: boolean) => {
+    setSameAsDevice(value);
+    if (value) {
+      setTheme("system");
+    } else {
+      setTheme(resolvedTheme === "light" ? "light" : "dark");
+    }
+  };
+
+  const handleColorSwatch = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    themeId: string,
+  ) => {
+    // Re-click on the active theme deselects it and returns to the base look.
+    if (colorThemeId === themeId) {
+      setColorTheme(null);
+      return;
+    }
+    // Interlock: wallpapers are not allowed while a color theme is applied.
+    if (wallpaperImage) {
+      clearWallpaper(null);
+      toast(
+        t("settings.appearance.wallpaper_removed_for_theme") ||
+          "Wallpaper removed — themes and wallpapers can't be combined.",
+        "info",
+      );
+    }
+    revealThemeChange(() => setColorTheme(themeId), {
+      x: event.clientX,
+      y: event.clientY,
+    });
+  };
+
+  const handleBaseSwatch = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    mode: "light" | "dark",
+  ) => {
+    setColorTheme(null);
+    setSameAsDevice(false);
+    revealThemeChange(() => setTheme(mode), {
+      x: event.clientX,
+      y: event.clientY,
+    });
+  };
 
   return (
     <SettingSection>
@@ -52,78 +100,96 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
         }
       />
 
-      <SettingBlock
-        title={t("settings.theme.title")}
+      <SettingRow
+        title={t("settings.appearance.same_as_device_title") || "Same as device theme"}
         description={
-          isGlassActive
-            ? t("settings.theme.disabled_for_glass") ||
-              "Light theme is disabled when using custom wallpaper glassmorphism."
-            : t("settings.theme.description")
+          t("settings.appearance.same_as_device_description") ||
+          "Match the device light or dark setting."
         }
-        titleKey="settings.theme.title"
-        descKey={isGlassActive ? undefined : "settings.theme.description"}
+        titleKey="settings.appearance.same_as_device_title"
+        descKey="settings.appearance.same_as_device_description"
+        searchQuery={searchQuery}
+        control={
+          <ToggleSwitch
+            checked={sameAsDevice}
+            onChange={handleSameAsDevice}
+            ariaLabel={t("settings.appearance.same_as_device_title") || "Same as device theme"}
+          />
+        }
+      />
+
+      <SettingBlock
+        title={t("settings.appearance.color_themes_title") || "Color themes"}
+        description={
+          t("settings.appearance.color_themes_description") ||
+          "Choose a theme color. Light and Black are included."
+        }
+        titleKey="settings.appearance.color_themes_title"
+        descKey="settings.appearance.color_themes_description"
         searchQuery={searchQuery}
       >
-        {mounted ? (
-          <div className="grid grid-cols-3 gap-[10px]">
-            {(
-              [
-                { value: "system", label: t("settings.theme.system") },
-                { value: "light", label: t("settings.theme.light") },
-                { value: "dark", label: t("settings.theme.dark") },
-              ] as const
-            ).map((item) => {
-              const isLightOpt = item.value === "light";
-              const isSystemLightOpt = item.value === "system" && systemIsLight;
-              const disabled = isGlassActive && (isLightOpt || isSystemLightOpt);
+        <div className="grid grid-cols-4 gap-[10px] sm:grid-cols-6 md:grid-cols-8">
+          {COLOR_THEMES.map((def) => {
+            const isBase = def.id === "light" || def.id === "black";
+            const active = isBase
+              ? !colorThemeActive &&
+                (def.id === "light"
+                  ? resolvedTheme === "light"
+                  : resolvedTheme === "dark" || theme === "dark")
+              : colorThemeId === def.id;
 
-              return (
-                <ThemeCard
-                  key={item.value}
-                  mode={item.value}
-                  label={item.label}
-                  active={theme === item.value}
-                  disabled={disabled}
-                  disabledReason={
-                    disabled
-                      ? t("settings.theme.disabled_for_glass") ||
-                        "Light theme is disabled when using custom wallpaper glassmorphism."
-                      : undefined
-                  }
-                  onSelect={(event) =>
-                    revealThemeChange(() => setTheme(item.value), {
-                      x: event.clientX,
-                      y: event.clientY,
-                    })
-                  }
-                />
-              );
-            })}
-          </div>
-        ) : null}
+            return (
+              <ColorThemeCard
+                key={def.id}
+                name={def.name}
+                swatch={themeSwatchGradient(def)}
+                active={active}
+                onSelect={(event) =>
+                  isBase
+                    ? handleBaseSwatch(
+                        event,
+                        def.id === "light" ? "light" : "dark",
+                      )
+                    : handleColorSwatch(event, def.id)
+                }
+              />
+            );
+          })}
+        </div>
       </SettingBlock>
 
       <SettingRow
         title={t("settings.cover_glow.title") || "Cover glow"}
         description={
-          wallpaperActive
+          wallpaperImage
             ? t("settings.cover_glow.disabled_for_wallpaper") ||
               "Off while a custom wallpaper is set."
             : t("settings.cover_glow.description") ||
               "Blurred artwork glow behind pages. Turn off to keep a plain background."
         }
         titleKey="settings.cover_glow.title"
-        descKey={wallpaperActive ? undefined : "settings.cover_glow.description"}
+        descKey={wallpaperImage ? undefined : "settings.cover_glow.description"}
         searchQuery={searchQuery}
         control={
-          <ToggleSwitch
-            checked={coverGlow && !wallpaperActive}
-            onChange={setCoverGlow}
-            disabled={wallpaperActive}
-            ariaLabel={t("settings.cover_glow.title") || "Cover glow"}
-          />
+          <CoverGlowToggle />
         }
       />
     </SettingSection>
+  );
+}
+
+function CoverGlowToggle() {
+  const coverGlow = useCustomizationStore((s) => s.coverGlow);
+  const setCoverGlow = useCustomizationStore((s) => s.setCoverGlow);
+  const wallpaperImage = useCustomizationStore((s) => s.backgroundImage);
+  const { t } = useTranslation();
+
+  return (
+    <ToggleSwitch
+      checked={coverGlow && !wallpaperImage}
+      onChange={setCoverGlow}
+      disabled={Boolean(wallpaperImage)}
+      ariaLabel={t("settings.cover_glow.title") || "Cover glow"}
+    />
   );
 }

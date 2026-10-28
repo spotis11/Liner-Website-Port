@@ -1,6 +1,6 @@
 const SIGN_IN_REQUIRED_EVENT = "youtube-auth:required";
 const AUTH_CHANGED_EVENT = "youtube-auth:changed";
-const BOT_CHECK_PATTERN =
+export const BOT_CHECK_PATTERN =
   /confirm you.re not a bot|LOGIN_REQUIRED|sign-in is required/i;
 
 export function isBotCheckError(error: unknown): boolean {

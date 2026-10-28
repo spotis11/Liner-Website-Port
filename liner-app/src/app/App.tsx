@@ -5,16 +5,17 @@ import { useWindowDrag } from "@/shared/hooks";
 import { useAppIconSync } from "@/features/player";
 import { I18nProvider } from "@/languages";
 import { AuthLock } from "@/features/auth";
+import { BanGate } from "@/features/moderation";
+import { WelcomeGate } from "@/features/welcome";
 import { CoverSwRegistrar } from "@/features/covers";
 import { usePresenceSync } from "@/shared/presence";
 import { useTouchBarSync } from "@/features/touchbar";
 import { useOverlaySync } from "@/features/overlay";
-import { useDiscordSync } from "@/features/discord";
 import { AppRoutes } from "./routes";
 import DeeplinkHandler from "./DeeplinkHandler";
 import EnvironmentWarning from "./EnvironmentWarning";
 import { ConnectivityWall } from "@/features/connectivity";
-import { useThemeCustomizationSync } from "@/features/settings";
+import { useThemeCustomizationSync, useAppearanceSync } from "@/features/settings";
 import "./globals.css";
 
 function AppIconSync() {
@@ -32,6 +33,11 @@ function ThemeSync() {
   return null;
 }
 
+function AppearanceSync() {
+  useAppearanceSync();
+  return null;
+}
+
 function TouchBarSync() {
   useTouchBarSync();
   return null;
@@ -39,11 +45,6 @@ function TouchBarSync() {
 
 function OverlaySync() {
   useOverlaySync();
-  return null;
-}
-
-function DiscordSync() {
-  useDiscordSync();
   return null;
 }
 
@@ -61,11 +62,11 @@ export default function App() {
       >
         <GlobalTooltip />
         <ThemeSync />
+        <AppearanceSync />
         <AppIconSync />
         <PresenceSync />
         <TouchBarSync />
         <OverlaySync />
-        <DiscordSync />
         <AppleEmojiProvider>
           <I18nProvider>
             <ToastProvider>
@@ -74,6 +75,8 @@ export default function App() {
                   <DeeplinkHandler />
                   <EnvironmentWarning />
                   <ConnectivityWall />
+                  <BanGate />
+                  <WelcomeGate />
                   <AuthLock>
                     <AppRoutes />
                   </AuthLock>

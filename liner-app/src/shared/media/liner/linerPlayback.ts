@@ -50,3 +50,10 @@ export async function resolveLinerStream(videoId: string, signal?: AbortSignal):
 export function resetLinerPlaybackPause(): void {
   pausedUntil = 0;
 }
+
+// the api answered but r2 itself is unreachable for this client (tls mitm, blocked
+// cloudflare) or the presigned url died at play time: stop handing out r2 urls for
+// a while so retries go to youtube — ported from the desktop playerRuntime wiring
+export function markLinerStreamFailed(reason: string): void {
+  pause(UNAVAILABLE_BACKOFF_MS, `r2 stream failed: ${reason}`);
+}

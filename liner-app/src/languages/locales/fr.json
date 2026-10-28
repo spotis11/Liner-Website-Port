@@ -52,7 +52,8 @@
       "search": "Rechercher",
       "library": "Bibliothèque",
       "settings": "Paramètres",
-      "local": "Musique locale"
+      "local": "Musique locale",
+      "profile": "Profil"
     },
     "loading": "Chargement",
     "signed_in": "Connecté",
@@ -384,6 +385,8 @@
     "track_unavailable": "« {title} » est indisponible, passage au suivant...",
     "track_unavailable_title": "Titre indisponible",
     "playback_stopped_too_many_errors": "Lecture arrêtée : trop de titres n'ont pas pu être chargés.",
+    "youtube_refused_title": "YouTube refuse cette connexion",
+    "youtube_refused_description": "L'audio de YouTube est bloqué sur ce réseau. Désactivez votre VPN ou proxy, ou essayez une autre connexion.",
     "speed_pitch": "Vitesse et tonalité",
     "speed": "Vitesse",
     "pitch": "Tonalité",
@@ -423,7 +426,9 @@
       "preset_classical": "Classique",
       "preset_electronic": "Électronique",
       "preset_custom": "Personnalisé"
-    }
+    },
+    "miniplayer": "Mini-lecteur",
+    "close_miniplayer": "Fermer le mini-lecteur"
   },
   "playlist": {
     "playlist": "Playlist",
@@ -685,8 +690,7 @@
       "description": "Choisissez l'apparence générale de l'application.",
       "light": "Clair",
       "dark": "Sombre",
-      "system": "Système",
-      "disabled_for_glass": "Le thème clair est désactivé avec l'effet verre et un fond d'écran personnalisé."
+      "system": "Système"
     },
     "branding": {
       "title": "Logo",
@@ -897,6 +901,39 @@
       "error_forbidden": "Seul JayJoice peut envoyer des annonces.",
       "error_rate_limited": "Doucement ! Attendez quelques secondes entre les annonces.",
       "error_generic": "Impossible d'envoyer l'annonce. Veuillez réessayer."
+    },
+    "user_finder": {
+      "account_created": "Compte créé",
+      "ban_status": "Statut de bannissement",
+      "banned": "Banni ({type}) — {reason}",
+      "description": "Recherchez n'importe quel compte Liner sur ce site : profil, dernière visite et écoutes. Réservé au propriétaire du site.",
+      "email": "E-mail",
+      "error_forbidden": "La recherche d'utilisateurs est réservée au propriétaire du site.",
+      "error_generic": "Échec de la recherche — réessayez.",
+      "error_unauthorized": "Votre session a expiré — reconnectez-vous et réessayez.",
+      "error_username": "Entrez un nom d'utilisateur Liner valide (a-z, 0-9, _, 3-30 caractères).",
+      "find": "Rechercher",
+      "last_ip": "Dernière adresse réseau",
+      "last_seen": "Dernière visite sur le site",
+      "no_songs": "Aucune écoute enregistrée pour ce compte sur ce site pour l'instant.",
+      "not_found": "Rien de connu sur @{username} pour l'instant — il ne s'est pas connecté à ce site.",
+      "recent_songs": "Chansons récemment jouées sur ce site",
+      "search_placeholder": "Entrez un nom d'utilisateur (ex. liner)",
+      "searching": "Recherche…",
+      "title": "Recherche d'utilisateurs",
+      "unknown": "Inconnu",
+      "followers": "Abonnés",
+      "follow_stats": "{followers} abonnés · {following} abonnements",
+      "source_live": "En direct depuis Liner",
+      "source_cache": "Du cache du site"
+    },
+    "cross_tab_miniplayer": {
+      "title": "Mini-lecteur",
+      "description": "Ouvre un mini-lecteur quand vous passez à un autre onglet et le ferme dès votre retour."
+    },
+    "sound_wave": {
+      "title": "Visualiseur d'onde sonore",
+      "description": "Afficher une onde sonore en direct synchronisee sur la musique dans le lecteur plein ecran."
     }
   },
   "toast": {
@@ -1076,6 +1113,8 @@
     "play_all": "Tout lire",
     "scan_complete": "Analyse terminée : {count} pistes",
     "scan_failed": "Échec de l'analyse : {reason}",
+    "scan_no_folders": "Aucun dossier à analyser pour l'instant — ajoutez d'abord un dossier ou déposez des fichiers audio",
+    "scan_no_audio": "Aucun fichier audio trouvé dans ce dossier",
     "folder_added": "Dossier ajouté : {name}",
     "files_added": "{count} pistes ajoutées",
     "missing_file": "Fichier local manquant — rescannez votre bibliothèque",

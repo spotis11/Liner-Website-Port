@@ -1,0 +1,1119 @@
+     1→import {
+     2→  useCallback,
+     3→  useEffect,
+     4→  useLayoutEffect,
+     5→  useRef,
+     6→  useState,
+     7→  useMemo,
+     8→  useSyncExternalStore,
+     9→} from "react";
+    10→import { useLocation, useNavigate } from "react-router-dom";
+    11→import { AnimatePresence, motion } from "framer-motion";
+    12→import {
+    13→  Search3Line,
+    14→  CloseCircleFill,
+    15→  GridFill,
+    16→  Music2Fill,
+    17→  User2Fill,
+    18→  AlbumFill,
+    19→  PlaylistFill,
+    20→} from "@mingcute/react";
+    21→import Header from "./Header";
+    22→import Sidebar from "./Sidebar";
+    23→import { cn } from "@/shared/lib";
+    24→import WindowControls from "./WindowControls";
+    25→import PageTransition from "./PageTransition";
+    26→import RightDrawer from "./RightDrawer";
+    27→import DynamicBlurBackground from "./DynamicBlurBackground";
+    28→import { useGlobalShortcuts } from "../hooks/useGlobalShortcuts";
+    29→import { useDisableButtonFocus } from "../hooks/useDisableButtonFocus";
+    30→import { useWindowState } from "../hooks/useWindowState";
+    31→import {
+    32→  useSearchTracks,
+    33→  useSearchAll,
+    34→  useSearchArtists,
+    35→  useSearchAlbums,
+    36→  useSearchPlaylists,
+    37→} from "@/features/search/hooks";
+    38→import { mediaUrl, toClientTrack, toMaxQualityAvatarUrl } from "@/shared/api";
+    39→import {
+    40→  FullscreenPlayer,
+    41→  playerEngine,
+    42→  MiniPlayer,
+    43→  usePlayerStore,
+    44→  attachMiniPipAutoBehavior,
+    45→} from "@/features/player";
+    46→import SearchResultsList from "@/features/search/ui/SearchResultsList";
+    47→import { SearchHistoryList, useSearchHistoryStore } from "@/features/search";
+    48→import { useTranslation } from "@/languages";
+    49→import { useTheme } from "next-themes";
+    50→import {
+    51→  AddToPlaylistModal,
+    52→  AddToLibraryModal,
+    53→  RemoveFromPlaylistModal,
+    54→  RemoveFromLibraryModal,
+    55→  ImportLikesModal,
+    56→  ImportReviewModal,
+    57→  CreatePlaylistModal,
+    58→  useModalStore,
+    59→} from "@/features/library";
+    60→import {
+    61→  SettingsModal,
+    62→  useCustomizationStore,
+    63→  useHasCustomBackground,
+    64→  useHasPageBackdrop,
+    65→  useClassicSurfaces,
+    66→} from "@/features/settings";
+    67→import { UpdateModal, UpdateToastBridge } from "@/features/updater";
+    68→import { YoutubeSignInNotice } from "@/features/youtube-auth";
+    69→import { AnnouncementPopup } from "@/features/announcements";
+    70→
+    71→interface AppFrameProps {
+    72→  children: React.ReactNode;
+    73→}
+    74→
+    75→const RIGHT_DRAWER_WIDTH = 440;
+    76→const SIDEBAR_WIDTH = 58;
+    77→const SHELL_EDGE_GAP = 6;
+    78→const SEARCH_QUERY_CACHE_TTL_MS = 60_000;
+    79→const LEGACY_LAYOUT_STORAGE_KEYS = [
+    80→  "liner_right_sidebar",
+    81→  "liner_sidebar_position",
+    82→  "liner_sidebar_width",
+    83→  "liner_queue_popup_open",
+    84→] as const;
+    85→
+    86→export default function AppFrame({ children }: AppFrameProps) {
+    87→  const location = useLocation();
+    88→  const { pathname, search } = location;
+    89→  const navigate = useNavigate();
+    90→  const { t } = useTranslation();
+    91→  const { isEdgeToEdge } = useWindowState();
+    92→
+    93→  const searchOpen = useModalStore((state) => state.searchOpen);
+    94→  const openSearch = useModalStore((state) => state.openSearch);
+    95→  const closeSearch = useModalStore((state) => state.closeSearch);
+    96→  const toggleSearch = useModalStore((state) => state.toggleSearch);
+    97→  const openSettings = useModalStore((state) => state.openSettings);
+    98→
+    99→  const [searchQuery, setSearchQuery] = useState("");
+   100→  const [queuePopupOpen, setQueuePopupOpen] = useState(false);
+   101→  const fullscreenPlayerOpen = usePlayerStore((state) => state.fullscreen);
+   102→  const setFullscreenPlayerOpen = usePlayerStore(
+   103→    (state) => state.setFullscreen,
+   104→  );
+   105→  const [fullscreenEffectsReady, setFullscreenEffectsReady] = useState(false);
+   106→
+   107→  useEffect(() => {
+   108→    if (pathname === "/settings") {
+   109→      openSettings();
+   110→      navigate("/", { replace: true });
+   111→    }
+   112→  }, [pathname, openSettings, navigate]);
+   113→
+   114→  useEffect(() => {
+   115→    for (const key of LEGACY_LAYOUT_STORAGE_KEYS) {
+   116→      localStorage.removeItem(key);
+   117→    }
+   118→  }, []);
+   119→
+   120→  // Spotify-style miniplayer: detect tab switches / Chrome media controls and
+   121→  // pop the floating mini player window (Chromium only — silently no-ops
+   122→  // elsewhere). Returns its detach function for unmount cleanup.
+   123→  useEffect(() => attachMiniPipAutoBehavior(), []);
+   124→
+   125→  const handleQueuePopupToggle = useCallback((open: boolean) => {
+   126→    setQueuePopupOpen(open);
+   127→  }, []);
+   128→
+   129→  const handleQueuePopupToggleRequest = useCallback(() => {
+   130→    setQueuePopupOpen((current) => !current);
+   131→  }, []);
+   132→
+   133→  const shouldShowMiniPlayer = useSyncExternalStore(
+   134→    playerEngine.subscribe,
+   135→    () => {
+   136→      const state = playerEngine.getSnapshot();
+   137→      return state.currentTrack !== null && state.status !== "idle";
+   138→    },
+   139→    () => false,
+   140→  );
+   141→
+   142→  const hasCurrentTrack = useSyncExternalStore(
+   143→    playerEngine.subscribe,
+   144→    () => playerEngine.getSnapshot().currentTrack !== null,
+   145→    () => false,
+   146→  );
+   147→
+   148→  const appFrameRef = useRef<HTMLDivElement>(null);
+   149→  const queueDrawerRef = useRef<HTMLDivElement>(null);
+   150→  const searchPopupRef = useRef<HTMLDivElement>(null);
+   151→  const mainScrollRef = useRef<HTMLDivElement>(null);
+   152→  const prevLocationRef = useRef(pathname + search);
+   153→
+   154→  useEffect(() => {
+   155→    if (prevLocationRef.current !== pathname + search) {
+   156→      prevLocationRef.current = pathname + search;
+   157→      if (searchOpen && searchQuery.trim().length === 0) {
+   158→        closeSearch();
+   159→      }
+   160→    }
+   161→  }, [pathname, search, searchOpen, searchQuery, closeSearch]);
+   162→
+   163→  useLayoutEffect(() => {
+   164→    if (mainScrollRef.current) {
+   165→      mainScrollRef.current.scrollTop = 0;
+   166→      const innerScrollables =
+   167→        mainScrollRef.current.querySelectorAll(".overflow-y-auto");
+   168→      innerScrollables.forEach((el) => {
+   169→        el.scrollTop = 0;
+   170→      });
+   171→    }
+   172→  }, [pathname, search]);
+   173→
+   174→  const updateSearchMask = useCallback(() => {
+   175→    const el = searchScrollRef.current;
+   176→    if (!el) return;
+   177→    const { scrollTop, clientHeight, scrollHeight } = el;
+   178→    const showTop = scrollTop > 1;
+   179→    const showBottom = scrollTop + clientHeight < scrollHeight - 1;
+   180→
+   181→    let stops = "";
+   182→    if (showTop) stops += "transparent 0%, black 7%, ";
+   183→    else stops += "black 0%, black 7%, ";
+   184→    if (showBottom) stops += "black 93%, transparent 100%";
+   185→    else stops += "black 93%, black 100%";
+   186→
+   187→    setSearchScrollMask(`linear-gradient(to bottom, ${stops})`);
+   188→  }, []);
+   189→
+   190→  useEffect(() => {
+   191→    if (!searchOpen) {
+   192→      const timeoutId = setTimeout(() => {
+   193→        setSearchQuery("");
+   194→      }, SEARCH_QUERY_CACHE_TTL_MS);
+   195→      return () => clearTimeout(timeoutId);
+   196→    }
+   197→    const id = requestAnimationFrame(updateSearchMask);
+   198→    requestAnimationFrame(() => searchInputRef.current?.focus());
+   199→    return () => cancelAnimationFrame(id);
+   200→  }, [searchOpen, updateSearchMask]);
+   201→
+   202→  const miniPlayerContainerRef = useRef<HTMLDivElement>(null);
+   203→  const sidebarRef = useRef<HTMLDivElement>(null);
+   204→  const searchScrollRef = useRef<HTMLDivElement>(null);
+   205→  const searchInputRef = useRef<HTMLInputElement>(null);
+   206→
+   207→  type SearchFilterKey = "all" | "tracks" | "artists" | "albums" | "playlists";
+   208→  const filterKeys: SearchFilterKey[] = [
+   209→    "all",
+   210→    "tracks",
+   211→    "artists",
+   212→    "albums",
+   213→    "playlists",
+   214→  ];
+   215→  const filterLabels: Record<SearchFilterKey, string> = {
+   216→    all: t("common.all"),
+   217→    tracks: t("common.songs"),
+   218→    artists: t("common.artists"),
+   219→    albums: t("common.albums"),
+   220→    playlists: t("common.playlists"),
+   221→  };
+   222→
+   223→  const [activeFilter, setActiveFilter] = useState<SearchFilterKey>("all");
+   224→  const isAllSearchFilter = activeFilter === "all";
+   225→  const isTrackSearchFilter = activeFilter === "tracks";
+   226→  const isArtistSearchFilter = activeFilter === "artists";
+   227→  const isAlbumSearchFilter = activeFilter === "albums";
+   228→  const isPlaylistSearchFilter = activeFilter === "playlists";
+   229→  const hasSearchQuery = searchQuery.trim().length > 0;
+   230→  const isFullscreenRoute = pathname === "/player";
+   231→  const isFullscreenPlayer = isFullscreenRoute || fullscreenPlayerOpen;
+   232→  const shellChildrenRef = useRef<React.ReactNode>(null);
+   233→  if (!isFullscreenRoute) {
+   234→    shellChildrenRef.current = children;
+   235→  }
+   236→  const isRightDrawerOpen =
+   237→    queuePopupOpen && !searchOpen && !isFullscreenPlayer;
+   238→
+   239→  const openFullscreenPlayer = useCallback(() => {
+   240→    setFullscreenPlayerOpen(true);
+   241→  }, []);
+   242→
+   243→  const closeFullscreenPlayer = useCallback(() => {
+   244→    setFullscreenPlayerOpen(false);
+   245→  }, []);
+   246→
+   247→  const handleCloseFullscreen = useCallback(() => {
+   248→    if (fullscreenPlayerOpen) {
+   249→      setFullscreenPlayerOpen(false);
+   250→    } else if (isFullscreenRoute) {
+   251→      navigate("/", { replace: true });
+   252→    }
+   253→  }, [fullscreenPlayerOpen, isFullscreenRoute, navigate]);
+   254→
+   255→  useEffect(() => {
+   256→    if (isFullscreenPlayer && !hasCurrentTrack) {
+   257→      handleCloseFullscreen();
+   258→    }
+   259→  }, [isFullscreenPlayer, hasCurrentTrack, handleCloseFullscreen]);
+   260→
+   261→  const openRightPanel = useCallback(() => setQueuePopupOpen(true), []);
+   262→  const closeRightPanel = useCallback(() => setQueuePopupOpen(false), []);
+   263→
+   264→  const isBackNavigableRoute =
+   265→    pathname === "/artist" ||
+   266→    pathname === "/library/playlist" ||
+   267→    pathname === "/collection";
+   268→  const handleEscapeFallback = useCallback(() => {
+   269→    if (queuePopupOpen || searchOpen || isFullscreenPlayer) return false;
+   270→    if (!isBackNavigableRoute) return false;
+   271→    if (window.history.length > 1) navigate(-1);
+   272→    else navigate("/library");
+   273→    return true;
+   274→  }, [
+   275→    isBackNavigableRoute,
+   276→    queuePopupOpen,
+   277→    searchOpen,
+   278→    isFullscreenPlayer,
+   279→    navigate,
+   280→  ]);
+   281→
+   282→  useDisableButtonFocus();
+   283→
+   284→  useGlobalShortcuts({
+   285→    searchOpen,
+   286→    openSearch,
+   287→    closeSearch,
+   288→    rightPanelOpen: queuePopupOpen,
+   289→    openRightPanel,
+   290→    closeRightPanel,
+   291→    fullscreenOpen: isFullscreenPlayer,
+   292→    openFullscreen: openFullscreenPlayer,
+   293→    closeFullscreen: handleCloseFullscreen,
+   294→    onEscapeFallback: handleEscapeFallback,
+   295→  });
+   296→  const [searchScrollMask, setSearchScrollMask] = useState(
+   297→    "linear-gradient(to bottom, black 0%, black 100%)",
+   298→  );
+   299→  const addHistoryItem = useSearchHistoryStore((state) => state.addItem);
+   300→  const historyItems = useSearchHistoryStore((state) => state.items);
+   301→  const {
+   302→    items: allResults,
+   303→    loading: allLoading,
+   304→    hasLoaded: allHasLoaded,
+   305→    runNow: runAllSearchNow,
+   306→    partialWarning,
+   307→  } = useSearchAll(searchQuery, {
+   308→    enabled: searchOpen && isAllSearchFilter,
+   309→    limit: 20,
+   310→    debounceMs: 320,
+   311→  });
+   312→
+   313→  const {
+   314→    tracks: trackResults,
+   315→    loading: trackLoading,
+   316→    hasLoaded: trackHasLoaded,
+   317→    runNow: runTrackSearchNow,
+   318→  } = useSearchTracks(searchQuery, {
+   319→    enabled: searchOpen && isTrackSearchFilter,
+   320→    limit: 20,
+   321→    debounceMs: 320,
+   322→  });
+   323→
+   324→  const {
+   325→    artists: artistResults,
+   326→    loading: artistLoading,
+   327→    hasLoaded: artistHasLoaded,
+   328→    runNow: runArtistSearchNow,
+   329→  } = useSearchArtists(searchQuery, {
+   330→    enabled: searchOpen && isArtistSearchFilter,
+   331→    limit: 20,
+   332→    debounceMs: 320,
+   333→  });
+   334→
+   335→  const {
+   336→    albums: albumResults,
+   337→    loading: albumLoading,
+   338→    hasLoaded: albumHasLoaded,
+   339→    runNow: runAlbumSearchNow,
+   340→  } = useSearchAlbums(searchQuery, {
+   341→    enabled: searchOpen && isAlbumSearchFilter,
+   342→    limit: 20,
+   343→    debounceMs: 320,
+   344→  });
+   345→
+   346→  const {
+   347→    playlists: playlistResults,
+   348→    loading: playlistLoading,
+   349→    hasLoaded: playlistHasLoaded,
+   350→    runNow: runPlaylistSearchNow,
+   351→  } = useSearchPlaylists(searchQuery, {
+   352→    enabled: searchOpen && isPlaylistSearchFilter,
+   353→    limit: 20,
+   354→    debounceMs: 320,
+   355→  });
+   356→
+   357→  const searchResults = useMemo(() => {
+   358→    if (isAllSearchFilter) {
+   359→      return allResults.map((item: any) => {
+   360→        const coverUrl = item.cover
+   361→          ? mediaUrl(item.cover.url)
+   362→          : (item.coverUrl ?? "");
+   363→        if (item.type === "track") {
+   364→          const clientTrack = toClientTrack(item);
+   365→          return {
+   366→            ...clientTrack,
+   367→            ...item,
+   368→            _type: "track",
+   369→            coverUrl: clientTrack.coverUrl || coverUrl,
+   370→            artists: clientTrack.artists,
+   371→            artistId: clientTrack.artistId,
+   372→            artistList: clientTrack.artistList,
+   373→          };
+   374→        }
+   375→        if (item.type === "artist") {
+   376→          return {
+   377→            ...item,
+   378→            _type: "artist",
+   379→            title: item.name,
+   380→            coverUrl: toMaxQualityAvatarUrl(coverUrl),
+   381→            artists: "",
+   382→          };
+   383→        }
+   384→        if (item.type === "album") {
+   385→          return {
+   386→            ...item,
+   387→            _type: "album",
+   388→            coverUrl,
+   389→            artists: Array.isArray(item.artists)
+   390→              ? item.artists.map((a: any) => a.name).join(", ")
+   391→              : (item.artists ?? ""),
+   392→            artistId: item.artists?.[0]?.id,
+   393→            artistList: Array.isArray(item.artists)
+   394→              ? item.artists.map((a: any) => ({ id: a.id, name: a.name }))
+   395→              : undefined,
+   396→          };
+   397→        }
+   398→        return {
+   399→          ...item,
+   400→          _type: item.type,
+   401→          coverUrl,
+   402→          artists: item.author ?? item.artists ?? "",
+   403→          artistId: item.artists?.[0]?.id,
+   404→          artistList: Array.isArray(item.artists)
+   405→            ? item.artists.map((a: any) => ({ id: a.id, name: a.name }))
+   406→            : undefined,
+   407→        };
+   408→      });
+   409→    }
+   410→    if (isTrackSearchFilter)
+   411→      return trackResults.map((t: any) => {
+   412→        const clientTrack = toClientTrack(t);
+   413→        return {
+   414→          ...clientTrack,
+   415→          ...t,
+   416→          _type: "track",
+   417→          coverUrl:
+   418→            clientTrack.coverUrl ||
+   419→            (t.cover ? mediaUrl(t.cover.url) : (t.coverUrl ?? "")),
+   420→          artists: clientTrack.artists,
+   421→          artistId: clientTrack.artistId,
+   422→          artistList: clientTrack.artistList,
+   423→        };
+   424→      });
+   425→    if (isArtistSearchFilter)
+   426→      return artistResults.map((a: any) => ({
+   427→        ...a,
+   428→        _type: "artist",
+   429→        title: a.name,
+   430→        coverUrl: toMaxQualityAvatarUrl(
+   431→          a.cover ? mediaUrl(a.cover.url) : (a.coverUrl ?? ""),
+   432→        ),
+   433→      }));
+   434→    if (isAlbumSearchFilter)
+   435→      return albumResults.map((a: any) => ({
+   436→        ...a,
+   437→        _type: "album",
+   438→        coverUrl: a.cover ? mediaUrl(a.cover.url) : (a.coverUrl ?? ""),
+   439→        artists: Array.isArray(a.artists)
+   440→          ? a.artists.map((ar: any) => ar.name).join(", ")
+   441→          : (a.artists ?? ""),
+   442→        artistId: a.artists?.[0]?.id,
+   443→        artistList: Array.isArray(a.artists)
+   444→          ? a.artists.map((ar: any) => ({ id: ar.id, name: ar.name }))
+   445→          : undefined,
+   446→      }));
+   447→    if (isPlaylistSearchFilter)
+   448→      return playlistResults.map((p: any) => ({
+   449→        ...p,
+   450→        _type: "playlist",
+   451→        coverUrl: p.cover ? mediaUrl(p.cover.url) : (p.coverUrl ?? ""),
+   452→      }));
+   453→    return [];
+   454→  }, [
+   455→    isAllSearchFilter,
+   456→    isTrackSearchFilter,
+   457→    isArtistSearchFilter,
+   458→    isAlbumSearchFilter,
+   459→    isPlaylistSearchFilter,
+   460→    allResults,
+   461→    trackResults,
+   462→    artistResults,
+   463→    albumResults,
+   464→    playlistResults,
+   465→  ]);
+   466→
+   467→  const searchLoading = isAllSearchFilter
+   468→    ? allLoading
+   469→    : isTrackSearchFilter
+   470→      ? trackLoading
+   471→      : isArtistSearchFilter
+   472→        ? artistLoading
+   473→        : isAlbumSearchFilter
+   474→          ? albumLoading
+   475→          : playlistLoading;
+   476→
+   477→  const searchHasLoaded = isAllSearchFilter
+   478→    ? allHasLoaded
+   479→    : isTrackSearchFilter
+   480→      ? trackHasLoaded
+   481→      : isArtistSearchFilter
+   482→        ? artistHasLoaded
+   483→        : isAlbumSearchFilter
+   484→          ? albumHasLoaded
+   485→          : playlistHasLoaded;
+   486→
+   487→  const isSearchEmpty =
+   488→    searchQuery.trim().length >= 2 &&
+   489→    !searchLoading &&
+   490→    searchHasLoaded &&
+   491→    searchResults.length === 0;
+   492→
+   493→  const runSearchNow = () => {
+   494→    if (isAllSearchFilter) {
+   495→      runAllSearchNow();
+   496→      return;
+   497→    }
+   498→    if (isTrackSearchFilter) runTrackSearchNow();
+   499→    if (isArtistSearchFilter) runArtistSearchNow();
+   500→    if (isAlbumSearchFilter) runAlbumSearchNow();
+   501→    if (isPlaylistSearchFilter) runPlaylistSearchNow();
+   502→  };
+   503→
+   504→  useEffect(() => {
+   505→    if (isFullscreenPlayer) {
+   506→      setQueuePopupOpen(false);
+   507→      closeSearch();
+   508→    }
+   509→  }, [isFullscreenPlayer, closeSearch]);
+   510→
+   511→  useEffect(() => {
+   512→    const onGlobalPointerDown = (event: MouseEvent) => {
+   513→      const target = event.target as Node | null;
+   514→      if (!target) {
+   515→        return;
+   516→      }
+   517→      if (
+   518→        target instanceof Element &&
+   519→        (target.closest("[data-dialog-container]") ||
+   520→          target.closest("[data-dialog-backdrop]") ||
+   521→          target.closest("[data-dropdown-menu]"))
+   522→      ) {
+   523→        return;
+   524→      }
+   525→      if (searchOpen) {
+   526→        if (searchPopupRef.current?.contains(target)) {
+   527→          return;
+   528→        }
+   529→        if (sidebarRef.current?.contains(target)) {
+   530→          return;
+   531→        }
+   532→        closeSearch();
+   533→      }
+   534→      if (queuePopupOpen) {
+   535→        if (queueDrawerRef.current?.contains(target)) {
+   536→          return;
+   537→        }
+   538→        if (miniPlayerContainerRef.current?.contains(target)) {
+   539→          return;
+   540→        }
+   541→        if (sidebarRef.current?.contains(target)) {
+   542→          return;
+   543→        }
+   544→        if (
+   545→          event.clientY <= 32 ||
+   546→          (target instanceof Element && target.closest("[data-window-drag]"))
+   547→        ) {
+   548→          return;
+   549→        }
+   550→        if (queuePopupOpen) {
+   551→          handleQueuePopupToggle(false);
+   552→        }
+   553→      }
+   554→    };
+   555→
+   556→    document.addEventListener("mousedown", onGlobalPointerDown, true);
+   557→    return () => {
+   558→      document.removeEventListener("mousedown", onGlobalPointerDown, true);
+   559→    };
+   560→  }, [searchOpen, queuePopupOpen, handleQueuePopupToggle]);
+   561→
+   562→  const handleSearchToggle = useCallback(() => {
+   563→    toggleSearch();
+   564→  }, [toggleSearch]);
+   565→
+   566→  const handlePlayFromSearch = useCallback(
+   567→    (track: any) => {
+   568→      playerEngine.primeUserGesture();
+   569→      if (!track) {
+   570→        return;
+   571→      }
+   572→      const durationMs = track.durationMs ?? track.duration_ms;
+   573→      const durationStr = durationMs
+   574→        ? `${Math.floor(durationMs / 60000)}:${Math.floor(
+   575→            (durationMs % 60000) / 1000,
+   576→          )
+   577→            .toString()
+   578→            .padStart(2, "0")}`
+   579→        : "";
+   580→      addHistoryItem({
+   581→        id: track.id,
+   582→        type: "track",
+   583→        title: track.title,
+   584→        subtitle: track.artists,
+   585→        coverUrl: track.coverUrl,
+   586→        explicit: track.explicit,
+   587→        duration: durationStr,
+   588→        durationMs,
+   589→        itemData: track,
+   590→      });
+   591→      void playerEngine.playTrack(
+   592→        track,
+   593→        [track],
+   594→        `${track.title} Radio`,
+   595→        track.coverUrl,
+   596→      );
+   597→    },
+   598→    [addHistoryItem],
+   599→  );
+   600→
+   601→  const handleNavigateItem = useCallback(
+   602→    (it: any) => {
+   603→      closeSearch();
+   604→      if (
+   605→        it._type === "artist" ||
+   606→        it.followers !== undefined ||
+   607→        activeFilter === "artists"
+   608→      ) {
+   609→        addHistoryItem({
+   610→          id: it.id,
+   611→          type: "artist",
+   612→          title: it.name || it.title,
+   613→          subtitle: t("common.artists"),
+   614→          coverUrl: it.coverUrl,
+   615→          itemData: it,
+   616→        });
+   617→        navigate(`/artist?id=${encodeURIComponent(it.id)}`);
+   618→      } else if (
+   619→        it._type === "playlist" ||
+   620→        it.owner !== undefined ||
+   621→        activeFilter === "playlists"
+   622→      ) {
+   623→        addHistoryItem({
+   624→          id: it.id,
+   625→          type: "playlist",
+   626→          title: it.name || it.title,
+   627→          subtitle: it.author || it.owner || t("common.playlists"),
+   628→          coverUrl: it.coverUrl,
+   629→          itemData: it,
+   630→        });
+   631→        navigate(`/collection?type=playlist&id=${encodeURIComponent(it.id)}`);
+   632→      } else if (
+   633→        it._type === "album" ||
+   634→        it.totalTracks !== undefined ||
+   635→        it.total_tracks !== undefined ||
+   636→        activeFilter === "albums"
+   637→      ) {
+   638→        addHistoryItem({
+   639→          id: it.id,
+   640→          type: "album",
+   641→          title: it.name || it.title,
+   642→          subtitle: it.artists || it.artist || t("common.albums"),
+   643→          coverUrl: it.coverUrl,
+   644→          itemData: it,
+   645→        });
+   646→        navigate(`/collection?type=album&id=${encodeURIComponent(it.id)}`);
+   647→      }
+   648→    },
+   649→    [activeFilter, closeSearch, navigate, addHistoryItem, t],
+   650→  );
+   651→
+   652→  const submitSearchQuery = useCallback(
+   653→    (queryToSubmit: string) => {
+   654→      const trimmed = queryToSubmit.trim();
+   655→      if (!trimmed) return;
+   656→      addHistoryItem({
+   657→        id: `query:${trimmed.toLowerCase()}`,
+   658→        type: "query",
+   659→        title: trimmed,
+   660→      });
+   661→    },
+   662→    [addHistoryItem],
+   663→  );
+   664→
+   665→  const handleSelectHistoryQuery = useCallback(
+   666→    (queryText: string) => {
+   667→      setSearchQuery(queryText);
+   668→      submitSearchQuery(queryText);
+   669→      searchInputRef.current?.focus();
+   670→    },
+   671→    [submitSearchQuery],
+   672→  );
+   673→
+   674→  const { resolvedTheme } = useTheme();
+   675→  const isDark = resolvedTheme
+   676→    ? resolvedTheme === "dark"
+   677→    : typeof document !== "undefined" &&
+   678→      (document.documentElement.getAttribute("data-theme") === "dark" ||
+   679→        (!document.documentElement.getAttribute("data-theme") &&
+   680→          window.matchMedia?.("(prefers-color-scheme: dark)")?.matches));
+   681→  const backgroundImage = useCustomizationStore((s) => s.backgroundImage);
+   682→  const backgroundBlur = useCustomizationStore((s) => s.backgroundBlur);
+   683→  const backgroundDim = useCustomizationStore((s) => s.backgroundDim);
+   684→  const hasCustomBg = useHasCustomBackground();
+   685→  const hasPageBackdrop = useHasPageBackdrop();
+   686→  const classicSurfaces = useClassicSurfaces();
+   687→
+   688→  return (
+   689→    <div
+   690→      ref={appFrameRef}
+   691→      className={`relative flex flex-col h-full w-full overflow-hidden p-1.5 gap-1.5 ${
+   692→        hasCustomBg ? "bg-black" : "bg-bg-canvas"
+   693→      } ${
+   694→        isEdgeToEdge ? "rounded-none" : "rounded-[12px]"
+   695→      }`}
+   696→      onScroll={(e) => {
+   697→        if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
+   698→        if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
+   699→      }}
+   700→    >
+   701→      {hasCustomBg && backgroundImage ? (
+   702→        <div
+   703→          className="absolute inset-0 z-0 pointer-events-none overflow-hidden"
+   704→          aria-hidden="true"
+   705→        >
+   706→          <img
+   707→            src={backgroundImage}
+   708→            alt=""
+   709→            className="absolute max-w-none object-cover select-none"
+   710→            style={{
+   711→              inset: -backgroundBlur * 2,
+   712→              width: `calc(100% + ${backgroundBlur * 4}px)`,
+   713→              height: `calc(100% + ${backgroundBlur * 4}px)`,
+   714→              filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : undefined,
+   715→            }}
+   716→          />
+   717→          {backgroundDim > 0 && (
+   718→            <div
+   719→              className="absolute inset-0 bg-black"
+   720→              style={{ opacity: backgroundDim / 100 }}
+   721→            />
+   722→          )}
+   723→        </div>
+   724→      ) : classicSurfaces ? null : (
+   725→        <DynamicBlurBackground isDark={isDark} />
+   726→      )}
+   727→
+   728→      <AnimatePresence>
+   729→        {!isFullscreenPlayer && (
+   730→          <motion.div
+   731→            key="app-header-container"
+   732→            initial={{ opacity: 1 }}
+   733→            animate={{ opacity: 1 }}
+   734→            exit={{ opacity: 0 }}
+   735→            transition={{ duration: 0.22, ease: "easeOut" }}
+   736→            className="absolute inset-x-1.5 top-1.5 z-[45]"
+   737→          >
+   738→            <Header
+   739→              searchOpen={searchOpen}
+   740→              onSearchToggle={handleSearchToggle}
+   741→            />
+   742→          </motion.div>
+   743→        )}
+   744→      </AnimatePresence>
+   745→
+   746→      <div className="flex-1 min-h-0 flex flex-row w-full gap-1.5 overflow-hidden relative z-10">
+   747→        <aside
+   748→          ref={sidebarRef}
+   749→          className="w-[58px] mt-[56px] shrink-0 z-[45] relative flex flex-col"
+   750→        >
+   751→          <Sidebar
+   752→            searchOpen={searchOpen}
+   753→            onSearchToggle={handleSearchToggle}
+   754→          />
+   755→        </aside>
+   756→
+   757→        <div className="flex-1 flex flex-col min-w-0 h-full relative gap-1.5 overflow-hidden">
+   758→          <main
+   759→            className={cn(
+   760→              "flex-1 min-w-0 flex flex-col relative h-full overflow-hidden [--page-inset-top:56px]",
+   761→              "rounded-xl",
+   762→              shouldShowMiniPlayer && hasPageBackdrop
+   763→                ? "[--page-inset-bottom:64px] [--floating-inset-bottom:70px]"
+   764→                : "[--page-inset-bottom:0px] [--floating-inset-bottom:0px]",
+   765→            )}
+   766→          >
+   767→            <div
+   768→              ref={mainScrollRef}
+   769→              className={`h-full ${
+   770→                searchOpen || isFullscreenPlayer
+   771→                  ? "overflow-hidden"
+   772→                  : "overflow-y-auto"
+   773→              }`}
+   774→            >
+   775→              <PageTransition>
+   776→                {isFullscreenRoute ? shellChildrenRef.current : children}
+   777→              </PageTransition>
+   778→            </div>
+   779→
+   780→            <AnimatePresence>
+   781→              {searchOpen && (
+   782→                <motion.div
+   783→                  initial={{ opacity: 0 }}
+   784→                  animate={{ opacity: 1 }}
+   785→                  exit={{ opacity: 0 }}
+   786→                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+   787→                  className="absolute inset-0 bg-black/12 backdrop-blur-[2px] pointer-events-auto z-[30]"
+   788→                  onClick={() => closeSearch()}
+   789→                />
+   790→              )}
+   791→            </AnimatePresence>
+   792→
+   793→            {!isFullscreenPlayer && (
+   794→              <AnimatePresence initial={false}>
+   795→                {isRightDrawerOpen && (
+   796→                  <motion.aside
+   797→                    key="right-drawer"
+   798→                    ref={queueDrawerRef}
+   799→                    initial={{ x: RIGHT_DRAWER_WIDTH }}
+   800→                    animate={{ x: 0 }}
+   801→                    exit={{ x: RIGHT_DRAWER_WIDTH }}
+   802→                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+   803→                    className="pointer-events-auto absolute top-(--page-inset-top) bottom-(--floating-inset-bottom) right-0 z-[50]"
+   804→                    style={{ width: RIGHT_DRAWER_WIDTH }}
+   805→                  >
+   806→                    <RightDrawer
+   807→                      onClose={closeRightPanel}
+   808→                    />
+   809→                  </motion.aside>
+   810→                )}
+   811→              </AnimatePresence>
+   812→            )}
+   813→          </main>
+   814→
+   815→          {shouldShowMiniPlayer && (
+   816→            <div
+   817→              ref={miniPlayerContainerRef}
+   818→              // Above the right drawer (z-50) so the player's volume/speed/queue
+   819→              // popups, which live in this stacking context, aren't hidden by it.
+   820→              className={`relative z-[55] w-full shrink-0 ${hasPageBackdrop ? "-mt-[70px]" : ""}`}
+   821→            >
+   822→              <MiniPlayer
+   823→                embedded
+   824→                onQueueOpenChange={handleQueuePopupToggle}
+   825→                onQueueToggle={handleQueuePopupToggleRequest}
+   826→                onFullscreenOpen={openFullscreenPlayer}
+   827→              />
+   828→            </div>
+   829→          )}
+   830→        </div>
+   831→      </div>
+   832→
+   833→      <AnimatePresence initial={false}>
+   834→        {fullscreenPlayerOpen ? (
+   835→          <motion.div
+   836→            key="fullscreen-player-overlay"
+   837→            data-theme="dark"
+   838→            initial={{ y: "100%" }}
+   839→            animate={{ y: 0 }}
+   840→            exit={{ y: "100%" }}
+   841→            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+   842→            onAnimationComplete={() =>
+   843→              setFullscreenEffectsReady(fullscreenPlayerOpen)
+   844→            }
+   845→            className="dark absolute inset-0 z-[70] overflow-hidden bg-black will-change-transform"
+   846→          >
+   847→            <FullscreenPlayer
+   848→              onClose={closeFullscreenPlayer}
+   849→              effectsReady={fullscreenEffectsReady}
+   850→            />
+   851→          </motion.div>
+   852→        ) : isFullscreenRoute ? (
+   853→          <div
+   854→            data-theme="dark"
+   855→            className="dark absolute inset-0 z-[70] overflow-hidden bg-black"
+   856→          >
+   857→            {children}
+   858→          </div>
+   859→        ) : null}
+   860→      </AnimatePresence>
+   861→
+   862→      <AnimatePresence>
+   863→        {searchOpen && (
+   864→          <motion.div
+   865→            key="search-popup-wrapper"
+   866→            ref={searchPopupRef}
+   867→            initial={{ opacity: 0, y: -12, scale: 0.99 }}
+   868→            animate={{ opacity: 1, y: 0, scale: 1 }}
+   869→            exit={{ opacity: 0, y: -12, scale: 0.99 }}
+   870→            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+   871→            className={`absolute right-0 z-[60] flex flex-col items-center pointer-events-none pt-[54px]`}
+   872→            style={{
+   873→              left: SIDEBAR_WIDTH + SHELL_EDGE_GAP,
+   874→              right: SHELL_EDGE_GAP,
+   875→              top: 6,
+   876→            }}
+   877→          >
+   878→            <div className="w-[min(660px,calc(100vw-72px))] h-[54px] rounded-[8px] pointer-events-auto flex items-center px-[18px] gap-[14px] bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl">
+   879→              <span className="shrink-0 flex items-center justify-center text-text-tertiary">
+   880→                <AnimatePresence mode="wait" initial={false}>
+   881→                  {searchLoading ? (
+   882→                    <motion.span
+   883→                      key="loader"
+   884→                      initial={{ opacity: 0, scale: 0.8 }}
+   885→                      animate={{ opacity: 1, scale: 1 }}
+   886→                      exit={{ opacity: 0, scale: 0.8 }}
+   887→                      transition={{ duration: 0.1 }}
+   888→                      className="inline-block h-[17px] w-[17px] rounded-full border-[1.5px] border-text-secondary border-t-transparent animate-spin"
+   889→                      aria-hidden="true"
+   890→                    />
+   891→                  ) : (
+   892→                    <motion.span
+   893→                      key="icon"
+   894→                      initial={{ opacity: 0, scale: 0.8 }}
+   895→                      animate={{ opacity: 1, scale: 1 }}
+   896→                      exit={{ opacity: 0, scale: 0.8 }}
+   897→                      transition={{ duration: 0.1 }}
+   898→                      className="inline-flex text-text-tertiary"
+   899→                    >
+   900→                      <Search3Line size={19} />
+   901→                    </motion.span>
+   902→                  )}
+   903→                </AnimatePresence>
+   904→              </span>
+   905→
+   906→              <input
+   907→                ref={searchInputRef}
+   908→                type="text"
+   909→                placeholder={t("common.search")}
+   910→                autoFocus
+   911→                value={searchQuery}
+   912→                onChange={(event) => setSearchQuery(event.target.value)}
+   913→                onKeyDown={(event) => {
+   914→                  if (event.key === "Enter") {
+   915→                    event.preventDefault();
+   916→                    submitSearchQuery(searchQuery);
+   917→                    runSearchNow();
+   918→                  }
+   919→                }}
+   920→                className="w-full flex-1 bg-transparent border-none outline-none text-text-primary text-[16px] placeholder:text-text-tertiary font-[400] tracking-tight"
+   921→                style={{
+   922→                  fontFamily: "var(--font-inter), sans-serif",
+   923→                  lineHeight: "1.2",
+   924→                }}
+   925→              />
+   926→
+   927→              <AnimatePresence>
+   928→                {searchQuery.length > 0 && (
+   929→                  <motion.button
+   930→                    key="clear-btn"
+   931→                    initial={{ opacity: 0, scale: 0.85 }}
+   932→                    animate={{ opacity: 1, scale: 1 }}
+   933→                    exit={{ opacity: 0, scale: 0.85 }}
+   934→                    transition={{ duration: 0.12 }}
+   935→                    type="button"
+   936→                    aria-label="Clear search"
+   937→                    onClick={() => {
+   938→                      setSearchQuery("");
+   939→                      searchInputRef.current?.focus();
+   940→                    }}
+   941→                    className="shrink-0 text-text-tertiary hover:text-text-primary transition-colors border-none bg-transparent p-0 flex items-center justify-center cursor-pointer"
+   942→                  >
+   943→                    <CloseCircleFill size={18} />
+   944→                  </motion.button>
+   945→                )}
+   946→              </AnimatePresence>
+   947→            </div>
+   948→
+   949→            <AnimatePresence mode="wait">
+   950→              {hasSearchQuery ? (
+   951→                <motion.div
+   952→                  key="search-results-island"
+   953→                  initial={{ opacity: 0, y: -6, scale: 0.99 }}
+   954→                  animate={{ opacity: 1, y: 0, scale: 1 }}
+   955→                  exit={{ opacity: 0, y: -6, scale: 0.99 }}
+   956→                  transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
+   957→                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[500px] h-[500px] rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"
+   958→                >
+   959→                  <div className="flex gap-[6px] px-[14px] pt-[12px] pb-[6px] shrink-0 overflow-x-auto">
+   960→                    {filterKeys.map((key) => {
+   961→                      const label = filterLabels[key];
+   962→                      const isActive = activeFilter === key;
+   963→                      let Icon = GridFill;
+   964→                      if (key === "tracks") Icon = Music2Fill;
+   965→                      else if (key === "artists") Icon = User2Fill;
+   966→                      else if (key === "albums") Icon = AlbumFill;
+   967→                      else if (key === "playlists") Icon = PlaylistFill;
+   968→
+   969→                      return (
+   970→                        <button
+   971→                          key={key}
+   972→                          type="button"
+   973→                          onClick={() => setActiveFilter(key)}
+   974→                          className={`
+   975→                            relative flex items-center gap-[7px] px-[13px] py-[7px] rounded-[12px] text-[13.5px] font-normal transition-colors border-none bg-transparent cursor-pointer select-none shrink-0
+   976→                            ${
+   977→                              isActive
+   978→                                ? "text-text-primary font-medium"
+   979→                                : "text-text-secondary hover:text-text-primary hover:bg-border-alpha-14"
+   980→                            }
+   981→                          `}
+   982→                          style={{
+   983→                            fontFamily: "var(--font-inter), sans-serif",
+   984→                            lineHeight: "1.2",
+   985→                          }}
+   986→                        >
+   987→                          {isActive && (
+   988→                            <motion.div
+   989→                              layoutId="activeFilterPill"
+   990→                              className="absolute inset-0 rounded-[12px] bg-border-alpha-14 pointer-events-none z-0"
+   991→                              transition={{
+   992→                                type: "spring",
+   993→                                stiffness: 450,
+   994→                                damping: 35,
+   995→                              }}
+   996→                            />
+   997→                          )}
+   998→                          <span className="relative z-[1] flex items-center gap-[7px]">
+   999→                            <Icon size={15} />
+  1000→                            <span>{label}</span>
+  1001→                          </span>
+  1002→                        </button>
+  1003→                      );
+  1004→                    })}
+  1005→                  </div>
+  1006→
+  1007→                  <div className="relative flex-1 min-h-0 overflow-hidden">
+  1008→                    <AnimatePresence mode="wait">
+  1009→                      {isSearchEmpty ? (
+  1010→                        <motion.div
+  1011→                          key="search-empty"
+  1012→                          initial={{ opacity: 0 }}
+  1013→                          animate={{ opacity: 1 }}
+  1014→                          exit={{ opacity: 0 }}
+  1015→                          transition={{ duration: 0.08 }}
+  1016→                          className="flex h-full flex-col items-center justify-center gap-[6px] px-[20px] text-center"
+  1017→                        >
+  1018→                          <p
+  1019→                            className="m-0 text-[14px] text-text-primary font-medium"
+  1020→                            style={{
+  1021→                              fontFamily: "var(--font-inter), sans-serif",
+  1022→                            }}
+  1023→                          >
+  1024→                            {t("common.no_results")}
+  1025→                          </p>
+  1026→                          <p
+  1027→                            className="m-0 text-[12px] text-text-tertiary"
+  1028→                            style={{
+  1029→                              fontFamily: "var(--font-inter), sans-serif",
+  1030→                            }}
+  1031→                          >
+  1032→                            {t("common.try_another_search")}
+  1033→                          </p>
+  1034→                        </motion.div>
+  1035→                      ) : searchResults.length > 0 ? (
+  1036→                        <motion.div
+  1037→                          key={`search-results-${activeFilter}`}
+  1038→                          initial={{ opacity: 0 }}
+  1039→                          animate={{ opacity: 1 }}
+  1040→                          exit={{ opacity: 0 }}
+  1041→                          transition={{ duration: 0.08 }}
+  1042→                          className="h-full w-full"
+  1043→                        >
+  1044→                          <SearchResultsList
+  1045→                            items={searchResults}
+  1046→                            isArtistSearchFilter={isArtistSearchFilter}
+  1047→                            isPlaylistSearchFilter={isPlaylistSearchFilter}
+  1048→                            onPlayFromSearch={handlePlayFromSearch}
+  1049→                            onNavigateItem={handleNavigateItem}
+  1050→                            onScroll={updateSearchMask}
+  1051→                            scrollRef={searchScrollRef}
+  1052→                            maskStyle={{
+  1053→                              WebkitMaskImage: searchScrollMask,
+  1054→                              maskImage: searchScrollMask,
+  1055→                            }}
+  1056→                            partialWarning={partialWarning}
+  1057→                          />
+  1058→                        </motion.div>
+  1059→                      ) : null}
+  1060→                    </AnimatePresence>
+  1061→                  </div>
+  1062→                </motion.div>
+  1063→              ) : historyItems.length > 0 ? (
+  1064→                <motion.div
+  1065→                  key="search-history-island"
+  1066→                  initial={{ opacity: 0, y: -6, scale: 0.99 }}
+  1067→                  animate={{ opacity: 1, y: 0, scale: 1 }}
+  1068→                  exit={{ opacity: 0, y: -6, scale: 0.99 }}
+  1069→                  transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
+  1070→                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[480px] h-auto rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"
+  1071→                >
+  1072→                  <SearchHistoryList
+  1073→                    onSelectQuery={handleSelectHistoryQuery}
+  1074→                    onPlayTrack={handlePlayFromSearch}
+  1075→                    onNavigateItem={handleNavigateItem}
+  1076→                    onScroll={updateSearchMask}
+  1077→                    scrollRef={searchScrollRef}
+  1078→                    maskStyle={{
+  1079→                      WebkitMaskImage: searchScrollMask,
+  1080→                      maskImage: searchScrollMask,
+  1081→                    }}
+  1082→                  />
+  1083→                </motion.div>
+  1084→              ) : null}
+  1085→            </AnimatePresence>
+  1086→          </motion.div>
+  1087→        )}
+  1088→      </AnimatePresence>
+  1089→
+  1090→      <AddToPlaylistModal />
+  1091→      <AddToLibraryModal />
+  1092→      <RemoveFromPlaylistModal />
+  1093→      <RemoveFromLibraryModal />
+  1094→      <ImportLikesModal />
+  1095→      <CreatePlaylistModal />
+  1096→      <ImportReviewModal />
+  1097→      <SettingsModal />
+  1098→      <AnnouncementPopup />
+  1099→      <UpdateModal />
+  1100→      <YoutubeSignInNotice />
+  1101→      <UpdateToastBridge />
+  1102→      <AnimatePresence>
+  1103→        {isFullscreenPlayer && (
+  1104→          <motion.div
+  1105→            key="fullscreen-window-controls"
+  1106→            initial={{ opacity: 0, scale: 0.95 }}
+  1107→            animate={{ opacity: 1, scale: 1 }}
+  1108→            exit={{ opacity: 0, scale: 0.95 }}
+  1109→            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+  1110→            className="absolute top-[6px] right-[6px] z-[80] pointer-events-auto select-none"
+  1111→          >
+  1112→            <WindowControls isFullscreen embedded />
+  1113→          </motion.div>
+  1114→        )}
+  1115→      </AnimatePresence>
+  1116→    </div>
+  1117→  );
+  1118→}
+  1119→

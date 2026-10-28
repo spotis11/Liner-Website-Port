@@ -16,6 +16,18 @@ let loadedFromMain = false;
 let unsubscribeMain: (() => void) | null = null;
 let refreshPromise: Promise<AuthTokens | null> | null = null;
 
+/**
+ * In-memory age tracking for sessions whose expiry metadata is missing.
+ * When accessTokenExpiresAt is absent/unparseable the proactive refresh in
+ * getValidAccessToken never fires, so a long-lived tab would keep sending a
+ * stale token (the rest of the app silently heals via the 401 retry in
+ * executeRequest, but one-shot callers do not). We remember when the current
+ * session object was adopted and force a refresh once it ages past
+ * UNKNOWN_EXPIRY_REFRESH_AFTER_MS.
+ */
+let sessionSetAtMs: number | null = null;
+const UNKNOWN_EXPIRY_REFRESH_AFTER_MS = 5 * 60_000;
+
 function mainBridge(): MainAuthBridge | null {
   if (typeof window === "undefined") return null;
   return window.linerElectron?.authSession ?? null;
@@ -47,6 +59,7 @@ function adopt(next: AuthTokens | null): void {
   const changed =
     session?.refreshToken !== next?.refreshToken || session?.accessToken !== next?.accessToken;
   session = next;
+  sessionSetAtMs = next ? Date.now() : null;
   if (changed) emit();
 }
 
@@ -81,9 +94,11 @@ export function getAuthSession(): AuthTokens | null {
   const bridge = mainBridge();
   if (bridge) {
     if (!loadedFromMain) session = loadFromMain(bridge);
+    if (session) sessionSetAtMs = Date.now();
     return session;
   }
   session = readLocal();
+  if (session) sessionSetAtMs = Date.now();
   return session;
 }
 
@@ -97,6 +112,7 @@ if (typeof window !== "undefined") {
 
 export function setAuthSession(next: AuthTokens | null): void {
   session = next;
+  sessionSetAtMs = next ? Date.now() : null;
   const bridge = mainBridge();
   if (bridge) {
     followMain(bridge);
@@ -168,6 +184,20 @@ export async function getValidAccessToken(): Promise<string | null> {
     return null;
   }
 
+  // Expiry metadata missing (older sessions, upstream responses without
+  // accessTokenExpiresAt): proactively refresh once the in-memory session
+  // ages out, so long-lived tabs never keep sending a stale token.
+  if (
+    expiresAtMs === null &&
+    sessionSetAtMs !== null &&
+    Date.now() - sessionSetAtMs > UNKNOWN_EXPIRY_REFRESH_AFTER_MS
+  ) {
+    const refreshed = await refreshAuthSession();
+    // a failed refresh must not break the caller — the current token is the
+    // best we have (one-shot callers retry on 401)
+    return refreshed?.accessToken ?? current.accessToken;
+  }
+
   return current.accessToken;
 }
 
@@ -218,12 +248,30 @@ async function refreshHere(current: AuthTokens): Promise<AuthTokens | null> {
     const response = await postRefresh(current.refreshToken);
 
     if (response.ok) {
-      const next = (await response.json()) as AuthTokens;
-      const merged: AuthTokens = {
-        ...current,
-        ...next,
-        user: next.user || current.user,
-      };
+      const next = (await response.json().catch(() => null)) as
+        | (AuthTokens & Record<string, unknown>)
+        | null;
+      // A 200 body without a usable access token is NOT a refresh (error-shaped
+      // payloads, proxy interference). Keep the session — the caller decides.
+      if (!next || typeof next.accessToken !== "string" || !next.accessToken.trim()) {
+        console.warn("[Auth] refresh response had no access token, keeping the session");
+        return null;
+      }
+      // Merge field-by-field so a null/undefined value in the response can
+      // never wipe good metadata we already hold (e.g. accessTokenExpiresAt).
+      const merged: AuthTokens = { ...current };
+      for (const [key, value] of Object.entries(next)) {
+        if (value === undefined || value === null) continue;
+        (merged as unknown as Record<string, unknown>)[key] = value;
+      }
+      merged.user = next.user || current.user;
+      // If upstream did not say when the new token expires (or the metadata
+      // we kept is already stale), assume a conservative 5 minutes so
+      // proactive refresh keeps working instead of silently never firing.
+      const mergedExpiry = getSessionExpiryMs(merged);
+      if (!mergedExpiry || mergedExpiry <= Date.now()) {
+        merged.accessTokenExpiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+      }
       setAuthSession(merged);
       return merged;
     }

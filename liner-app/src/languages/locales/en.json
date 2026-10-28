@@ -52,7 +52,8 @@
       "search": "Search",
       "library": "Library",
       "settings": "Settings",
-      "local": "Local Music"
+      "local": "Local Music",
+      "profile": "Profile"
     },
     "minimize": "Minimize",
     "exitFullscreen": "Exit fullscreen",
@@ -96,7 +97,7 @@
     "remove_track_from_playlist_desc": "This track will be removed from this playlist.",
     "close": "Close",
     "search": "Search",
-    "from_scratch": "From the scratch",
+    "from_scratch": "From scratch",
     "create_empty_playlist": "Create a brand new empty playlist",
     "playlist_name": "Playlist name",
     "import_playlist": "Import a playlist",
@@ -389,6 +390,8 @@
     "track_unavailable": "\"{title}\" is unavailable, skipping...",
     "track_unavailable_title": "Track unavailable",
     "playback_stopped_too_many_errors": "Playback stopped — too many tracks failed to load.",
+    "youtube_refused_title": "YouTube is refusing this connection",
+    "youtube_refused_description": "Audio from YouTube is blocked on this network. Turn off your VPN or proxy, or try another connection.",
     "speed_pitch": "Speed & Pitch",
     "speed": "Speed",
     "pitch": "Pitch",
@@ -428,7 +431,9 @@
       "preset_classical": "Classical",
       "preset_electronic": "Electronic",
       "preset_custom": "Custom"
-    }
+    },
+    "miniplayer": "Miniplayer",
+    "close_miniplayer": "Close miniplayer"
   },
   "playlist": {
     "playlist": "Playlist",
@@ -494,11 +499,11 @@
       "playback": "Playback",
       "shortcuts": "Shortcuts",
       "overlay": "Overlay",
-      "discord": "Discord RPC",
       "youtube": "YouTube",
       "privacy": "Privacy",
       "customization": "Customization",
-      "announcement": "Announcement"
+      "announcement": "Announcement",
+      "moderation": "Moderation"
     },
     "playback": {
       "description": "Queue behavior, click actions and audio output."
@@ -609,56 +614,6 @@
       "signed_out_title": "Not signed in",
       "signed_out_description": "Sign in to keep YouTube playback working"
     },
-    "discord": {
-      "description": "Show what you're listening to on Discord with album art, artist badge and progress bar.",
-      "section_display": "Display Options",
-      "section_buttons": "Profile Buttons",
-      "enable": {
-        "title": "Discord Rich Presence",
-        "description": "Broadcast your active music playback to your Discord profile."
-      },
-      "status_display": {
-        "title": "Status Format",
-        "description": "Choose what appears in Discord's 'Listening to...' status header.",
-        "artist": "Artist (Default)",
-        "song": "Song Title",
-        "artist_song": "Artist - Song",
-        "song_artist": "Song - Artist",
-        "app": "Liner (App name)"
-      },
-      "show_timeline": {
-        "title": "Playback Timeline",
-        "description": "Display interactive progress bar with elapsed and remaining track time."
-      },
-      "show_artwork": {
-        "title": "Track Artwork",
-        "description": "Show track or album cover in the Discord activity card."
-      },
-      "show_artist_image": {
-        "title": "Artist Photo Badge",
-        "description": "Display the artist photo in a small circular badge on the bottom corner."
-      },
-      "show_paused": {
-        "title": "Show when Paused",
-        "description": "Keep status visible on Discord with a paused indicator when music is paused."
-      },
-      "show_button": {
-        "title": "'Listen on Liner' Button",
-        "description": "Add an interactive button linking to the song on Liner."
-      },
-      "show_download_button": {
-        "title": "'Download Liner' Button",
-        "description": "Add an interactive button linking to tryliner.fun to download the app."
-      },
-      "status": {
-        "connected": "Connected to Discord ({user})",
-        "disconnected": "Discord not connected",
-        "ready": "Ready",
-        "waiting": "Waiting for Discord",
-        "disabled": "Disabled",
-        "via_arrpc": "Connected via arRPC"
-      }
-    },
     "audio_data": {
       "description": "Streaming quality, offline cache and connection diagnostics."
     },
@@ -763,8 +718,15 @@
       "description": "Choose the overall appearance of the app.",
       "light": "Light",
       "dark": "Dark",
-      "system": "System",
-      "disabled_for_glass": "Light theme is disabled when using custom wallpaper glassmorphism."
+      "system": "System"
+    },
+    "appearance": {
+      "same_as_device_title": "Same as device theme",
+      "same_as_device_description": "Match the device light or dark setting.",
+      "color_themes_title": "Color themes",
+      "color_themes_description": "Choose a theme color. Light and Black are included.",
+      "wallpaper_blocked_with_theme": "Wallpaper is not allowed while a color theme is applied. Remove the theme first.",
+      "wallpaper_removed_for_theme": "Wallpaper removed — themes and wallpapers can't be combined."
     },
     "branding": {
       "title": "Branding",
@@ -975,6 +937,76 @@
       "error_forbidden": "Only JayJoice can send announcements.",
       "error_rate_limited": "Easy! Wait a few seconds between announcements.",
       "error_generic": "Couldn't send the announcement. Please try again."
+    },
+    "user_finder": {
+      "account_created": "Account created",
+      "ban_status": "Ban status",
+      "banned": "Banned ({type}) — {reason}",
+      "description": "Look up any Liner account on this website: profile, last seen and what they played. Only you can use this.",
+      "email": "Email",
+      "error_forbidden": "User Finder is only available to the site owner.",
+      "error_generic": "User lookup failed — try again.",
+      "error_unauthorized": "Your session expired — sign in again and try again.",
+      "error_username": "Enter a valid Liner username (a-z, 0-9, _, 3-30 chars).",
+      "find": "Find",
+      "last_ip": "Last network address",
+      "last_seen": "Last seen on website",
+      "no_songs": "No plays recorded for this account on this website yet.",
+      "not_found": "Nothing known about @{username} yet — they have not signed in to this website.",
+      "recent_songs": "Recent songs played on this website",
+      "search_placeholder": "Enter a username (e.g. liner)",
+      "searching": "Searching…",
+      "title": "User Finder",
+      "unknown": "Unknown",
+      "followers": "Followers",
+      "follow_stats": "{followers} followers · {following} following",
+      "source_live": "Live from Liner",
+      "source_cache": "From website cache"
+    },
+    "moderation": {
+      "description": "Ban accounts from this website and lift bans again.",
+      "section_title": "User management",
+      "section_subtitle": "Website port only — banned accounts cannot sign in or stay signed in on this website. IP bans also block the account's known network addresses site-wide. The upstream Liner app is never touched.",
+      "list_title": "Active bans",
+      "list_empty": "No active bans.",
+      "loading": "Loading bans…",
+      "refresh": "Refresh",
+      "type_normal": "Normal",
+      "type_ip": "IP ban",
+      "type_label": "Ban type",
+      "ip_count": "{count} IP(s) blocked",
+      "ban_title": "Ban a user",
+      "username_placeholder": "liner username (e.g. johndoe)",
+      "duration_label": "Duration",
+      "duration_forever": "Forever",
+      "duration_custom": "Custom hours…",
+      "duration_hour": "{count} hour",
+      "duration_hours": "{count} hours",
+      "custom_hours_placeholder": "hours",
+      "reason_placeholder": "Reason (optional)",
+      "ban_hint": "The ban takes effect within seconds, even for signed-in users.",
+      "ban_button": "Ban user",
+      "working": "Working…",
+      "unban_title": "Unban by username",
+      "unban_hint": "Type the account's Liner username and press Unban — the ban and its blocked IPs are lifted instantly.",
+      "unban_button": "Unban",
+      "toast_banned": "@{username} is now banned from this website.",
+      "toast_unbanned": "@{username} has been unbanned.",
+      "error_unauthorized": "Your session expired — sign in again and try again.",
+      "error_forbidden": "Only JayJoice can manage bans.",
+      "error_admin": "You can't ban the site owner.",
+      "error_username": "Enter a valid Liner username (3-30 lowercase letters, numbers or _).",
+      "error_duration": "Enter a valid duration in hours.",
+      "error_not_banned": "That username isn't banned.",
+      "error_generic": "Couldn't update the bans. Please try again."
+    },
+    "cross_tab_miniplayer": {
+      "title": "Miniplayer",
+      "description": "Open a mini player when you switch to another tab and close it as soon as you come back."
+    },
+    "sound_wave": {
+      "title": "Sound wave visualizer",
+      "description": "Show a live sound wave synced to the music in the fullscreen player."
     }
   },
   "toast": {
@@ -1165,11 +1197,51 @@
     "play_all": "Play all",
     "scan_complete": "Scan complete: {count} tracks",
     "scan_failed": "Scan failed: {reason}",
+    "scan_no_folders": "No folders to scan yet — add a folder or drop audio files first",
+    "scan_no_audio": "No audio files found in that folder",
     "folder_added": "Folder added: {name}",
     "files_added": "Added {count} tracks",
     "missing_file": "Local file is missing — rescan your library",
     "no_results": "No tracks match your filter",
     "unknown_album": "Unknown album",
     "folders_none": "No folders added yet"
+  },
+  "moderation": {
+    "banned": {
+      "title_account": "Account banned",
+      "title_network": "Network banned",
+      "body_account": "The account @{username} has been banned from this website.",
+      "body_network": "This network has been banned from this website (applied to the account @{username}).",
+      "reason_label": "Reason",
+      "expires_never": "This ban does not expire.",
+      "expires_at": "Time remaining: {time}",
+      "footer": "Liner for Web",
+      "stamp": "BANNED"
+    }
+  },
+  "welcome": {
+    "signin_title": "Welcome back, {name}!",
+    "signin_body": "Signing in back to Liner makes us happy to see you again!",
+    "signin_tagline": "Ready to dive in?",
+    "signin_cta": "Let's go!",
+    "signup_title": "Welcome, {name}!",
+    "signup_subtitle": "Make yourself at home! Let's get to know you!",
+    "step_of": "Step {step} out of {total}",
+    "avatar_title": "Set a profile picture!",
+    "avatar_helper": "You can always set it now or later in settings.",
+    "artists_title": "Select the artists",
+    "artists_sub": "Select 3 artists you mostly listen to",
+    "artists_counter": "{count}/3 selected",
+    "artists_load_failed": "We couldn't load popular artists right now.",
+    "artists_retry": "Try again",
+    "artists_skip": "Continue without picking",
+    "theme_title": "Select a theme!",
+    "theme_helper": "You can always set this now or later in settings.",
+    "back": "Go back",
+    "next": "Next",
+    "done": "Done!",
+    "finale_title": "THAT'S ALL!",
+    "finale_body": "Okay! It was nice knowing you, {name}. Ready to dive in?",
+    "finale_cta": "Let's go!"
   }
 }

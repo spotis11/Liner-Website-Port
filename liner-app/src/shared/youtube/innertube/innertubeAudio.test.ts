@@ -47,12 +47,15 @@ const low: AudioFormat = {
   bitrate: 50_000,
 };
 
-function playerResponse(formats: unknown[], status = "OK") {
+function playerResponse(formats: unknown[], status = "OK", reason?: string) {
   return new Response(
     JSON.stringify({
       playabilityStatus: {
         status,
-        reason: status === "OK" ? undefined : "Sign in to confirm",
+        reason:
+          status === "OK"
+            ? undefined
+            : (reason ?? "Sign in to confirm"),
       },
       streamingData: { adaptiveFormats: formats },
     }),
@@ -291,5 +294,25 @@ describe("resolveDirectAudioStream", () => {
       /not a YouTube video/,
     );
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("reports a network refusal when every profile is bot-checked", async () => {
+    webRemix.resolve.mockRejectedValue(
+      new Error("Sign in to confirm you're not a bot"),
+    );
+    mockPlayerApi([
+      playerResponse(
+        [],
+        "LOGIN_REQUIRED",
+        "Sign in to confirm you’re not a bot",
+      ),
+    ]);
+
+    await expect(resolveDirectAudioStream("dQw4w9WgXcQ")).rejects.toThrow(
+      /YouTube refused every audio stream from this network/,
+    );
+    await expect(resolveDirectAudioStream("dQw4w9WgXcQ")).rejects.toMatchObject(
+      { status: 403 },
+    );
   });
 });

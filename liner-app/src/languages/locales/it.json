@@ -52,7 +52,8 @@
       "search": "Cerca",
       "library": "Libreria",
       "settings": "Impostazioni",
-      "local": "Musica locale"
+      "local": "Musica locale",
+      "profile": "Profilo"
     },
     "loading": "Caricamento",
     "signed_in": "Accesso effettuato",
@@ -382,6 +383,8 @@
     "track_unavailable": "\"{title}\" non è disponibile, lo salto...",
     "track_unavailable_title": "Brano non disponibile",
     "playback_stopped_too_many_errors": "Riproduzione interrotta: non è stato possibile caricare troppi brani.",
+    "youtube_refused_title": "YouTube rifiuta questa connessione",
+    "youtube_refused_description": "L'audio di YouTube è bloccato su questa rete. Disattiva VPN o proxy, oppure prova un'altra connessione.",
     "speed_pitch": "Velocità e tonalità",
     "speed": "Velocità",
     "pitch": "Tonalità",
@@ -421,7 +424,9 @@
       "preset_classical": "Classica",
       "preset_electronic": "Elettronica",
       "preset_custom": "Personalizzato"
-    }
+    },
+    "miniplayer": "Miniplayer",
+    "close_miniplayer": "Chiudi miniplayer"
   },
   "playlist": {
     "playlist": "Playlist",
@@ -683,8 +688,7 @@
       "description": "Scegli l'aspetto generale dell'app.",
       "light": "Chiaro",
       "dark": "Scuro",
-      "system": "Sistema",
-      "disabled_for_glass": "Il tema chiaro è disattivato quando usi l'effetto vetro con uno sfondo personalizzato."
+      "system": "Sistema"
     },
     "branding": {
       "title": "Branding",
@@ -895,6 +899,39 @@
       "error_forbidden": "Solo JayJoice può inviare annunci.",
       "error_rate_limited": "Piano! Aspetta qualche secondo tra gli annunci.",
       "error_generic": "Impossibile inviare l'annuncio. Riprova."
+    },
+    "user_finder": {
+      "account_created": "Account creato",
+      "ban_status": "Stato del ban",
+      "banned": "Bannato ({type}) — {reason}",
+      "description": "Cerca qualsiasi account Liner su questo sito: profilo, ultima visita e cosa ha ascoltato. Solo tu puoi usarlo.",
+      "email": "Email",
+      "error_forbidden": "Trova utenti è disponibile solo per il proprietario del sito.",
+      "error_generic": "Ricerca non riuscita — riprova.",
+      "error_unauthorized": "Sessione scaduta — accedi di nuovo e riprova.",
+      "error_username": "Inserisci un nome utente Liner valido (a-z, 0-9, _, 3-30 caratteri).",
+      "find": "Cerca",
+      "last_ip": "Ultimo indirizzo di rete",
+      "last_seen": "Ultima visita al sito",
+      "no_songs": "Nessuna riproduzione registrata per questo account su questo sito.",
+      "not_found": "Nessuna info su @{username} per ora — non ha mai effettuato l'accesso a questo sito.",
+      "recent_songs": "Brani riprodotti di recente su questo sito",
+      "search_placeholder": "Inserisci un nome utente (es. liner)",
+      "searching": "Ricerca…",
+      "title": "Trova utenti",
+      "unknown": "Sconosciuto",
+      "followers": "Follower",
+      "follow_stats": "{followers} follower · {following} seguiti",
+      "source_live": "In diretta da Liner",
+      "source_cache": "Dalla cache del sito"
+    },
+    "cross_tab_miniplayer": {
+      "title": "Miniplayer",
+      "description": "Apre un mini player quando passi a un'altra scheda e lo chiude appena torni indietro."
+    },
+    "sound_wave": {
+      "title": "Visualizzatore a onda sonora",
+      "description": "Mostra un'onda sonora live sincronizzata con la musica nel player a schermo intero."
     }
   },
   "toast": {
@@ -1074,6 +1111,8 @@
     "play_all": "Riproduci tutto",
     "scan_complete": "Scansione completata: {count} brani",
     "scan_failed": "Scansione non riuscita: {reason}",
+    "scan_no_folders": "Nessuna cartella da scansionare — aggiungi prima una cartella o trascina file audio",
+    "scan_no_audio": "Nessun file audio trovato in quella cartella",
     "folder_added": "Cartella aggiunta: {name}",
     "files_added": "{count} brani aggiunti",
     "missing_file": "File locale mancante — riscansiona la libreria",

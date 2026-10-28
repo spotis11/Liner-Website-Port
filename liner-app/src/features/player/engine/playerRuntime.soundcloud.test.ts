@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Track } from "@/shared/types";
 
+vi.mock("./websitePlayReporter", () => ({
+  reportWebsitePlay: vi.fn(),
+}));
+
 const mocks = vi.hoisted(() => ({ resolveSoundCloudStream: vi.fn() }));
 
 vi.mock("@/shared/media/soundcloud", async (importOriginal) => {

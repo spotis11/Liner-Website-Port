@@ -55,6 +55,42 @@ describe("authStore.initialize — expired access token at launch", () => {
   });
 });
 
+describe("authStore.initialize — zombie sessions (Task 28 session-expired fix)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    setAuthSession(null);
+  });
+
+  it("drops a session that has no refresh token and goes anonymous (clean sign-in)", async () => {
+    const zombie = {
+      accessToken: "long-dead-access",
+      refreshToken: "",
+      accessTokenExpiresAt: new Date(Date.now() - 3_600_000).toISOString(),
+      user: { id: "u1", username: "jayzeyluna" },
+    } as unknown as AuthTokens;
+    setAuthSession(zombie);
+    useAuthStore.setState({ status: "initializing", user: null });
+
+    await useAuthStore.getState().initialize();
+
+    expect(getAuthSession()).toBeNull();
+    expect(useAuthStore.getState().status).toBe("anonymous");
+    expect(useAuthStore.getState().user).toBeNull();
+    // no upstream call was even attempted — the session can never renew
+  });
+
+  it("keeps a healthy session that still has its refresh token", async () => {
+    setAuthSession(stored);
+    useAuthStore.setState({ status: "initializing", user: null });
+    vi.spyOn(api, "getMe").mockResolvedValue({ id: "u1", username: "leo" } as never);
+
+    await useAuthStore.getState().initialize();
+
+    expect(useAuthStore.getState().status).toBe("authenticated");
+    expect(getAuthSession()?.refreshToken).toBe("refresh-1");
+  });
+});
+
 describe("signing out clears the player", () => {
   afterEach(() => {
     vi.restoreAllMocks();

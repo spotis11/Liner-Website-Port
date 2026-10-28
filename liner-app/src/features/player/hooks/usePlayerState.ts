@@ -22,6 +22,8 @@ const EMPTY_STATE: PlayerState = {
   autoplaySimilar: true,
   hoverPreview: true,
   soundcloudFallback: true,
+  miniPlayerEnabled: true,
+  soundWaveEnabled: false,
   trackDoubleClickBehavior: "play",
   defaultPlaybackContext: "resume",
   fullscreen: false,
