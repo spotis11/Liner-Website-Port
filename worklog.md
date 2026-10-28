@@ -981,3 +981,21 @@ Work Log:
 Stage Summary:
 - soundwave dev server RUNNING on port 5173 (detached, survives sessions); all files verified OK
 - Reusable detach-spawn script saved at scripts/spawn_soundwave_dev.py
+
+---
+Task ID: 42
+Agent: main
+Task: Diagnose platform CAExited crash (tar: Directory renamed before its status could be extracted)
+
+Work Log:
+- Error pasted by user: Function instance CAExited at boot, tar extraction of ./next-service-dist/.next/node_modules/@prisma failed with "Directory renamed before its status could be extracted"
+- Root cause: platform snapshot tar raced with concurrent file renames (npm ci / next build churn in prior sessions) — snapshot captured mid-rename, so boot-time restore failed; RequestId prefix 6ae17ea1 matches current instance mount c-6ae17be1
+- Current state was healthy but platform fell back to `next dev -p 3000` (pid 1067) instead of standalone prod
+- Remediation: verified quiescence (no builds running, 6.5G disk free) → clean `npm run build` → verified standalone integrity (@prisma/client present, server.js present, public/liner assets 352=352, bundle md5 ad77c791e7a2d49a18bb30685fab87cf consistent) → killed next dev → spawn_prod_webserver.py → prod pid 3336
+- Health: :3000 prod HTTP 200, /liner 308 redirect (valid), soundwave :5173 HTTP 200
+
+Stage Summary:
+- CAExited root-caused to snapshot-vs-build race; workspace left in quiescent, consistent, deploy-ready state
+- Prod standalone server restored on :3000 (pid 3336)
+- Recommendation: let platform re-snapshot/redeploy now that no builds run concurrently
+- Correction: /liner itself is not a route by design — next.config.ts rewrites /, /login, /library, /artist, /collection, /player → /liner/index.html. Root serves SPA HTML 200 via rewrite; standalone server is correct.
