@@ -1014,3 +1014,21 @@ Work Log:
 Stage Summary:
 - Sandbox fully healthy and fast; deploy hang was platform-side snapshot of oversized workspace
 - Live traffic confirmed flowing (site is UP during "Deploying" screen)
+
+---
+Task ID: 44
+Agent: main
+Task: Find good in-sync sound wave (after deploy failures from workspace bloat)
+
+Work Log:
+- Removed external/ entirely (both cloned repos) to un-bloat workspace for platform snapshot
+- Web research: candidates wavesurfer.js (waveform-over-time, best for scrub UI), butterchurn (WebGL Milkdrop, heavy), audioMotion.js (real-time spectrum, single-file UMD 95KB, zero deps)
+- Chose audiomotion-analyzer@4.5.1 (single dist/index.js UMD, sets global AudioMotionAnalyzer)
+- Built lean demo at scripts/soundwave-demo/ (index.html + lib + demo.mp3 salvaged from removed repo); served detached on :8899 via scripts/spawn_static_server.py
+- E2E verified: trusted click Play → audio playing, analyzer 60fps, bass energy 0.467 live; pause → bass energy 0.000 (sync proven)
+- Screenshots: download/audiomotion_playing.png (+paused), audiomotion_playing2.png
+- Fixed demo readout: getEnergy('~') invalid → average of 5 bands
+
+Stage Summary:
+- audioMotion.js = chosen in-sync sound wave: 95KB vendored file, NO node_modules, integrates via source: audioElement
+- Demo running on :8899; workspace lean for deploy retry

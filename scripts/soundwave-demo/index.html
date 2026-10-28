@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>audioMotion.js — live in-sync sound wave</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 18px; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1b1035 0%, #090514 55%, #050309 100%);
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #e7e3f5;
+  }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #b7a9e8; }
+  h1 span { color: #6ee7f7; }
+  #stage { width: min(920px, 100%); border-radius: 18px; overflow: hidden;
+           box-shadow: 0 18px 60px rgba(103, 78, 214, .35), 0 0 0 1px rgba(255,255,255,.06); }
+  .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  button {
+    background: linear-gradient(135deg, #7c3aed, #06b6d4); border: 0; color: white;
+    padding: 10px 22px; border-radius: 999px; font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  select {
+    background: #17122b; color: #e7e3f5; border: 1px solid #3a2f63; border-radius: 10px;
+    padding: 8px 12px; font-size: 13px;
+  }
+  audio { width: min(560px, 100%); accent-color: #8b5cf6; }
+  #readout { font-variant-numeric: tabular-nums; font-size: 12px; color: #8d84ad; }
+  #readout b { color: #6ee7f7; }
+</style>
+</head>
+<body>
+  <h1>audioMotion.js <span>live · in-sync</span></h1>
+  <div id="stage"></div>
+  <audio id="audio" src="./demo.mp3" preload="auto"></audio>
+  <div class="controls">
+    <button id="playBtn">▶ Play</button>
+    <select id="gradientSel" title="Gradient">
+      <option value="prism">Prism</option>
+      <option value="rainbow">Rainbow</option>
+      <option value="steelblue">Steel Blue</option>
+      <option value="orpheus">Orpheus</option>
+      <option value="classic">Classic</option>
+    </select>
+    <select id="modeSel" title="Display mode">
+      <option value="mirror">Mirror bars</option>
+      <option value="graph">Graph bars</option>
+      <option value="scale">Scale bars</option>
+      <option value="waveform">Waveform</option>
+      <option value="led">LED matrix</option>
+    </select>
+    <span id="readout">energy: <b id="energy">0.000</b></span>
+  </div>
+<script src="./audioMotion-analyzer.js"></script>
+<script>
+  const audioEl = document.getElementById('audio');
+  const analyzer = new AudioMotionAnalyzer(document.getElementById('stage'), {
+    source: audioEl,
+    mode: 'mirror',
+    gradient: 'prism',
+    showPeaks: true,
+    barSpace: 0.55,
+    height: 380,
+    fftSize: 8192,
+    ansiBands: false,
+    showBgColor: false,
+    overlay: false,
+    showScaleX: false,
+    volume: 0.9
+  });
+  window.analyzer = analyzer;
+
+  const playBtn = document.getElementById('playBtn');
+  playBtn.addEventListener('click', () => {
+    if (audioEl.paused) { audioEl.play(); } else { audioEl.pause(); }
+  });
+  audioEl.addEventListener('play',  () => playBtn.textContent = '❚❚ Pause');
+  audioEl.addEventListener('pause', () => playBtn.textContent = '▶ Play');
+
+  document.getElementById('gradientSel').addEventListener('change', e => analyzer.gradient = e.target.value);
+  document.getElementById('modeSel').addEventListener('change', e => analyzer.mode = e.target.value);
+
+  // live energy readout — proof the visualization tracks the audio in real time
+  setInterval(() => {
+    const bands = ['bass', 'lowMid', 'mid', 'highMid', 'treble'];
+    const avg = bands.reduce((s, b) => s + (analyzer.getEnergy(b) ?? 0), 0) / bands.length;
+    document.getElementById('energy').textContent = avg.toFixed(3);
+  }, 100);
+</script>
+</body>
+</html>
