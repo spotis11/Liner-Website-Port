@@ -963,3 +963,21 @@ Work Log:
 Stage Summary:
 - Clone + file integrity OK; dev server impossible (wrong platform, not a web project)
 - Potential use as visual reference for liner-app SoundWave (metering bars / gradient read+write modes) if user intends a port
+
+---
+Task ID: 41
+Agent: main
+Task: Clone connorklee0/soundwave, start dev server, verify files
+
+Work Log:
+- Cloned to /home/z/my-project/external/soundwave (HEAD 808b5b9) — Vite 7 + React 19 + Tailwind 4 Spotify-style music app
+- npm ci installed deps; first two launch attempts (nohup, setsid) were reaped between tool calls
+- Working daemon recipe: scripts/spawn_soundwave_dev.py (python Popen start_new_session=True + pidfile, same pattern as spawn_prod_webserver.py) — vite dev on 0.0.0.0:5173, pidfile soundwave-dev.pid, log soundwave-dev.log
+- Verified: HTTP 200, UI renders in agent-browser with ZERO console/page errors, screenshot download/soundwave_dev_home.png
+- ESLint: 3 pre-existing style errors in upstream code (img6/img13 unused exports, PlayerContext fast-refresh note) — harmless
+- Production build: npx vite build OK in 1.45s (index-D8K0H6eK.js 268KB)
+- Liner server on :3000 confirmed untouched (HTTP 200)
+
+Stage Summary:
+- soundwave dev server RUNNING on port 5173 (detached, survives sessions); all files verified OK
+- Reusable detach-spawn script saved at scripts/spawn_soundwave_dev.py
