@@ -999,3 +999,18 @@ Stage Summary:
 - Prod standalone server restored on :3000 (pid 3336)
 - Recommendation: let platform re-snapshot/redeploy now that no builds run concurrently
 - Correction: /liner itself is not a route by design — next.config.ts rewrites /, /login, /library, /artist, /collection, /player → /liner/index.html. Root serves SPA HTML 200 via rewrite; standalone server is correct.
+
+---
+Task ID: 43
+Agent: main
+Task: Platform deploy stuck on "Deploying... (~1 min)"
+
+Work Log:
+- Diagnosed: no deploy/tar process inside sandbox; platform-side packaging of 2.2GB workspace was slow/stuck after earlier CAExited
+- Trimmed external/soundwave/node_modules (109MB, restorable via npm ci in external/soundwave)
+- Verified health: :3000 responds 1.9ms (HTTP 200), API 4.9ms, prod.log shows live traffic serving normally (ban checks + announcement queries)
+- Total workspace files now 72,425; standalone prod server pid 3336 healthy
+
+Stage Summary:
+- Sandbox fully healthy and fast; deploy hang was platform-side snapshot of oversized workspace
+- Live traffic confirmed flowing (site is UP during "Deploying" screen)
