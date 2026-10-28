@@ -1082,3 +1082,25 @@ Work Log:
 Stage Summary:
 - Deploy pipeline fully unblocked; symlink+size fixes are permanent (script + patched build.sh)
 - Next: oldest unfixed bug queue — search visibility + missing profile pics in results (msg 17), Local Music button + User Finder (msg 11), miniplayer/bans (msg 9), playback diffs (msg 7)
+
+---
+Task ID: 48
+Agent: main
+Task: AI Translate broken — logos wrong + translator not translating (user report)
+
+Work Log:
+- ROOT CAUSE (not translating): free Google gtx endpoint returns HTTP 429 "Sorry..." to the SERVER's datacenter IP (verified via curl); clients5 dict-chrome-ex → 302 to google.com/sorry; MyMemory fallback → quota exhausted (shared datacenter-IP pool). The whole free chain was dead server-side, so the default provider silently never translated.
+- Fix 1 — Liner AI built-in provider: new shell route src/app/api/ai-translate/route.ts using z-ai-web-dev-sdk (ZAI.create + chat.completions, thinking disabled, JSON-array prompt, 1:1 alignment fallback). Validated input (1–160 lines × ≤600 chars). Translates a 4-line song in ~0.9s on :3000. SDK added to serverExternalPackages; SDK + /etc/.z-ai-config traced into standalone (verified in .next/standalone/node_modules).
+- Fix 2 — Google Translate option: gtxFetch() now tries BROWSER-DIRECT fetch first (gtx sends access-control-allow-origin: *; user's residential IP is not rate-limited), falls back to the server proxy. Google works again for real users even if the server IP stays blocked (sandbox datacenter IP still 429s — expected).
+- Fix 3 — real logos: previous session's hand-drawn SVG paths were wrong. Vendored OFFICIAL marks via scripts/vendor_ai_logos.py into aiTranslate/logos/: official colored Google Translate + Gemini 2025 sparkle (Wikimedia Commons), official OpenRouter (simple-icons 16.36), OpenAI, Claude (#D97757), Ollama glyphs (simple-icons 13.21). providers.tsx BrandLogo renders raw SVGs (?raw + .liner-brand-logo CSS sizing). Cloudflare blocked cdn.simpleicons.org → used jsdelivr npm mirror + Wikimedia API (UA header required).
+- Fix 4 — settings "Test connection" false-negative: default target EN + English samples = no-op translation → always "Test failed". Samples now language-aware (Spanish source when target is EN).
+- Store default provider → "liner" (fresh users); persisted "google" users keep Google (now working via browser-direct).
+- E2E (agent-browser, mocked auth, fresh sessions): all 7 provider cards render (Liner AI/Google/OpenRouter/Gemini/OpenAI/Claude/Ollama), official logo marks present in DOM, LIVE "Test connection" → "Translation works — Hello world, this is a test / Music is life". Changelog modal shows v1.9 (title + all 4 entries). Screenshots: download/aitranslate_v19_final.png, changelog_v19.png.
+- Full vitest suite: 143 files / 899 tests PASS (vitest restored via bun add -d vitest@4.1.11 after earlier bun prune).
+- Deployed: SPA rebuilt (vite build, 4.4MB/18 files) → public/liner + standalone/public/liner; next build (route registered ƒ /api/ai-translate) → fix_standalone_symlinks.py (0 remaining) → prod restarted pid 5256 → :3000 HTTP 200, /api/ai-translate 200 (fr: "test du contrôle de santé final").
+
+Stage Summary:
+- AI Translate now actually translates: Liner AI (built-in, no key, default) works everywhere; Google Translate works browser-direct from user devices; 6 keyed providers unchanged.
+- Real official brand logos everywhere in Settings → AI Translate.
+- Changelog v1.9 records all of it; sidebar Changelog button intact.
+- Known env-limited: Google gtx + MyMemory remain blocked from THIS sandbox IP — browser-direct is the path that matters for users.

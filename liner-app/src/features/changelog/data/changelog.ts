@@ -19,6 +19,48 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "2.0",
+    date: "2026-10-28",
+    title: "Translations you can actually see",
+    entries: [
+      {
+        type: "fixed",
+        text: "AI Translate lines were fetched but never shown. A lyrics-renderer update (word-level highlighting with hidden screen-reader copies of every line) broke the line matching, so translated lines silently never appeared under the original lyrics. Matching is now done directly against the lyric list — immune to any rendering quirk — and translations pop in the moment they are ready.",
+      },
+      {
+        type: "changed",
+        text: "Liner AI now wears the Liner logo itself — the same mark you see on the login screen and sidebar — instead of a placeholder tile.",
+      },
+      {
+        type: "fixed",
+        text: "Old cached \"translations\" from the broken build are retired, so nothing stale can keep a song untranslated.",
+      },
+    ],
+  },
+  {
+    version: "1.9",
+    date: "2026-10-28",
+    title: "AI Translate that actually translates",
+    entries: [
+      {
+        type: "fixed",
+        text: "AI Translate now really translates. The first version relied on Google's free endpoint, which silently refuses requests coming from web servers — so nothing ever appeared. Fixed at the root.",
+      },
+      {
+        type: "added",
+        text: "Liner AI — a built-in translator running on our own server. No API key, no setup, one request per song with natural phrasing. It is now the default and works for everyone.",
+      },
+      {
+        type: "fixed",
+        text: "Google Translate option: lyrics are now translated directly from your device instead of through our server, so the free Google option works again.",
+      },
+      {
+        type: "changed",
+        text: "Real brand logos everywhere in Settings → AI Translate: the official Google Translate and Gemini marks in full colour, plus the genuine OpenRouter, OpenAI, Claude and Ollama logos.",
+      },
+    ],
+  },
+  {
     version: "1.8",
     date: "2026-10-28",
     title: "AI lyrics translation",

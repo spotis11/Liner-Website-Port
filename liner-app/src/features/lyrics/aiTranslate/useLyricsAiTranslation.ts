@@ -37,6 +37,22 @@ function normalizeText(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+/**
+ * Visible text of a rendered line WITHOUT braccato's accessibility mirror.
+ * Word-level rendering duplicates every run with aria-hidden="true" (screen
+ * readers) — reading raw textContent doubles the text ("wordword"), which made
+ * every text-based match fail and translations silently never appear.
+ */
+function visibleLineText(lineElement: HTMLElement): string {
+  const main =
+    lineElement.querySelector<HTMLElement>(".blyrics-line-main") ?? lineElement;
+  const clone = main.cloneNode(true) as HTMLElement;
+  clone
+    .querySelectorAll('[aria-hidden="true"]')
+    .forEach((node) => node.remove());
+  return clone.textContent ?? "";
+}
+
 export function useLyricsAiTranslation(
   getElement: () => HTMLElement | null,
 ): { status: TranslationStatus; toggle: () => void; active: boolean; busy: boolean } {
@@ -145,40 +161,54 @@ export function useLyricsAiTranslation(
     const lyricsNow = useLyricsStore.getState().braccatoLyrics;
     const translations = cached.lines;
 
-    // map: normalized source text → queue of translations (duplicates safe)
-    const byText = new Map<string, string[]>();
-    lyricsNow.forEach((line, index) => {
-      const text = normalizeText(String(line?.words ?? ""));
-      if (!text) return;
-      const translated = translations[index];
-      if (typeof translated !== "string" || !translated.trim()) return;
-      const queue = byText.get(text);
-      if (queue) queue.push(translated);
-      else byText.set(text, [translated]);
-    });
-
     const lang = state.targetLang;
-    const lineElements = element.querySelectorAll<HTMLElement>(".blyrics--line");
-    const consumed = new Map<string, number>();
+    const lineElements = Array.from(
+      element.querySelectorAll<HTMLElement>(".blyrics--line"),
+    );
     let injected = 0;
 
-    lineElements.forEach((lineElement) => {
-      if (lineElement.querySelector(".blyrics--translated")) return;
-      const mainText =
-        lineElement.querySelector(".blyrics-line-main")?.textContent ??
-        lineElement.textContent ??
-        "";
-      const normalized = normalizeText(mainText);
-      if (!normalized) return;
-      const queue = byText.get(normalized);
-      if (!queue || queue.length === 0) return;
-      // count how many identical lines we already translated this pass
-      const seen = consumed.get(normalized) ?? 0;
-      if (seen >= queue.length) return;
-      consumed.set(normalized, seen + 1);
-      injectTranslation(document, lineElement, queue[seen], lang);
-      injected += 1;
-    });
+    // braccato renders one .blyrics--line per Lyric, in store order — when the
+    // counts line up, inject by INDEX: exact, and immune to DOM text quirks
+    // (aria-hidden mirror runs, pronunciation pills, bidi wrappers).
+    if (lineElements.length === lyricsNow.length && lyricsNow.length > 0) {
+      lineElements.forEach((lineElement, index) => {
+        if (lineElement.querySelector(".blyrics--translated")) return;
+        const translated = translations[index];
+        if (typeof translated !== "string" || !translated.trim()) return;
+        const sourceText = normalizeText(String(lyricsNow[index]?.words ?? ""));
+        if (!sourceText) return; // instrumental / blank line
+        injectTranslation(document, lineElement, translated, lang);
+        injected += 1;
+      });
+    } else {
+      // fallback for mismatched renders: match by visible text (duplicates
+      // safe via per-text queues)
+      const byText = new Map<string, string[]>();
+      lyricsNow.forEach((line, index) => {
+        const text = normalizeText(String(line?.words ?? ""));
+        if (!text) return;
+        const translated = translations[index];
+        if (typeof translated !== "string" || !translated.trim()) return;
+        const queue = byText.get(text);
+        if (queue) queue.push(translated);
+        else byText.set(text, [translated]);
+      });
+
+      const consumed = new Map<string, number>();
+      lineElements.forEach((lineElement) => {
+        if (lineElement.querySelector(".blyrics--translated")) return;
+        const normalized = normalizeText(visibleLineText(lineElement));
+        if (!normalized) return;
+        const queue = byText.get(normalized);
+        if (!queue || queue.length === 0) return;
+        // count how many identical lines we already translated this pass
+        const seen = consumed.get(normalized) ?? 0;
+        if (seen >= queue.length) return;
+        consumed.set(normalized, seen + 1);
+        injectTranslation(document, lineElement, queue[seen], lang);
+        injected += 1;
+      });
+    }
 
     if (injected > 0) {
       injectionRef.current.generation += 1;
@@ -186,12 +216,15 @@ export function useLyricsAiTranslation(
   }, [getElement]);
 
   // re-apply whenever lyrics/track/settings change AND whenever braccato
-  // rebuilds its lines (observed below) — injection is idempotent
+  // rebuilds its lines (observed below) — injection is idempotent.
+  // pendingKey is a dep because the fetch effect flips it to null when the
+  // translation lands — without this the freshly cached lines would sit
+  // un-injected until some unrelated DOM rebuild happened.
   useEffect(() => {
     if (!wantsTranslation) return;
     const raf = requestAnimationFrame(() => applyInjections());
     return () => cancelAnimationFrame(raf);
-  }, [wantsTranslation, lyrics, trackId, applyInjections]);
+  }, [wantsTranslation, lyrics, trackId, pendingKey, applyInjections]);
 
   useEffect(() => {
     if (!wantsTranslation) return;

@@ -53,8 +53,9 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
   const getElement = useCallback(() => elementRef.current as HTMLElement | null, []);
   // AI translate: fetches (or reuses cached) translations for the current
   // track and injects them under each rendered line via braccato's public
-  // injectTranslation API.
-  useLyricsAiTranslation(getElement);
+  // injectTranslation API. `ai.active` mirrors the toggle so the CSS can hide
+  // injected lines the moment it is switched off.
+  const ai = useLyricsAiTranslation(getElement);
   const latestLyricsRef = useRef(lyrics);
   const freeScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastWheelTimeRef = useRef(0);
@@ -336,6 +337,7 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
       {createElement(BRACCATO_TAG, {
         ref: setElement,
         source: "#liner-audio",
+        "data-ai-translate": ai.active ? "on" : "off",
         className: "block flex-1 w-full h-full px-6",
         style: {
           overflowY: "auto",

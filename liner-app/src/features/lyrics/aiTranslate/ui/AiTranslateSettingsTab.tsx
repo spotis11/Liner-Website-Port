@@ -70,14 +70,19 @@ export function AiTranslateSettingsTab() {
     setTestMessage(null);
     try {
       const state = useAiTranslateStore.getState();
-      const result = await translateLines(["Hello world", "How are you?"], {
+      // translating INTO English with English samples is a no-op — pick a
+      // source the chosen target language will actually change
+      const samples = state.targetLang.toLowerCase().startsWith("en")
+        ? ["Hola mundo, esta es una prueba", "La música es vida"]
+        : ["Hello world", "How are you?"];
+      const result = await translateLines(samples, {
         provider: state.provider,
         targetLang: state.targetLang,
         apiKey: state.apiKeys[state.provider],
         model: resolveModel(state.provider, state.models),
         ollamaUrl: state.ollamaUrl,
       });
-      if (result.every((line) => line && line !== "Hello world")) {
+      if (result.every((line, i) => line && line !== samples[i])) {
         setTestState("ok");
         setTestMessage(result.join(" / "));
       } else {

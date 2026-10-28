@@ -4,7 +4,10 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Translate2AiLine } from "@mingcute/react";
-import { useAiTranslateStore } from "../aiTranslateStore";
+import {
+  useAiTranslateStore,
+  translationCacheKey,
+} from "../aiTranslateStore";
 import { getProviderDef } from "../providers";
 import { useLyricsStore } from "../../store/lyricsStore";
 
@@ -21,7 +24,10 @@ export function AiTranslateButton() {
   const [hintOpen, setHintOpen] = useState(false);
 
   const waitingForThisTrack = Boolean(
-    enabled && !autoTranslate && trackId && !cache[`${trackId}::${provider}::${targetLang}`],
+    enabled &&
+      !autoTranslate &&
+      trackId &&
+      !cache[translationCacheKey(trackId, provider, targetLang)],
   );
 
   const busy = Boolean(enabled && pendingKey);

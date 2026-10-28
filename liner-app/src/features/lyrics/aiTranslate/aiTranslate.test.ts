@@ -4,9 +4,10 @@ import { AI_PROVIDERS, getProviderDef } from "./providers";
 import { translationCacheKey, resolveModel } from "./aiTranslateStore";
 
 describe("ai translate providers", () => {
-  it("registers the six desktop providers with Google free", () => {
+  it("registers the built-in + desktop providers, free ones first", () => {
     const ids = AI_PROVIDERS.map((p) => p.id);
     expect(ids).toEqual([
+      "liner",
       "google",
       "openrouter",
       "gemini",
@@ -14,6 +15,8 @@ describe("ai translate providers", () => {
       "claude",
       "ollama",
     ]);
+    expect(getProviderDef("liner").free).toBe(true);
+    expect(getProviderDef("liner").needsKey).toBe(false);
     expect(getProviderDef("google").free).toBe(true);
     expect(getProviderDef("google").needsKey).toBe(false);
     expect(getProviderDef("openai").needsKey).toBe(true);
@@ -26,9 +29,9 @@ describe("ai translate providers", () => {
 });
 
 describe("cache keys", () => {
-  it("separates tracks, providers and languages", () => {
+  it("separates tracks, providers and languages (with schema version)", () => {
     const key = translationCacheKey("track-1", "google", "en");
-    expect(key).toBe("track-1::google::en");
+    expect(key).toBe("v2::track-1::google::en");
     expect(translationCacheKey("track-1", "google", "ja")).not.toBe(key);
     expect(translationCacheKey("track-1", "openai", "en")).not.toBe(key);
   });

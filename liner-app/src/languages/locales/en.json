@@ -1018,7 +1018,7 @@
       "auto_label": "Translate songs automatically",
       "auto_hint": "Off: translate only after you tap the \"AI\" button in the lyrics pane.",
       "provider_section": "Provider",
-      "provider_hint": "Google Translate is free and needs no key. AI providers translate the whole song in one request for more natural phrasing.",
+      "provider_hint": "Liner AI is built in and free — no key needed. Google Translate is free too; OpenRouter, Gemini, OpenAI, Claude and Ollama use your own API key for more natural phrasing.",
       "free_badge": "Free",
       "ready_badge": "Ready",
       "key_needed_badge": "Key needed",

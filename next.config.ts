@@ -4,8 +4,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   compress: false,
   // keep undici external so instrumentation.ts wires the raised
-  // response-header cap into the real Node global fetch
-  serverExternalPackages: ["undici"],
+  // response-header cap into the real Node global fetch; the z-ai SDK stays
+  // external so its runtime config lookup (/etc/.z-ai-config) is untouched
+  serverExternalPackages: ["undici", "z-ai-web-dev-sdk"],
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -713,3 +713,19 @@ html[data-hover-reset] [data-window-controls] button:hover {
     animation: none;
   }
 }
+
+/* AI Translate — vendored official brand logos (providers.tsx BrandLogo).
+   The raw SVG files carry their own viewBox; the wrapper fixes the box size
+   so inline <svg> never falls back to the browser's 300x150 default. */
+.liner-brand-logo svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* AI Translate — the lyrics-pane toggle. Braccato keeps injected translation
+   lines in the DOM, so the wrapper element carries data-ai-translate and the
+   CSS is what makes "off" actually mean off (instant, no re-render). */
+braccato-lyrics[data-ai-translate="off"] .blyrics--translated {
+  display: none;
+}

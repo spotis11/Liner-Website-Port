@@ -1,11 +1,17 @@
 // Translation engine for the AI Translate feature.
 //
-// Two transports:
+// Transports:
+//  - liner(): POSTs to the shell's dedicated /api/ai-translate route — a
+//    built-in server-side translator (zero configuration, no API key) that
+//    translates the whole song in one request.
 //  - proxied(): goes through the shell's /api/fetch proxy (server-side fetch,
 //    no CORS constraints, Authorization/custom headers forwarded) — used for
-//    Google Translate + every hosted AI provider.
-//  - direct(): browser fetch, used only for Ollama which runs on the user's
-//    own machine and is unreachable from the server.
+//    every hosted AI provider and as the Google Translate fallback.
+//  - direct(): browser fetch. Google Translate allows cross-origin browser
+//    GETs, so the gtx endpoint is called straight from the device first —
+//    the user's own IP is rarely rate-limited, unlike the server's
+//    datacenter IP (which Google answers with 429 pages). Also used for
+//    Ollama which runs on the user's own machine.
 //
 // AI providers translate the whole song in ONE chat completion (lyrics are
 // tiny) and must answer with a JSON array of translated lines; Google
@@ -31,6 +37,7 @@ export class TranslationError extends Error {
 }
 
 const PROXY = "/api/fetch?u=";
+const LINER_ROUTE = "/api/ai-translate";
 const encoder = new TextEncoder();
 
 function utf8Bytes(text: string): number {
@@ -46,6 +53,20 @@ async function proxied(
     ...init,
     signal: AbortSignal.timeout(timeoutMs),
   });
+}
+
+/**
+ * Google Translate sends `access-control-allow-origin: *` on the gtx endpoint,
+ * so the browser may call it directly. Direct uses the visitor's own IP
+ * (residential — rarely blocked); the proxied server route is the fallback
+ * for locked-down networks.
+ */
+async function gtxFetch(url: string): Promise<Response> {
+  try {
+    return await fetch(url, { signal: AbortSignal.timeout(15_000) });
+  } catch {
+    return proxied(url, { method: "GET" });
+  }
 }
 
 /** Lines that never make sense to translate (timestamps, blank, markers). */
@@ -89,7 +110,7 @@ async function translateWithGoogleOne(
     `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto` +
     `&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`;
   try {
-    const res = await proxied(url, { method: "GET" });
+    const res = await gtxFetch(url);
     if (!res.ok) {
       throw new TranslationError(`Google Translate HTTP ${res.status}`);
     }
@@ -149,7 +170,7 @@ async function translateWithGoogle(
           const url =
             `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto` +
             `&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(joined)}`;
-          const res = await proxied(url, { method: "GET" });
+          const res = await gtxFetch(url);
           if (!res.ok) throw new TranslationError(`Google Translate HTTP ${res.status}`);
           const payload = await res.json();
           const segments = Array.isArray(payload) && Array.isArray(payload[0])
@@ -249,6 +270,47 @@ async function translateWithMyMemory(
   });
   await Promise.all(workers);
   return results;
+}
+
+// ------------------------------------------------------------ Liner AI ------
+
+// Built-in server-side translator — the shell exposes /api/ai-translate, a
+// zero-configuration endpoint that translates the whole song in one request.
+// This is the default provider because it works for everyone: no API key, no
+// CORS, and no datacenter-IP rate limits (the model runs on our own server).
+
+async function translateWithLiner({ config, lines }: ChatArgs): Promise<string[]> {
+  let res: Response;
+  try {
+    res = await fetch(LINER_ROUTE, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ lines, targetLang: config.targetLang }),
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch {
+    throw new TranslationError(
+      "Liner AI is unreachable — check your connection and try again.",
+    );
+  }
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const payload = await res.json();
+      if (typeof payload?.error === "string") detail = payload.error;
+    } catch {
+      /* keep empty */
+    }
+    throw new TranslationError(
+      `Liner AI HTTP ${res.status}${detail ? ` — ${detail}` : ""}`,
+    );
+  }
+  const payload = await res.json();
+  const out = Array.isArray(payload?.lines) ? payload.lines : null;
+  if (!out || !out.every((line: unknown) => typeof line === "string")) {
+    throw new TranslationError("Unexpected Liner AI response");
+  }
+  return alignAiOutput(out as string[], lines);
 }
 
 // ------------------------------------------------------------ AI LLMs -------
@@ -458,6 +520,7 @@ const AI_TRANSLATORS: Record<
   Exclude<AiProviderId, "google">,
   (args: ChatArgs) => Promise<string[]>
 > = {
+  liner: translateWithLiner,
   openrouter: translateWithOpenRouter,
   gemini: translateWithGemini,
   openai: translateWithOpenAi,

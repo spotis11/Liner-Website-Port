@@ -13,6 +13,14 @@ import { getProviderDef } from "./providers";
 
 export const AI_TRANSLATE_STORAGE_KEY = "liner_ai_translate_v1";
 
+/**
+ * Bumped when the translation pipeline changes meaningfully: v2 guarantees
+ * entries cached by older (buggy) engines are never replayed — the very first
+ * web build could cache the ORIGINAL lines as "translations", and replaying
+ * those would make the fixed renderer look broken too.
+ */
+const TRANSLATION_CACHE_VERSION = "v2";
+
 export interface CachedTranslation {
   lines: string[];
   at: number;
@@ -56,7 +64,7 @@ export function translationCacheKey(
   provider: AiProviderId,
   targetLang: string,
 ): string {
-  return `${trackId}::${provider}::${targetLang}`;
+  return `${TRANSLATION_CACHE_VERSION}::${trackId}::${provider}::${targetLang}`;
 }
 
 export function resolveModel(
@@ -72,7 +80,7 @@ export const useAiTranslateStore = create<AiTranslateState>()(
     (set) => ({
       enabled: false,
       autoTranslate: true,
-      provider: "google",
+      provider: "liner",
       targetLang: "en",
       apiKeys: {},
       models: {},
