@@ -1068,3 +1068,17 @@ Work Log:
 Stage Summary:
 - Package diet 127MB→4.3MB public; build.sh hardened (zero symlinks in every future package)
 - Remaining failure risk is platform-side (upload/boot of the wedged image generation); recommend session restart + retry if next deploy still hangs
+
+---
+Task ID: 47
+Agent: main
+Task: Deploy stuck — resolution confirmed by user
+
+Work Log:
+- User confirmed deploy now succeeds ("thank you its fixed now")
+- Effective fix stack: (1) external/ removed (2.2GB→~1.7GB workspace), (2) public/liner 127MB stale chunks → 4.3MB, (3) standalone symlinks materialized + build.sh hardened, (4) liner-app node_modules restored after bun prune
+- Prod :3000 remains healthy throughout (pid 6676)
+
+Stage Summary:
+- Deploy pipeline fully unblocked; symlink+size fixes are permanent (script + patched build.sh)
+- Next: oldest unfixed bug queue — search visibility + missing profile pics in results (msg 17), Local Music button + User Finder (msg 11), miniplayer/bans (msg 9), playback diffs (msg 7)
