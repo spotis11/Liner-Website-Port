@@ -113,6 +113,16 @@ else
     echo "ℹ️  mini-services 目录不存在，跳过"
 fi
 
+# 部署健壮性：将 .next/standalone 内的符号链接替换为真实目录。
+# Next 的 NFT 会在 .next/node_modules 下生成带哈希的符号链接（@prisma/undici/jsdom），
+# 打进 tar 后，若 FC 容器在旧镜像状态上解包，symlink/dir 类型冲突会触发 GNU tar
+# "Directory renamed before its status could be extracted" 级联错误（start.sh set -e
+# 直接退出 → CAExited）。全部实体化后包内零符号链接，解包与旧状态不再冲突。
+if [ -f "/home/z/my-project/scripts/fix_standalone_symlinks.py" ]; then
+    echo "  - 实体化 standalone 内的符号链接"
+    python3 /home/z/my-project/scripts/fix_standalone_symlinks.py || true
+fi
+
 # 将所有构建产物复制到临时构建目录
 echo "📦 收集构建产物到 $BUILD_DIR..."
 

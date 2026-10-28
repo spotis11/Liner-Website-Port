@@ -1049,3 +1049,22 @@ Work Log:
 Stage Summary:
 - Deploy package proven valid; symlink fragility eliminated from standalone
 - Next deploy attempt should rebuild function image from clean workspace; if platform still fails, image needs full rebuild (platform-side)
+
+---
+Task ID: 46
+Agent: main
+Task: Deep search deploy failure — full pipeline decoded + package diet
+
+Work Log:
+- Found platform pipeline: deploy runs .zscripts/build.sh in live workspace → bun install → bun run build → assembles /tmp/build_fullstack_<id>/ → tar.gz → FC container extracts to /app → start.sh (set -e; needs /app/db/custom.db; runs node server.js)
+- 5 deploy attempts found (04:46→05:52); ALL tarballs gzip-valid; extraction into empty dir AND over previous package both EXIT=0 (tar itself exonerated)
+- Found /tmp/my-project = platform snapshot staging (182MB, 1654 files); manifest current (no external/, no next-service-dist keys); stale external/ dirs harmless (12KB, no payloads)
+- ROOT CAUSE OF BLOAT: public/liner/assets had 31 generations of hashed chunks (App-*.js ×31, nSolver ×31, etc.) = 127MB dead weight re-uploaded every deploy; stale-asset pruning was never part of platform build.sh
+- SECONDARY: platform build.sh `bun install` pruned liner-app's hoisted deps (vite gone from root .bin: hundreds→32) — restored via bun install in liner-app (515 pkgs, own node_modules now)
+- FIXES: (1) rebuilt SPA → dist 4.3MB/15 files, replaced public/liner + standalone/public/liner (content-hash identical XVIql84q — zero behavior change); (2) patched .zscripts/build.sh to dereference standalone symlinks BEFORE artifact copy (bash -n OK); (3) killed orphan esbuild
+- Estimated new package: ~285MB source → tar.gz should drop from 157MB to well under 100MB
+- Health: SPA 200 (2ms), bundle 200, soundwave demo :8899 200
+
+Stage Summary:
+- Package diet 127MB→4.3MB public; build.sh hardened (zero symlinks in every future package)
+- Remaining failure risk is platform-side (upload/boot of the wedged image generation); recommend session restart + retry if next deploy still hangs

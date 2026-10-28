@@ -1,1 +1,0 @@
-import{n as e}from"./index-CP1amnJF.js";import{O as t,j as n,q as r,t as i}from"./globals-BY6FVuRU.js";var a=e();function o(){return n()?(0,a.jsxs)(r,{attribute:`data-theme`,defaultTheme:`dark`,enableSystem:!1,forcedTheme:`dark`,children:[(0,a.jsx)(t,{}),(0,a.jsx)(i,{})]}):(window.linerElectron?.closeOverlay?.(),null)}export{o as default};
