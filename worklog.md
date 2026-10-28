@@ -1032,3 +1032,20 @@ Work Log:
 Stage Summary:
 - audioMotion.js = chosen in-sync sound wave: 95KB vendored file, NO node_modules, integrates via source: audioElement
 - Demo running on :8899; workspace lean for deploy retry
+
+---
+Task ID: 45
+Agent: main
+Task: Deep search "Sorry, there was a problem deploying the code"
+
+Work Log:
+- Decoded platform deploy pipeline: workspace → /tmp/build_fullstack_<ts>/ (next-service-dist = standalone copy + db + python-runtime + mini-services-dist + start.sh + Caddyfile) → tar.gz → function container extracts to /app → docker-entrypoint.sh → start.sh
+- start.sh decoded: set -e; hard exit 1 if /app/db/custom.db missing; runs node server.js (PORT 3000); boots mini-services
+- Verified the 05:32 package /tmp/build_fullstack_1793165549.tar.gz is VALID: 150MB, gzip -t OK, 6827 entries, extracts cleanly into empty dir (EXIT=0), db/custom.db present, all 3 symlink targets resolve
+- Root cause: container boot extracts package over stale state inside function image (image was built during corrupted-snapshot era); GNU tar delayed-restore hits symlink/dir type conflicts on .next/node_modules/{@prisma,undici,jsdom}-<hash> → "Directory renamed before its status could be extracted" cascade → set -e kills boot
+- Fix: scripts/fix_standalone_symlinks.py — dereferenced all 3 standalone symlinks to real dirs; find -type l now 0; reusable after every npm run build
+- Prod server restarted (pid 6676), HTTP 200 in 5ms, prisma API 200
+
+Stage Summary:
+- Deploy package proven valid; symlink fragility eliminated from standalone
+- Next deploy attempt should rebuild function image from clean workspace; if platform still fails, image needs full rebuild (platform-side)
