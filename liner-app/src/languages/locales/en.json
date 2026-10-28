@@ -53,7 +53,8 @@
       "library": "Library",
       "settings": "Settings",
       "local": "Local Music",
-      "profile": "Profile"
+      "profile": "Profile",
+      "changelog": "Changelog"
     },
     "minimize": "Minimize",
     "exitFullscreen": "Exit fullscreen",
@@ -503,7 +504,8 @@
       "privacy": "Privacy",
       "customization": "Customization",
       "announcement": "Announcement",
-      "moderation": "Moderation"
+      "moderation": "Moderation",
+      "ai_translate": "AI Translate"
     },
     "playback": {
       "description": "Queue behavior, click actions and audio output."
@@ -1007,6 +1009,35 @@
     "sound_wave": {
       "title": "Sound wave visualizer",
       "description": "Show a live sound wave synced to the music in the fullscreen player."
+    },
+    "ai_translate": {
+      "title": "AI lyrics translation",
+      "description": "Show what a song is saying — translated lines appear right under the original lyrics.",
+      "enable_label": "Show translated lyrics",
+      "enable_hint": "Adds a translation line under every lyric line in the fullscreen player.",
+      "auto_label": "Translate songs automatically",
+      "auto_hint": "Off: translate only after you tap the \"AI\" button in the lyrics pane.",
+      "provider_section": "Provider",
+      "provider_hint": "Google Translate is free and needs no key. AI providers translate the whole song in one request for more natural phrasing.",
+      "free_badge": "Free",
+      "ready_badge": "Ready",
+      "key_needed_badge": "Key needed",
+      "config_section": "configuration",
+      "api_key_label": "API key",
+      "api_key_hint": "Stored in this browser only and sent straight to the provider when translating.",
+      "model_label": "Model",
+      "model_hint": "Leave empty to use the default ({model}).",
+      "ollama_url_label": "Ollama server URL",
+      "ollama_hint": "Ollama runs on your machine — start it with OLLAMA_ORIGINS=\"*\" so the browser may call it.",
+      "test_button": "Test connection",
+      "test_ok": "Translation works",
+      "test_fail": "Test failed",
+      "test_unexpected": "The provider answered unexpectedly — check the model name and key.",
+      "language_section": "Translate into",
+      "language_hint": "The language translated lyrics are shown in.",
+      "cache_section": "Translation cache",
+      "cache_hint": "Finished translations are saved so replaying a song costs nothing.",
+      "cache_clear": "Clear {count} cached songs"
     }
   },
   "toast": {
@@ -1243,5 +1274,13 @@
     "finale_title": "THAT'S ALL!",
     "finale_body": "Okay! It was nice knowing you, {name}. Ready to dive in?",
     "finale_cta": "Let's go!"
+  },
+  "changelog": {
+    "title": "Changelog",
+    "subtitle": "What was made or fixed after every website update",
+    "close": "Close",
+    "added": "Added",
+    "fixed": "Fixed",
+    "changed": "Changed"
   }
 }

@@ -24,3 +24,20 @@ export {
   type SyncedLine,
 } from "./hooks/useLyricsAnimator";
 export { LyricsProviderIsland } from "./ui/LyricsProviderIsland";
+
+// AI lyrics translation (Settings → AI Translate + fullscreen player toggle)
+export {
+  AI_PROVIDERS,
+  getProviderDef,
+  useAiTranslateStore,
+  translationCacheKey,
+  resolveModel,
+  translateLines,
+  TranslationError,
+  providerIsReady,
+  useLyricsAiTranslation,
+  AiTranslateButton,
+  AiTranslateSettingsTab,
+  type AiProviderId,
+  type TranslationStatus,
+} from "./aiTranslate";

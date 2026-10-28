@@ -33,6 +33,16 @@ export const FETCH_HOSTS = [
   // method-aware rewrite in liner-app/src/shared/lib/webProxy.ts.
   "api.tryliner.fun",
   "api.tryliner.com",
+  // AI lyrics translation (Settings > AI Translate): providers are called
+  // through this proxy so API keys never need CORS exemptions and the free
+  // Google Translate endpoint works from the browser. MyMemory is the free
+  // failover when Google rate-limits the server IP.
+  "translate.googleapis.com",
+  "openrouter.ai",
+  "generativelanguage.googleapis.com",
+  "api.openai.com",
+  "api.anthropic.com",
+  "api.mymemory.translated.net",
 ];
 
 // binary media upstreams (Range-capable audio streams)

@@ -21,6 +21,7 @@ import {
   Database,
   Widget5,
   Gallery,
+  Translation,
 } from "@solar-icons/react";
 import Dialog from "@/shared/ui/Dialog";
 import { UserAvatar } from "@/shared/ui";
@@ -43,6 +44,7 @@ import {
   UserFinderTab,
   ModerationTab,
 } from "./tabs";
+import { AiTranslateSettingsTab } from "@/features/lyrics";
 import { isWebsiteAdmin } from "@/features/announcements";
 
 type TabId =
@@ -51,6 +53,7 @@ type TabId =
   | "Shortcuts"
   | "Overlay"
   | "Youtube"
+  | "AiTranslate"
   | "Appearance"
   | "Customization"
   | "Storage"
@@ -68,6 +71,7 @@ const TAB_ICONS: Record<TabId, React.ComponentType<any>> = {
   Shortcuts: KeyboardLine,
   Overlay: Widget5,
   Youtube: YoutubeFill,
+  AiTranslate: Translation,
   Appearance: Palette,
   Customization: Gallery,
   Storage: Database,
@@ -89,7 +93,7 @@ const TAB_GROUPS: { labelKey: TabGroupKey; ids: TabId[] }[] = [
   { labelKey: "account", ids: ["Account"] },
   { labelKey: "player", ids: ["Playback", "Shortcuts"] },
   { labelKey: "interface", ids: ["Appearance", "Customization", "Overlay"] },
-  { labelKey: "integrations", ids: ["Youtube"] },
+  { labelKey: "integrations", ids: ["Youtube", "AiTranslate"] },
   { labelKey: "application", ids: ["Storage", "About"] },
   // website-port group: only visible to the site owner (see visibleGroups)
   { labelKey: "website", ids: ["Announcement", "UserFinder", "Moderation"] },
@@ -434,6 +438,7 @@ export default function SettingsModal() {
     Shortcuts: t("settings.tabs.shortcuts") || "Shortcuts",
     Overlay: t("settings.tabs.overlay") || "Overlay",
     Youtube: t("settings.tabs.youtube") || "YouTube",
+    AiTranslate: t("settings.tabs.ai_translate") || "AI Translate",
     Appearance: t("settings.tabs.appearance"),
     Customization: t("settings.tabs.customization") || "Customization",
     Storage: t("settings.tabs.storage"),
@@ -457,6 +462,9 @@ export default function SettingsModal() {
     Youtube:
       t("settings.youtube.description") ||
       "Sign in to your YouTube account to prevent playback errors.",
+    AiTranslate:
+      t("settings.ai_translate.description") ||
+      "Translate lyrics with AI providers or Google Translate.",
     Appearance: t("settings.theme.description"),
     Customization:
       t("settings.customization.description") ||
@@ -483,6 +491,7 @@ export default function SettingsModal() {
       Shortcuts: "settings.tabs.shortcuts",
       Overlay: "settings.tabs.overlay",
       Youtube: "settings.tabs.youtube",
+      AiTranslate: "settings.tabs.ai_translate",
       Appearance: "settings.theme.title",
       Customization: "settings.tabs.customization",
       Storage: "settings.tabs.storage",
@@ -497,6 +506,7 @@ export default function SettingsModal() {
       Shortcuts: "settings.shortcuts.description",
       Overlay: "settings.overlay.description",
       Youtube: "settings.youtube.description",
+      AiTranslate: "settings.ai_translate.description",
       Appearance: "settings.theme.description",
       Customization: "settings.customization.description",
       Storage: "settings.storage.description",
@@ -816,6 +826,9 @@ export default function SettingsModal() {
               )}
               {activeTab === "Youtube" && (
                 <YoutubeTab searchQuery={searchQuery} />
+              )}
+              {activeTab === "AiTranslate" && (
+                <AiTranslateSettingsTab />
               )}
               {activeTab === "Appearance" && (
                 <AppearanceTab searchQuery={searchQuery} />

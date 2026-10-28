@@ -7,6 +7,8 @@ import {
   useLyricsStore,
   LyricsProviderIsland,
   braccatoThemeCss,
+  useLyricsAiTranslation,
+  AiTranslateButton,
 } from "@/features/lyrics";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlayerUiElements } from "./PlayerUiElements";
@@ -48,6 +50,11 @@ interface BraccatoLyricsViewProps {
 function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
   const player = usePlayerState();
   const elementRef = useRef<any>(null);
+  const getElement = useCallback(() => elementRef.current as HTMLElement | null, []);
+  // AI translate: fetches (or reuses cached) translations for the current
+  // track and injects them under each rendered line via braccato's public
+  // injectTranslation API.
+  useLyricsAiTranslation(getElement);
   const latestLyricsRef = useRef(lyrics);
   const freeScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastWheelTimeRef = useRef(0);
@@ -483,6 +490,13 @@ export function FullscreenPlayer({
           {showProviderIsland && (
             <div className="absolute top-[6px] left-1/2 -translate-x-1/2 z-30 pointer-events-none flex justify-center">
               <LyricsProviderIsland />
+            </div>
+          )}
+
+          {/* AI translate toggle — always available when lyrics are shown */}
+          {hasLyrics && (
+            <div className="absolute top-[6px] right-[26px] z-30 flex justify-end">
+              <AiTranslateButton />
             </div>
           )}
 
