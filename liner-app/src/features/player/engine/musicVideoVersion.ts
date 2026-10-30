@@ -1,4 +1,5 @@
-import type { SearchResult, Track } from "@/shared/contracts";
+import type { SearchResult } from "@/shared/contracts";
+import type { Track } from "@/shared/types";
 import { searchRaw } from "@/shared/youtube";
 import { isAbortError } from "@/shared/utils/abort";
 
@@ -16,7 +17,10 @@ import { isAbortError } from "@/shared/utils/abort";
 
 const videoVersions = new Map<string, string | null>();
 
-type VideoTrack = Pick<Track, "id" | "title" | "artists" | "artistList" | "audioVariant">;
+type VideoTrack = Pick<
+  Track,
+  "id" | "title" | "artists" | "artistList" | "audioVariant"
+>;
 
 type VideoResult = Extract<SearchResult, { type: "track" }>;
 

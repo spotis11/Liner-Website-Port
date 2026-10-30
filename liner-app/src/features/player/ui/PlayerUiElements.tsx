@@ -69,45 +69,51 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
 
   return (
     <div className="flex w-[min(340px,32vw,calc(100vh-340px))] min-w-[240px] flex-col items-stretch">
-      <div className="flex w-full items-center gap-[10px]">
-        {/* video/song rail — mirrors YouTube Music's left-edge switcher */}
-        {ownVideoId && (
-          <div className="flex shrink-0 flex-col gap-[8px]">
-            <button
-              type="button"
-              aria-pressed={!showVideo}
-              aria-label={t("player.song")}
-              title={t("player.song")}
-              onClick={() => setViewMode("song")}
-              data-no-window-drag
-              className={cn(
-                "inline-flex h-[40px] w-[40px] items-center justify-center rounded-full border-none backdrop-blur-2xl backdrop-saturate-150 cursor-pointer transition-all duration-200 ease-out active:scale-[0.92]",
-                !showVideo
-                  ? "bg-white/15 text-white"
-                  : "bg-[#303030]/50 text-white/60 hover:text-white",
-              )}
-            >
-              <MusicNote size={20} />
-            </button>
-            <button
-              type="button"
-              aria-pressed={showVideo}
-              aria-label={t("player.video")}
-              title={t("player.video")}
-              onClick={() => setViewMode("video")}
-              data-no-window-drag
-              className={cn(
-                "inline-flex h-[40px] w-[40px] items-center justify-center rounded-full border-none backdrop-blur-2xl backdrop-saturate-150 cursor-pointer transition-all duration-200 ease-out active:scale-[0.92]",
-                showVideo
-                  ? "bg-white/15 text-white"
-                  : "bg-[#303030]/50 text-white/60 hover:text-white",
-              )}
-            >
-              <VideoLine size={20} />
-            </button>
-          </div>
-        )}
+      {/* song/video toggle — sits on top of the cover, YouTube-Music style */}
+      {ownVideoId && (
+        <div className="mb-[10px] flex w-full items-center justify-start gap-[8px]">
+          <button
+            type="button"
+            aria-pressed={!showVideo}
+            aria-label={t("player.song")}
+            title={t("player.song")}
+            onClick={() => setViewMode("song")}
+            data-no-window-drag
+            className={cn(
+              "inline-flex h-[32px] shrink-0 items-center gap-[6px] rounded-full border-none px-[14px] backdrop-blur-2xl backdrop-saturate-150 cursor-pointer transition-all duration-200 ease-out active:scale-[0.94]",
+              !showVideo
+                ? "bg-white/15 text-white"
+                : "bg-[#303030]/50 text-white/60 hover:text-white",
+            )}
+          >
+            <MusicNote size={16} />
+            <span className="text-[13px] font-[600] leading-none">
+              {t("player.song")}
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={showVideo}
+            aria-label={t("player.video")}
+            title={t("player.video")}
+            onClick={() => setViewMode("video")}
+            data-no-window-drag
+            className={cn(
+              "inline-flex h-[32px] shrink-0 items-center gap-[6px] rounded-full border-none px-[14px] backdrop-blur-2xl backdrop-saturate-150 cursor-pointer transition-all duration-200 ease-out active:scale-[0.94]",
+              showVideo
+                ? "bg-white/15 text-white"
+                : "bg-[#303030]/50 text-white/60 hover:text-white",
+            )}
+          >
+            <VideoLine size={16} />
+            <span className="text-[13px] font-[600] leading-none">
+              {t("player.video")}
+            </span>
+          </button>
+        </div>
+      )}
 
+      <div className="flex w-full items-center gap-[10px]">
         <div
           className={cn(
             // square like a cover in song view, 16:9 like a video in video view
