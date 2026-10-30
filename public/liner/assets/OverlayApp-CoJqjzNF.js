@@ -1,1 +1,0 @@
-import{n as e}from"./index-E5zMk3P9.js";import{J as t,M as n,k as r,t as i}from"./globals-Dv6sS45V.js";var a=e();function o(){return n()?(0,a.jsxs)(t,{attribute:`data-theme`,defaultTheme:`dark`,enableSystem:!1,forcedTheme:`dark`,children:[(0,a.jsx)(r,{}),(0,a.jsx)(i,{})]}):(window.linerElectron?.closeOverlay?.(),null)}export{o as default};

@@ -171,6 +171,9 @@ export function FullscreenVideoStage({
             fs: 0,
             iv_load_policy: 3,
             playsinline: 1,
+            // pin the API's postMessage channel to this origin
+            origin: window.location.origin,
+            enablejsapi: 1,
           },
           events: {
             onReady: (event) => {

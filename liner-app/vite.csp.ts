@@ -5,11 +5,19 @@ function contentSecurityPolicy(isDev: boolean): string {
     "'self'",
     "'unsafe-eval'",
     "'wasm-unsafe-eval'",
+    // YouTube IFrame Player API: bootstrap lives on www.youtube.com and it
+    // pulls the widget implementation from s.ytimg.com — without these the
+    // video mode can never build its player
+    "https://www.youtube.com",
+    "https://s.ytimg.com",
     ...(isDev ? ["'unsafe-inline'"] : []),
   ];
   return [
     "default-src 'self'",
     `script-src ${scriptSources.join(" ")}`,
+    // the muted, mirrored video frame is a youtube.com embed; without an
+    // explicit frame-src it falls back to default-src 'self' and is blocked
+    "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' * http: https: data: blob:",
