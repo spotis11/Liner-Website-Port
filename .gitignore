@@ -56,3 +56,13 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# secrets & runtime data — never commit (GitHub push protection)
+/upload/
+/db/custom.db
+/discord-bot/alfredo.py
+/discord-bot/__pycache__/
+/discord-bot/bot.pid
+/discord-bot/bot_data.json
+/discord-bot/bot_status.json
+/download/
