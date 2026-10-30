@@ -11,24 +11,17 @@
 // POST { token, appId, url, key } -> { asset_id }
 
 import { NextRequest } from "next/server";
+import {
+  DISCORD_API,
+  UPSTREAM_TIMEOUT_MS,
+  discordAuthHeaders,
+} from "@/lib/discord-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const DISCORD_API = "https://discord.com/api/v9";
-const UPSTREAM_TIMEOUT_MS = 15_000;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_KEY_LENGTH = 100;
-
-const BOT_USER_AGENT = "DiscordBot (https://tryliner.fun, 1.0)";
-const BROWSER_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36";
-
-function authHeaders(scheme: "bot" | "user", token: string): Record<string, string> {
-  return scheme === "bot"
-    ? { Authorization: `Bot ${token}`, "User-Agent": BOT_USER_AGENT }
-    : { Authorization: token, "User-Agent": BROWSER_USER_AGENT };
-}
 
 function sanitizeKey(raw: string): string {
   const cleaned = raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, MAX_KEY_LENGTH);
@@ -81,7 +74,7 @@ async function uploadDiscordAsset(
   mime: string,
   bytes: Uint8Array,
 ): Promise<string> {
-  const headers = authHeaders(scheme, token);
+  const headers = discordAuthHeaders(scheme, token);
 
   // 1. presigned upload slot
   const slotRes = await fetch(`${DISCORD_API}/applications/${appId}/assets/upload`, {

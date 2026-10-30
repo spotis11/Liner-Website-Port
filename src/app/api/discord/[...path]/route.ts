@@ -11,37 +11,17 @@
 // Allowlist: only /users/@me and /applications/* paths are forwarded.
 
 import { NextRequest } from "next/server";
+import {
+  DISCORD_API,
+  UPSTREAM_TIMEOUT_MS,
+  discordAuthHeaders,
+  DEV_PORTAL_CONTEXT_PROPERTIES,
+} from "@/lib/discord-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const DISCORD_API = "https://discord.com/api/v9";
-const UPSTREAM_TIMEOUT_MS = 15_000;
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
-
-const BOT_USER_AGENT = "DiscordBot (https://tryliner.fun, 1.0)";
-const BROWSER_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36";
-
-function superProperties(): string {
-  const props = {
-    os: "Windows",
-    browser: "Chrome",
-    device: "",
-    system_locale: "en-US",
-    browser_user_agent: BROWSER_USER_AGENT,
-    browser_version: "134.0.0.0",
-    os_version: "10",
-    referrer: "",
-    referring_domain: "",
-    referrer_current: "",
-    referring_domain_current: "",
-    release_channel: "stable",
-    client_build_number: 395481,
-    client_event_source: null,
-  };
-  return Buffer.from(JSON.stringify(props), "ascii").toString("base64");
-}
 
 function isAllowedPath(path: string): boolean {
   return path === "users/@me" || path.startsWith("applications/");
@@ -54,19 +34,14 @@ async function relayOnce(
   upstreamUrl: string,
   bodyText: string | undefined,
 ): Promise<Response> {
-  const headers: Record<string, string> =
-    scheme === "bot"
-      ? {
-          Authorization: `Bot ${token}`,
-          "User-Agent": BOT_USER_AGENT,
-        }
-      : {
-          Authorization: token,
-          "User-Agent": BROWSER_USER_AGENT,
-          "X-Super-Properties": superProperties(),
-          "X-Discord-Locale": "en-US",
-        };
+  const headers = discordAuthHeaders(scheme, token);
   if (bodyText !== undefined) headers["Content-Type"] = "application/json";
+  // Creating the per-user artwork application is rejected without the
+  // dev-portal context header — and without that application no cover or
+  // artist image can ever reach the presence.
+  if (scheme === "user" && method === "POST" && upstreamUrl === `${DISCORD_API}/applications`) {
+    headers["X-Context-Properties"] = DEV_PORTAL_CONTEXT_PROPERTIES;
+  }
   return fetch(upstreamUrl, {
     method,
     headers,

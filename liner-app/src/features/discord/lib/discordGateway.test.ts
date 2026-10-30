@@ -4,6 +4,7 @@ import {
   toDiscordImageUrl,
   toDirectAssetKey,
   absolutizeHttpUrl,
+  activityFingerprint,
 } from "./discordGateway";
 import { DEFAULT_DISCORD_SETTINGS } from "../contracts";
 import type { DiscordRpcStatePayload } from "../contracts";
@@ -173,6 +174,35 @@ describe("buildPresenceActivity", () => {
       NOW,
     )!;
     expect(activity.details?.length).toBe(128);
+  });
+});
+
+describe("activityFingerprint", () => {
+  it("is stable for identical content and ignores position changes", () => {
+    expect(activityFingerprint(playingPayload)).toBe(activityFingerprint(playingPayload));
+    expect(activityFingerprint({ ...playingPayload, positionMs: 99_000 })).toBe(
+      activityFingerprint(playingPayload),
+    );
+  });
+
+  it("changes when the track, status or artwork changes", () => {
+    const base = activityFingerprint(playingPayload);
+    expect(activityFingerprint({ ...playingPayload, status: "paused" })).not.toBe(base);
+    expect(
+      activityFingerprint({ ...playingPayload, track: { ...playingPayload.track!, title: "Other" } }),
+    ).not.toBe(base);
+    expect(
+      activityFingerprint({
+        ...playingPayload,
+        track: { ...playingPayload.track!, coverUrl: "https://cdn.example.com/other.jpg" },
+      }),
+    ).not.toBe(base);
+    expect(activityFingerprint({ ...playingPayload, artistImageUrl: undefined })).not.toBe(base);
+  });
+
+  it("collapses idle payloads to a single key", () => {
+    expect(activityFingerprint(null)).toBe("idle");
+    expect(activityFingerprint({ ...playingPayload, track: null })).toBe("idle");
   });
 });
 

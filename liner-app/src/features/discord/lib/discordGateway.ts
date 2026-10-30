@@ -43,6 +43,12 @@ const ASSET_ID_CACHE_MAX_ENTRIES = 300;
 const SYNC_DEBOUNCE_MS = 1_000;
 // Discord gateway presence updates are limited to ~5 per minute per connection.
 const MIN_SYNC_INTERVAL_MS = 12_500;
+// A real content change (new track, play/pause, new artwork) must land fast —
+// waiting out the full rate-limit window made every track switch show up on
+// Discord 5-12s late. Content changes flush after this floor; minor updates
+// (seek re-anchor, late avatar load) keep the conservative window above.
+const CONTENT_SYNC_FLOOR_MS = 5_000;
+const CONTENT_SYNC_DEBOUNCE_MS = 250;
 const RECONNECT_INTERVAL_MS = 5_000;
 const MAX_IMAGE_URL_LENGTH = 256;
 
@@ -137,6 +143,24 @@ function statusDisplayTypeValue(type: DiscordStatusDisplayType): number {
     default:
       return 1;
   }
+}
+
+/**
+ * Identifies the content a presence frame would display. A change here (new
+ * track, play/pause, artwork url) is worth flushing the send immediately;
+ * unchanged content (seek ticks) can wait out the rate-limit window.
+ */
+export function activityFingerprint(payload: DiscordRpcStatePayload | null): string {
+  if (!payload || !payload.track) return "idle";
+  const track = payload.track;
+  return [
+    payload.status,
+    track.id ?? "",
+    track.title ?? "",
+    track.artist ?? "",
+    track.coverUrl ?? "",
+    payload.artistImageUrl ?? "",
+  ].join("\u0000");
 }
 
 /**
@@ -361,11 +385,17 @@ class DiscordGatewayClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private syncTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSyncAt = 0;
+  /** fingerprint of the activity content that actually went out last */
+  private lastSentFingerprint: string | null = null;
   private seq: number | null = null;
   private manualDisconnect = false;
   private applicationId: string | null = null;
   private ensureAppPromise: Promise<string | null> | null = null;
   private assetPathCache = new Map<string, { path: string; at: number }>();
+  /** per-url in-flight external-assets registrations (dedupe prewarm vs send) */
+  private assetRegistrationJobs = new Map<string, Promise<string | null>>();
+  /** per-url in-flight application-asset uploads (dedupe prewarm vs send) */
+  private assetUploadJobs = new Map<string, Promise<string | null>>();
   private syncing = false;
   private authScheme: AuthScheme | null = null;
   private ensureSchemePromise: Promise<AuthScheme | null> | null = null;
@@ -410,6 +440,7 @@ class DiscordGatewayClient {
     this.gatewayUserId = null;
     this.applicationId = null;
     this.ensureAppPromise = null;
+    this.lastSentFingerprint = null;
     storeAuthScheme(null);
     this.setStatus({ ...OFFLINE_STATUS, connecting: true });
     this.open();
@@ -445,11 +476,26 @@ class DiscordGatewayClient {
   }
 
   public pushState(payload: DiscordRpcStatePayload): void {
+    const fingerprint = activityFingerprint(payload);
     this.latestPayload = payload;
     this.latestPayloadAt = Date.now();
-    if (this.status.connected) {
-      this.scheduleSync();
+    if (!this.status.connected) return;
+
+    if (fingerprint !== this.lastSentFingerprint) {
+      // Content change — new track, play/pause or new artwork. Warm the
+      // asset registration in parallel (so the throttled send never pays
+      // the registration round trips) and flush fast instead of waiting
+      // out the full rate-limit window.
+      void this.prewarmAssets();
+      this.scheduleSync(
+        Math.max(
+          CONTENT_SYNC_DEBOUNCE_MS,
+          CONTENT_SYNC_FLOOR_MS - (Date.now() - this.lastSyncAt),
+        ),
+      );
+      return;
     }
+    this.scheduleSync();
   }
 
   // --- internals -----------------------------------------------------------
@@ -678,12 +724,74 @@ class DiscordGatewayClient {
   }
 
   /**
-   * Rewrite an activity's mp: image references into keys Discord actually
-   * renders, attaching application_id for asset resolution:
-   * - CDN-hosted urls map directly (both token kinds);
+   * Resolve one artwork url through the external-assets API (user tokens),
+   * deduplicating concurrent callers (prewarm vs actual send) with a shared
+   * in-flight job per url.
+   */
+  private async resolveUserAssetKey(url: string): Promise<string | null> {
+    const cached = this.assetPathCache.get(url);
+    if (cached && Date.now() - cached.at < ASSET_CACHE_TTL_MS) return cached.path;
+    const job = this.assetRegistrationJobs.get(url);
+    if (job) return job;
+    const run = (async () => {
+      const map = await this.registerExternalAssets([url]);
+      return map.get(url) ?? null;
+    })().finally(() => {
+      this.assetRegistrationJobs.delete(url);
+    });
+    this.assetRegistrationJobs.set(url, run);
+    return run;
+  }
+
+  /**
+   * Resolve one artwork url by uploading it as an application asset (works
+   * for bot tokens and, via the relay's user-scheme support, user tokens).
+   */
+  private async resolveUploadedAssetKey(url: string): Promise<string | null> {
+    const cached = this.assetIdCache[url];
+    if (cached?.asset_id) return cached.asset_id;
+    const job = this.assetUploadJobs.get(url);
+    if (job) return job;
+    const run = (async () => {
+      const map = await this.resolveBotAssetIds([url]);
+      return map.get(url) ?? null;
+    })().finally(() => {
+      this.assetUploadJobs.delete(url);
+    });
+    this.assetUploadJobs.set(url, run);
+    return run;
+  }
+
+  /**
+   * Register the current track's artwork urls ahead of the throttled send:
+   * builds the activity the same way the send path will, runs the asset
+   * resolution now and lets the caches fill while the debounce window
+   * elapses. The send then resolves its keys from cache instead of paying
+   * the relay round trips inside the presence path. Fire-and-forget.
+   */
+  private prewarmAssets(): void {
+    if (!this.settings.enabled || !this.latestPayload) return;
+    const activity = buildPresenceActivity(
+      this.latestPayload,
+      this.settings,
+      Date.now(),
+      this.latestPayloadAt,
+    );
+    if (!activity?.assets) return;
+    void this.attachExternalAssets(activity).catch(() => {
+      // artwork is best-effort — the send path retries with the same caches
+    });
+  }
+
+  /**
+   * Resolve every raw image url into a key Discord actually renders:
+   * - Discord CDN urls map directly (both token kinds);
    * - user tokens register external urls via the external assets API
    *   (`mp:{signed proxy path}`);
-   * - bot tokens upload the image as an application asset (numeric id).
+   * - anything still unresolved falls back to uploading the image as an
+   *   application asset — Discord rejects external-assets for some
+   *   accounts/applications, and without this second chance those users
+   *   never saw a single cover.
    */
   private async attachExternalAssets(activity: GatewayActivity): Promise<void> {
     const assets = activity.assets;
@@ -697,23 +805,25 @@ class DiscordGatewayClient {
     if (assets.small_image?.startsWith("mp:")) rawUrls.push(assets.small_image.slice(3));
 
     const resolved = new Map<string, string>();
-    const needsResolution: string[] = [];
-    for (const url of rawUrls) {
-      const direct = toDirectAssetKey(url);
-      if (direct) resolved.set(url, direct);
-      else needsResolution.push(url);
-    }
-
-    if (needsResolution.length) {
-      const scheme = (await this.ensureAuthScheme()) ?? null;
-      const registered =
-        scheme === "user"
-          ? await this.registerExternalAssets(needsResolution)
-          : await this.resolveBotAssetIds(needsResolution);
-      for (const [url, key] of registered) {
-        resolved.set(url, key);
-      }
-    }
+    await Promise.all(
+      rawUrls.map(async (url) => {
+        const direct = toDirectAssetKey(url);
+        if (direct) {
+          resolved.set(url, direct);
+          return;
+        }
+        const scheme = (await this.ensureAuthScheme()) ?? null;
+        if (scheme === "user") {
+          const registered = await this.resolveUserAssetKey(url);
+          if (registered) {
+            resolved.set(url, registered);
+            return;
+          }
+        }
+        const uploaded = await this.resolveUploadedAssetKey(url);
+        if (uploaded) resolved.set(url, uploaded);
+      }),
+    );
 
     const next: GatewayActivityAssets = {};
     if (assets.large_text) next.large_text = assets.large_text;
@@ -915,6 +1025,10 @@ class DiscordGatewayClient {
   }
 
   private scheduleSync(delay?: number): void {
+    // A pending send already carries the latest payload when it fires — a
+    // minor update (seek tick) must never push a pending fast content send
+    // further out.
+    if (delay === undefined && this.syncTimer) return;
     if (this.syncTimer) {
       clearTimeout(this.syncTimer);
       this.syncTimer = null;
@@ -961,6 +1075,7 @@ class DiscordGatewayClient {
         activities = [activity];
       }
     }
+    this.lastSentFingerprint = activityFingerprint(this.latestPayload);
     this.send({
       op: 3,
       d: {
