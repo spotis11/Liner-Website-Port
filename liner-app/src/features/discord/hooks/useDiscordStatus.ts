@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { DiscordConnectionStatus } from "../contracts";
+import { discordGateway } from "../lib/discordGateway";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -9,7 +10,11 @@ export function useDiscordStatus() {
   });
   const [loading, setLoading] = useState(true);
 
+  const isElectron =
+    typeof window !== "undefined" && Boolean(window.linerElectron?.getDiscordStatus);
+
   useEffect(() => {
+    if (!isElectron) return;
     let cancelled = false;
 
     const checkStatus = () => {
@@ -33,7 +38,29 @@ export function useDiscordStatus() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [isElectron]);
+
+  // Web: subscribe to the gateway client status
+  useEffect(() => {
+    if (isElectron) return;
+    let cancelled = false;
+    const apply = () => {
+      const s = discordGateway.getStatus();
+      if (cancelled) return;
+      setStatus({
+        connected: s.connected,
+        username: s.username,
+        avatarUrl: s.avatarUrl,
+      });
+      setLoading(false);
+    };
+    const unsubscribe = discordGateway.subscribe(() => apply());
+    apply();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [isElectron]);
 
   return { status, loading };
 }

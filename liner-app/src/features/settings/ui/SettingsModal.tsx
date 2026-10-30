@@ -5,6 +5,7 @@ import {
   Search2Line,
   CloseCircleFill,
   ExitLine,
+  DiscordFill,
   KeyboardLine,
   User3Line,
   YoutubeFill,
@@ -38,6 +39,7 @@ import {
   StorageTab,
   AboutTab,
   OverlayTab,
+  DiscordTab,
   YoutubeTab,
   AccountTab,
   AnnouncementTab,
@@ -52,6 +54,7 @@ type TabId =
   | "Playback"
   | "Shortcuts"
   | "Overlay"
+  | "Discord"
   | "Youtube"
   | "AiTranslate"
   | "Appearance"
@@ -70,6 +73,7 @@ const TAB_ICONS: Record<TabId, React.ComponentType<any>> = {
   Playback: Play,
   Shortcuts: KeyboardLine,
   Overlay: Widget5,
+  Discord: DiscordFill,
   Youtube: YoutubeFill,
   AiTranslate: Translation,
   Appearance: Palette,
@@ -93,7 +97,7 @@ const TAB_GROUPS: { labelKey: TabGroupKey; ids: TabId[] }[] = [
   { labelKey: "account", ids: ["Account"] },
   { labelKey: "player", ids: ["Playback", "Shortcuts"] },
   { labelKey: "interface", ids: ["Appearance", "Customization", "Overlay"] },
-  { labelKey: "integrations", ids: ["Youtube", "AiTranslate"] },
+  { labelKey: "integrations", ids: ["Youtube", "AiTranslate", "Discord"] },
   { labelKey: "application", ids: ["Storage", "About"] },
   // website-port group: only visible to the site owner (see visibleGroups)
   { labelKey: "website", ids: ["Announcement", "UserFinder", "Moderation"] },
@@ -253,6 +257,43 @@ const SETTING_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
     tabId: "Overlay",
     titleKey: "settings.overlay.always_on_top.title",
     descKey: "settings.overlay.always_on_top.description",
+  },
+
+  // Discord
+  {
+    tabId: "Discord",
+    titleKey: "settings.discord.enable.title",
+    descKey: "settings.discord.enable.description",
+  },
+  {
+    tabId: "Discord",
+    titleKey: "settings.discord.show_timeline.title",
+    descKey: "settings.discord.show_timeline.description",
+  },
+  {
+    tabId: "Discord",
+    titleKey: "settings.discord.show_artwork.title",
+    descKey: "settings.discord.show_artwork.description",
+  },
+  {
+    tabId: "Discord",
+    titleKey: "settings.discord.show_artist_image.title",
+    descKey: "settings.discord.show_artist_image.description",
+  },
+  {
+    tabId: "Discord",
+    titleKey: "settings.discord.show_paused.title",
+    descKey: "settings.discord.show_paused.description",
+  },
+  {
+    tabId: "Discord",
+    titleKey: "settings.discord.show_button.title",
+    descKey: "settings.discord.show_button.description",
+  },
+  {
+    tabId: "Discord",
+    titleKey: "settings.discord.show_download_button.title",
+    descKey: "settings.discord.show_download_button.description",
   },
 
   // Integrations
@@ -437,6 +478,7 @@ export default function SettingsModal() {
     Playback: t("settings.tabs.playback"),
     Shortcuts: t("settings.tabs.shortcuts") || "Shortcuts",
     Overlay: t("settings.tabs.overlay") || "Overlay",
+    Discord: t("settings.tabs.discord") || "Discord RPC",
     Youtube: t("settings.tabs.youtube") || "YouTube",
     AiTranslate: t("settings.tabs.ai_translate") || "AI Translate",
     Appearance: t("settings.tabs.appearance"),
@@ -459,6 +501,9 @@ export default function SettingsModal() {
     Overlay:
       t("settings.overlay.description") ||
       "Desktop overlay behavior, position and lyrics display.",
+    Discord:
+      t("settings.discord.description") ||
+      "Show what you're listening to on Discord with artwork, artist badge and progress bar.",
     Youtube:
       t("settings.youtube.description") ||
       "Sign in to your YouTube account to prevent playback errors.",
@@ -490,6 +535,7 @@ export default function SettingsModal() {
       Playback: "settings.tabs.playback",
       Shortcuts: "settings.tabs.shortcuts",
       Overlay: "settings.tabs.overlay",
+      Discord: "settings.tabs.discord",
       Youtube: "settings.tabs.youtube",
       AiTranslate: "settings.tabs.ai_translate",
       Appearance: "settings.theme.title",
@@ -505,6 +551,7 @@ export default function SettingsModal() {
       Playback: "settings.playback.description",
       Shortcuts: "settings.shortcuts.description",
       Overlay: "settings.overlay.description",
+      Discord: "settings.discord.description",
       Youtube: "settings.youtube.description",
       AiTranslate: "settings.ai_translate.description",
       Appearance: "settings.theme.description",
@@ -823,6 +870,9 @@ export default function SettingsModal() {
               )}
               {activeTab === "Overlay" && (
                 <OverlayTab searchQuery={searchQuery} />
+              )}
+              {activeTab === "Discord" && (
+                <DiscordTab searchQuery={searchQuery} />
               )}
               {activeTab === "Youtube" && (
                 <YoutubeTab searchQuery={searchQuery} />

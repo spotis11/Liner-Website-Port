@@ -500,6 +500,7 @@
       "shortcuts": "Pintasan",
       "overlay": "Overlay",
       "youtube": "YouTube",
+      "discord": "Discord RPC",
       "privacy": "Privasi",
       "customization": "Kustomisasi",
       "announcement": "Pengumuman"
@@ -612,6 +613,56 @@
       "sign_in": "Masuk",
       "signed_out_title": "Belum masuk",
       "signed_out_description": "Masuk agar pemutaran YouTube tetap berjalan"
+    },
+    "discord": {
+      "description": "Tampilkan apa yang kamu dengarkan di Discord dengan sampul album, lencana artis, dan bilah progres.",
+      "section_display": "Opsi Tampilan",
+      "section_buttons": "Tombol Profil",
+      "enable": {
+        "title": "Discord Rich Presence",
+        "description": "Siarahkan pemutaran musik aktifmu ke profil Discord-mu."
+      },
+      "status_display": {
+        "title": "Format Status",
+        "description": "Pilih yang muncul di header status 'Listening to...' Discord.",
+        "artist": "Artis (Bawaan)",
+        "song": "Judul Lagu",
+        "artist_song": "Artis - Lagu",
+        "song_artist": "Lagu - Artis",
+        "app": "Liner (Nama aplikasi)"
+      },
+      "show_timeline": {
+        "title": "Garis Waktu Pemutaran",
+        "description": "Tampilkan bilah progres interaktif dengan waktu berjalan dan tersisa."
+      },
+      "show_artwork": {
+        "title": "Sampul Trek",
+        "description": "Tampilkan sampul trek atau album di kartu aktivitas Discord."
+      },
+      "show_artist_image": {
+        "title": "Lencana Foto Artis",
+        "description": "Tampilkan foto artis dalam lencana bulat kecil di sudut bawah."
+      },
+      "show_paused": {
+        "title": "Tampilkan saat Dijeda",
+        "description": "Tetap tampilkan status di Discord dengan indikator jeda saat musik dijeda."
+      },
+      "show_button": {
+        "title": "Tombol 'Dengarkan di Liner'",
+        "description": "Tambahkan tombol interaktif yang menautkan ke lagu di Liner."
+      },
+      "show_download_button": {
+        "title": "Tombol 'Unduh Liner'",
+        "description": "Tambahkan tombol interaktif yang menautkan ke tryliner.fun untuk mengunduh aplikasi."
+      },
+      "status": {
+        "connected": "Terhubung ke Discord ({user})",
+        "disconnected": "Discord tidak terhubung",
+        "ready": "Siap",
+        "waiting": "Menunggu Discord",
+        "disabled": "Nonaktif",
+        "via_arrpc": "Terhubung lewat arRPC"
+      }
     },
     "audio_data": {
       "description": "Kualitas streaming, cache offline, dan diagnostik koneksi."

@@ -230,10 +230,15 @@ export default function AppFrame({ children }: AppFrameProps) {
   const hasSearchQuery = searchQuery.trim().length > 0;
   const isFullscreenRoute = pathname === "/player";
   const isFullscreenPlayer = isFullscreenRoute || fullscreenPlayerOpen;
-  const shellChildrenRef = useRef<React.ReactNode>(null);
-  if (!isFullscreenRoute) {
-    shellChildrenRef.current = children;
-  }
+  // NOTE: `children` is the router <Outlet/> element — a STABLE element whose
+  // resolved content changes with the route. Rendering it in two places at once
+  // instantiates the matched route twice, so the /player route must be
+  // exclusively owned by the z-[70] fullscreen layer below (see the ternary
+  // near the file end). The shell renders nothing while that route is active —
+  // rendering it here as well double-mounted the FullscreenPlayer, which
+  // stacked two lyric panes: the Lyrics pill collapsed one while the
+  // duplicate's pane stayed on screen ("lyrics won't be gone"), and the two
+  // translation hooks raced over the same cache key ("translate didn't work").
   const isRightDrawerOpen =
     queuePopupOpen && !searchOpen && !isFullscreenPlayer;
 
@@ -774,7 +779,7 @@ export default function AppFrame({ children }: AppFrameProps) {
               }`}
             >
               <PageTransition>
-                {isFullscreenRoute ? shellChildrenRef.current : children}
+                {isFullscreenRoute ? null : children}
               </PageTransition>
             </div>
 

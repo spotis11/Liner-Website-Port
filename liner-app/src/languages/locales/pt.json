@@ -505,7 +505,8 @@
       "overlay": "Overlay",
       "privacy": "Privacidade",
       "customization": "Personalização",
-      "announcement": "Anúncio"
+      "announcement": "Anúncio",
+      "discord": "Discord RPC"
     },
     "playback": {
       "description": "Comportamento da fila, ações de clique e saída de áudio."
@@ -944,6 +945,56 @@
     "sound_wave": {
       "title": "Visualizador de onda sonora",
       "description": "Mostrar uma onda sonora ao vivo sincronizada com a musica no player em tela cheia."
+    },
+    "discord": {
+      "description": "Mostra o que você está ouvindo no Discord com capa do álbum, badge do artista e barra de progresso.",
+      "section_display": "Opções de exibição",
+      "section_buttons": "Botões do perfil",
+      "enable": {
+        "title": "Discord Rich Presence",
+        "description": "Envia a reprodução ativa de músicas para o seu perfil do Discord."
+      },
+      "status_display": {
+        "title": "Formato do status",
+        "description": "Escolhe o que aparece no cabeçalho do status \"Ouvindo\" do Discord.",
+        "artist": "Artista (padrão)",
+        "song": "Título da música",
+        "artist_song": "Artista - Música",
+        "song_artist": "Música - Artista",
+        "app": "Liner (nome do app)"
+      },
+      "show_timeline": {
+        "title": "Linha do tempo da reprodução",
+        "description": "Exibe a barra de progresso interativa com o tempo decorrido e o restante da faixa."
+      },
+      "show_artwork": {
+        "title": "Capa da faixa",
+        "description": "Mostra a capa da faixa ou do álbum no cartão de atividade do Discord."
+      },
+      "show_artist_image": {
+        "title": "Badge com a foto do artista",
+        "description": "Exibe a foto do artista em um pequeno badge circular no canto inferior."
+      },
+      "show_paused": {
+        "title": "Mostrar quando pausado",
+        "description": "Mantém o status visível no Discord, com um indicador de pausa quando a música estiver pausada."
+      },
+      "show_button": {
+        "title": "Botão \"Ouvir na Liner\"",
+        "description": "Adiciona um botão interativo com link para a música na Liner."
+      },
+      "show_download_button": {
+        "title": "Botão \"Baixar a Liner\"",
+        "description": "Adiciona um botão interativo com link para a tryliner.fun para baixar o app."
+      },
+      "status": {
+        "connected": "Conectado ao Discord ({user})",
+        "disconnected": "Discord não conectado",
+        "ready": "Pronto",
+        "waiting": "Aguardando o Discord",
+        "disabled": "Desativado",
+        "via_arrpc": "Conectado via arRPC"
+      }
     }
   },
   "toast": {

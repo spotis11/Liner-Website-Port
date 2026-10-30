@@ -501,6 +501,7 @@
       "shortcuts": "Shortcuts",
       "overlay": "Overlay",
       "youtube": "YouTube",
+      "discord": "Discord RPC",
       "privacy": "Privacy",
       "customization": "Customization",
       "announcement": "Announcement",
@@ -615,6 +616,66 @@
       "sign_in": "Sign in",
       "signed_out_title": "Not signed in",
       "signed_out_description": "Sign in to keep YouTube playback working"
+    },
+    "discord": {
+      "description": "Show what you're listening to on Discord with album art, artist badge and progress bar.",
+      "section_display": "Display Options",
+      "section_buttons": "Profile Buttons",
+      "enable": {
+        "title": "Discord Rich Presence",
+        "description": "Broadcast your active music playback to your Discord profile."
+      },
+      "status_display": {
+        "title": "Status Format",
+        "description": "Choose what appears in Discord's 'Listening to...' status header.",
+        "artist": "Artist (Default)",
+        "song": "Song Title",
+        "artist_song": "Artist - Song",
+        "song_artist": "Song - Artist",
+        "app": "Liner (App name)"
+      },
+      "show_timeline": {
+        "title": "Playback Timeline",
+        "description": "Display interactive progress bar with elapsed and remaining track time."
+      },
+      "show_artwork": {
+        "title": "Track Artwork",
+        "description": "Show track or album cover in the Discord activity card."
+      },
+      "show_artist_image": {
+        "title": "Artist Photo Badge",
+        "description": "Display the artist photo in a small circular badge on the bottom corner."
+      },
+      "show_paused": {
+        "title": "Show when Paused",
+        "description": "Keep status visible on Discord with a paused indicator when music is paused."
+      },
+      "show_button": {
+        "title": "'Listen on Liner' Button",
+        "description": "Add an interactive button linking to the song on Liner."
+      },
+      "show_download_button": {
+        "title": "'Download Liner' Button",
+        "description": "Add an interactive button linking to tryliner.fun to download the app."
+      },
+      "status": {
+        "connected": "Connected to Discord ({user})",
+        "disconnected": "Discord not connected",
+        "ready": "Ready",
+        "waiting": "Waiting for Discord",
+        "disabled": "Disabled",
+        "via_arrpc": "Connected via arRPC"
+      },
+      "web": {
+        "section": "Connect with Discord",
+        "warning": "Unofficial method — Discord may treat this connection as a self-bot and ban your account. Use at your own risk. Your token is stored locally on this device only.",
+        "token_placeholder": "Paste your Discord token",
+        "token_saved": "Token saved on this device",
+        "connect": "Connect",
+        "disconnect": "Disconnect",
+        "connecting": "Connecting...",
+        "connected_as": "Connected as {username}"
+      }
     },
     "audio_data": {
       "description": "Streaming quality, offline cache and connection diagnostics."
@@ -827,10 +888,9 @@
     },
     "about": {
       "liner": "Liner",
-      "telegram": "Channel",
-      "support": "Support",
+      "discord_liner": "Liner Discord",
+      "discord_jayjoice": "Jayjoice's Discord",
       "github": "GitHub",
-      "website": "Website",
       "tagline": "Modern desktop music streaming player with syllable-synced lyrics",
       "updates_title": "Updates & Build",
       "check_updates": "Check for updates",

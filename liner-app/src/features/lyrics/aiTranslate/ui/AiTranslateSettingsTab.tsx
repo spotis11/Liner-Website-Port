@@ -71,10 +71,14 @@ export function AiTranslateSettingsTab() {
     try {
       const state = useAiTranslateStore.getState();
       // translating INTO English with English samples is a no-op — pick a
-      // source the chosen target language will actually change
+      // source the chosen target language will actually change. The samples
+      // are full sentences on purpose: tiny famous phrases like "Hello
+      // world" are often left untouched by translators (so a strict
+      // "every line must change" check reported false failures), while a
+      // real sentence is always re-worded in the target language.
       const samples = state.targetLang.toLowerCase().startsWith("en")
         ? ["Hola mundo, esta es una prueba", "La música es vida"]
-        : ["Hello world", "How are you?"];
+        : ["I really love listening to music every day", "The stars shine brightly tonight"];
       const result = await translateLines(samples, {
         provider: state.provider,
         targetLang: state.targetLang,
@@ -82,7 +86,11 @@ export function AiTranslateSettingsTab() {
         model: resolveModel(state.provider, state.models),
         ollamaUrl: state.ollamaUrl,
       });
-      if (result.every((line, i) => line && line !== samples[i])) {
+      // pass when every line came back non-empty and at least one actually
+      // reads differently in the target language
+      const allFilled = result.every((line) => line.trim());
+      const anyChanged = result.some((line, i) => line !== samples[i]);
+      if (allFilled && anyChanged) {
         setTestState("ok");
         setTestMessage(result.join(" / "));
       } else {

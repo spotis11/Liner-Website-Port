@@ -1,0 +1,45 @@
+/*
+ * AI Translate — the injected translation lines participate in the karaoke
+ * highlight, exactly on the beat the original words light up.
+ *
+ * WHO flips the glow: translationGlow.ts. It toggles `ai-tr--glow` on each
+ * injected translation from the MEDIA CLOCK (#liner-audio — the same element
+ * braccato follows), on at the line's startTimeMs, off at the line's end.
+ * It must NOT be keyed on `.blyrics--active`: braccato adds that class early
+ * (0.54s scroll lead + a learned animation-clock offset — >1s early in
+ * practice) so autoscroll can land before the vocal, while the original
+ * words' highlight overlays follow the media clock. Glow keyed on the class
+ * therefore ran ahead of the singing — the "AI translation is so early /
+ * not in sync" report.
+ *
+ * The transitions below only shape the edges. Durations match braccato's own
+ * highlight fades (—blyrics-lyric-highlight-fade-in-duration 0.33s / fade-out
+ * 0.5s) so translation and original line brighten and dim as one. Transitions
+ * read their timing from the AFTER-change style: glowing→rest uses the base
+ * rule (0.5s out), rest→glowing uses the glow rule (0.33s in).
+ *
+ * These rules are app-owned and MUST be imported after
+ * @braccato/core/styles/lyrics.css (import order in FullscreenPlayer gives us
+ * the cascade).
+ */
+
+.blyrics--line > .blyrics--translated {
+	transition:
+		color 0.5s ease,
+		text-shadow 0.5s ease,
+		opacity 0.5s ease;
+	will-change: color, text-shadow;
+}
+
+.blyrics--line > .blyrics--translated.ai-tr--glow {
+	color: var(--blyrics-lyric-active-color, #fff);
+	text-shadow:
+		0 0 14px
+			color-mix(in srgb, var(--blyrics-lyric-active-color, #fff) 45%, transparent),
+		0 0 38px
+			color-mix(in srgb, var(--blyrics-lyric-active-color, #fff) 25%, transparent);
+	transition:
+		color 0.33s ease,
+		text-shadow 0.33s ease,
+		opacity 0.33s ease;
+}

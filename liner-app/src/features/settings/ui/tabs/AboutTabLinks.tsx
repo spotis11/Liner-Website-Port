@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
 import {
   GithubFill,
-  World2Line,
-  QuestionFill,
-  TelegramFill,
+  DiscordFill,
 } from "@mingcute/react";
 import { useTranslation } from "@/languages";
 
@@ -22,28 +20,22 @@ export function AboutTabLinks() {
 
   const links: AboutLink[] = [
     {
-      id: "telegram",
-      url: "https://t.me/liner_app",
-      label: t("settings.about.telegram"),
-      icon: <TelegramFill size={17} />,
-    },
-    {
-      id: "support",
-      url: "https://t.me/liner_app?direct",
-      label: t("settings.about.support"),
-      icon: <QuestionFill size={17} />,
-    },
-    {
       id: "github",
       url: "https://github.com/goodbyeworld42-ai/Liner-Website-Port",
       label: t("settings.about.github"),
       icon: <GithubFill size={17} />,
     },
     {
-      id: "website",
-      url: "https://tryliner.fun",
-      label: t("settings.about.website"),
-      icon: <World2Line size={17} />,
+      id: "discord_liner",
+      url: "https://discord.com/invite/liner",
+      label: t("settings.about.discord_liner"),
+      icon: <DiscordFill size={17} />,
+    },
+    {
+      id: "discord_jayjoice",
+      url: "https://discord.gg/ZhSKNj9KfF",
+      label: t("settings.about.discord_jayjoice"),
+      icon: <DiscordFill size={17} />,
     },
   ];
 

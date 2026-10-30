@@ -11,6 +11,7 @@ import { CoverSwRegistrar } from "@/features/covers";
 import { usePresenceSync } from "@/shared/presence";
 import { useTouchBarSync } from "@/features/touchbar";
 import { useOverlaySync } from "@/features/overlay";
+import { useDiscordSync } from "@/features/discord";
 import { AppRoutes } from "./routes";
 import DeeplinkHandler from "./DeeplinkHandler";
 import EnvironmentWarning from "./EnvironmentWarning";
@@ -48,6 +49,11 @@ function OverlaySync() {
   return null;
 }
 
+function DiscordSync() {
+  useDiscordSync();
+  return null;
+}
+
 export default function App() {
   useWindowDrag();
 
@@ -67,6 +73,7 @@ export default function App() {
         <PresenceSync />
         <TouchBarSync />
         <OverlaySync />
+        <DiscordSync />
         <AppleEmojiProvider>
           <I18nProvider>
             <ToastProvider>

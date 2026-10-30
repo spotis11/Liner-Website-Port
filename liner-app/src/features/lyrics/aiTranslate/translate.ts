@@ -360,6 +360,26 @@ function alignAiOutput(output: string[] | null, lines: string[]): string[] {
   });
 }
 
+/**
+ * Strict variant for chat-completion providers. When the model's answer
+ * can't be parsed as a JSON array of strings the caller must NOT get the
+ * original lines back as a silent "translation" — that result would be
+ * cached and the feature would look broken with no error anywhere. Throw
+ * so the UI reports it and nothing gets cached.
+ */
+function alignAiOutputStrict(
+  output: string[] | null,
+  lines: string[],
+  providerLabel: string,
+): string[] {
+  if (!output) {
+    throw new TranslationError(
+      `${providerLabel} answered in an unreadable format — try a different model.`,
+    );
+  }
+  return alignAiOutput(output, lines);
+}
+
 function buildUserPrompt(lines: string[], targetLang: string): string {
   const numbered = lines.map((line) => line.replace(/\n/g, " "));
   return `Target language: ${targetLang}.\nLines:\n${JSON.stringify(numbered)}`;
@@ -409,9 +429,10 @@ async function translateWithOpenRouter({ config, lines }: ChatArgs): Promise<str
   });
   const payload = JSON.parse(raw);
   const content = payload?.choices?.[0]?.message?.content;
-  return alignAiOutput(
+  return alignAiOutputStrict(
     typeof content === "string" ? extractJsonArray(content) : null,
     lines,
+    "OpenRouter",
   );
 }
 
@@ -432,9 +453,10 @@ async function translateWithGemini({ config, lines }: ChatArgs): Promise<string[
   const content = Array.isArray(parts)
     ? parts.map((p: { text?: string }) => p?.text ?? "").join("")
     : null;
-  return alignAiOutput(
+  return alignAiOutputStrict(
     typeof content === "string" ? extractJsonArray(content) : null,
     lines,
+    "Gemini",
   );
 }
 
@@ -452,9 +474,10 @@ async function translateWithOpenAi({ config, lines }: ChatArgs): Promise<string[
   });
   const payload = JSON.parse(raw);
   const content = payload?.choices?.[0]?.message?.content;
-  return alignAiOutput(
+  return alignAiOutputStrict(
     typeof content === "string" ? extractJsonArray(content) : null,
     lines,
+    "OpenAI",
   );
 }
 
@@ -477,9 +500,10 @@ async function translateWithClaude({ config, lines }: ChatArgs): Promise<string[
   const content = Array.isArray(blocks)
     ? blocks.map((b: { text?: string }) => b?.text ?? "").join("")
     : null;
-  return alignAiOutput(
+  return alignAiOutputStrict(
     typeof content === "string" ? extractJsonArray(content) : null,
     lines,
+    "Claude",
   );
 }
 
@@ -510,9 +534,10 @@ async function translateWithOllama({ config, lines }: ChatArgs): Promise<string[
   if (!res.ok) throw new TranslationError(`Ollama HTTP ${res.status}`);
   const payload = await res.json();
   const content = payload?.message?.content;
-  return alignAiOutput(
+  return alignAiOutputStrict(
     typeof content === "string" ? extractJsonArray(content) : null,
     lines,
+    "Ollama",
   );
 }
 
@@ -558,8 +583,18 @@ export async function translateLines(
       // is rate-limited from the server IP
       const backup = await translateWithMyMemory(lines, targetLang);
       const covered = backup.some((line) => line.trim());
-      if (!covered) throw error;
-      return lines.map((line, i) => backup[i]?.trim() || line);
+      if (covered) {
+        return lines.map((line, i) => backup[i]?.trim() || line);
+      }
+      // last resort — the built-in Liner AI translator. Both free endpoints
+      // can be dead at once (server IP rate-limited, shared quota exhausted);
+      // the user picked "free translation", not "no translation", so fall
+      // back to the zero-config provider before giving up.
+      try {
+        return await translateWithLiner({ config, lines });
+      } catch {
+        throw error;
+      }
     }
   }
 

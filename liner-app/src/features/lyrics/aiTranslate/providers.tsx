@@ -3,10 +3,9 @@
 // Translate endpoint and Liner AI, the built-in server-side translator that
 // needs no key and works for everyone.
 //
-// Logos are the REAL brand marks: the Liner logo itself for Liner AI, the
-// official coloured Google Translate and Gemini SVGs plus the official
-// OpenRouter / OpenAI / Claude / Ollama brand glyphs, vendored under ./logos
-// (see scripts/vendor_ai_logos.py).
+// Logos are the REAL brand marks: the official coloured Google Translate and
+// Gemini SVGs plus the official OpenRouter / OpenAI / Claude / Ollama brand
+// glyphs, vendored under ./logos (see scripts/vendor_ai_logos.py).
 //
 // Every remote provider is called through the shell proxy `/api/fetch?u=<url>`
 // (or its own dedicated route) so CORS never blocks a browser call and API
@@ -15,13 +14,13 @@
 // the server cannot reach, so it is fetched directly from the browser.
 
 import type { ComponentType } from "react";
-import linerMarkSvg from "./logos/liner-mark.svg?raw";
 import googleTranslateSvg from "./logos/google-translate.svg?raw";
 import geminiSvg from "./logos/gemini.svg?raw";
 import openrouterSvg from "./logos/openrouter.svg?raw";
 import openaiSvg from "./logos/openai.svg?raw";
 import claudeSvg from "./logos/claude.svg?raw";
 import ollamaSvg from "./logos/ollama.svg?raw";
+import linerMarkSvg from "./logos/liner-mark.svg?raw";
 
 export type AiProviderId =
   | "liner"
@@ -56,19 +55,16 @@ export interface AiProviderDef {
 
 // -- Real brand logos (vendored official SVGs) --------------------------------
 
-/** Renders a vendored official brand SVG, sized by the wrapper.
- *  `ratio` widens the box for non-square marks (e.g. the 45×35 Liner logo) —
- *  the inner SVG letter-boxes itself via preserveAspectRatio. */
+/** Renders a vendored official brand SVG, sized by the wrapper. */
 function BrandLogo({
   svg,
   size = 18,
   className,
-  ratio = 1,
-}: ProviderLogoProps & { svg: string; ratio?: number }) {
+}: ProviderLogoProps & { svg: string }) {
   return (
     <span
       className={`liner-brand-logo inline-block shrink-0 leading-none ${className ?? ""}`}
-      style={{ width: Math.round(size * ratio * 100) / 100, height: size }}
+      style={{ width: size, height: size }}
       dangerouslySetInnerHTML={{ __html: svg }}
       aria-hidden="true"
     />
@@ -103,10 +99,12 @@ const OllamaLogo = ({ size, className }: ProviderLogoProps) => (
   <BrandLogo svg={ollamaSvg} size={size} className={className} />
 );
 
-// Liner AI — built-in translator: the Liner logo itself (the same mark as the
-// sidebar / login screen), coloured via currentColor so it fits any theme.
+// Liner AI — the built-in translator carries the LINER LOGO ITSELF (the app's
+// own mark, vendored from src/assets/logo.svg). The previous gradient-tile
+// sparkle read as a made-up brand; the user was explicit: the Liner AI logo
+// must be the Liner logo itself.
 const LinerAiLogo = ({ size, className }: ProviderLogoProps) => (
-  <BrandLogo svg={linerMarkSvg} size={size} className={className} ratio={45 / 35} />
+  <BrandLogo svg={linerMarkSvg} size={size} className={className} />
 );
 
 export const AI_PROVIDERS: AiProviderDef[] = [
@@ -131,10 +129,10 @@ export const AI_PROVIDERS: AiProviderDef[] = [
   {
     id: "openrouter",
     label: "OpenRouter",
-    keyHint: "sk-or-...",
+    keyHint: "sk-or-v1-...",
     needsKey: true,
     needsModel: true,
-    defaultModel: "google/gemini-2.0-flash-001",
+    defaultModel: "google/gemini-3.7-flash",
     Logo: OpenRouterLogo,
     free: false,
   },
@@ -144,7 +142,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     keyHint: "AIza...",
     needsKey: true,
     needsModel: true,
-    defaultModel: "gemini-2.0-flash",
+    defaultModel: "gemini-3.7-flash",
     Logo: GeminiLogo,
     free: false,
   },
@@ -154,7 +152,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     keyHint: "sk-...",
     needsKey: true,
     needsModel: true,
-    defaultModel: "gpt-4o-mini",
+    defaultModel: "gpt-5.4-mini",
     Logo: OpenAiLogo,
     free: false,
   },
@@ -164,7 +162,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     keyHint: "sk-ant-...",
     needsKey: true,
     needsModel: true,
-    defaultModel: "claude-3-5-haiku-latest",
+    defaultModel: "claude-haiku-5-5",
     Logo: ClaudeLogo,
     free: false,
   },

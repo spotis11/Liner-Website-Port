@@ -500,6 +500,7 @@
       "shortcuts": "Mga Shortcut",
       "overlay": "Overlay",
       "youtube": "YouTube",
+      "discord": "Discord RPC",
       "privacy": "Privacy",
       "customization": "Customization",
       "announcement": "Anunsiyo"
@@ -612,6 +613,56 @@
       "sign_in": "Mag-sign in",
       "signed_out_title": "Hindi naka-sign in",
       "signed_out_description": "Mag-sign in para tumuloy ang pagplay sa YouTube"
+    },
+    "discord": {
+      "description": "Ipakita kung ano ang pinapakinggan mo sa Discord na may album art, artist badge at progress bar.",
+      "section_display": "Mga Opsyonal sa Pagpapakita",
+      "section_buttons": "Mga Button sa Profile",
+      "enable": {
+        "title": "Discord Rich Presence",
+        "description": "I-broadcast sa Discord profile mo ang kasalukuyan mong pinapakinggan."
+      },
+      "status_display": {
+        "title": "Format ng Status",
+        "description": "Pumili ng lalabas sa 'Listening to...' status header ng Discord.",
+        "artist": "Artist (Default)",
+        "song": "Pamagat ng Kanta",
+        "artist_song": "Artist - Kanta",
+        "song_artist": "Kanta - Artist",
+        "app": "Liner (Pangalan ng app)"
+      },
+      "show_timeline": {
+        "title": "Timeline ng Pagplay",
+        "description": "Magpakita ng interactive na progress bar na may lumipas at natitirang oras."
+      },
+      "show_artwork": {
+        "title": "Artwork ng Track",
+        "description": "Ipakita ang cover ng track o album sa Discord activity card."
+      },
+      "show_artist_image": {
+        "title": "Badge ng Foto ng Artist",
+        "description": "Ipakita ang foto ng artist sa maliit na bilog na badge sa sulok sa ibaba."
+      },
+      "show_paused": {
+        "title": "Ipakita kapag Naka-pause",
+        "description": "Panatilihing nakikita ang status sa Discord na may pause indicator kapag naka-pause ang musika."
+      },
+      "show_button": {
+        "title": "'Makinig sa Liner' Button",
+        "description": "Magdagdag ng interactive na button na humahantong sa kanta sa Liner."
+      },
+      "show_download_button": {
+        "title": "'I-download ang Liner' Button",
+        "description": "Magdagdag ng interactive na button na humahantong sa tryliner.fun para i-download ang app."
+      },
+      "status": {
+        "connected": "Nakakonekta sa Discord ({user})",
+        "disconnected": "Hindi nakakonekta ang Discord",
+        "ready": "Handa na",
+        "waiting": "Naghihintay sa Discord",
+        "disabled": "Naka-disable",
+        "via_arrpc": "Nakakonekta via arRPC"
+      }
     },
     "audio_data": {
       "description": "Kalidad ng streaming, offline cache at diagnostics ng koneksyon."

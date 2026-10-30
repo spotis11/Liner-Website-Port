@@ -722,10 +722,3 @@ html[data-hover-reset] [data-window-controls] button:hover {
   height: 100%;
   display: block;
 }
-
-/* AI Translate — the lyrics-pane toggle. Braccato keeps injected translation
-   lines in the DOM, so the wrapper element carries data-ai-translate and the
-   CSS is what makes "off" actually mean off (instant, no re-render). */
-braccato-lyrics[data-ai-translate="off"] .blyrics--translated {
-  display: none;
-}

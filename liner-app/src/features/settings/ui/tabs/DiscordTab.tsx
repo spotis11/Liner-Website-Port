@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "@/languages";
 import {
   DiscordAccountCard,
+  DiscordWebConnect,
   useDiscordSettingsStore,
   type DiscordStatusDisplayType,
 } from "@/features/discord";
@@ -40,9 +41,14 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
     setMounted(true);
   }, []);
 
+  // Web build: no Electron IPC — Discord RPC runs through the gateway ("self bot") client
+  const isWeb = typeof window !== "undefined" && !window.linerElectron;
+
   return (
     <div className="flex flex-col gap-[18px]">
       {!searchQuery?.trim() && <DiscordAccountCard />}
+
+      {isWeb && !searchQuery?.trim() && <DiscordWebConnect />}
 
       {/* Main enable switch */}
       <SettingSection>
@@ -194,8 +200,9 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
         />
       </SettingSection>
 
-      {/* Profile Buttons */}
-      <SettingSection label={t("settings.discord.section_buttons") || "Profile Buttons"}>
+      {/* Profile Buttons (desktop IPC only — the Discord gateway drops button payloads) */}
+      {!isWeb && (
+        <SettingSection label={t("settings.discord.section_buttons") || "Profile Buttons"}>
         {/* Listen on Liner button */}
         <SettingRow
           title={t("settings.discord.show_button.title") || "'Listen on Liner' Button"}
@@ -233,7 +240,8 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
             />
           }
         />
-      </SettingSection>
+        </SettingSection>
+      )}
     </div>
   );
 }

@@ -3,8 +3,9 @@ import { usePlayerState } from "@/features/player/hooks/usePlayerState";
 import { useCoverSrc } from "@/features/covers";
 import { api, mediaUrl, toMaxQualityAvatarUrl } from "@/shared/api";
 import { getAuthSession } from "@/shared/api/auth-session";
-import type { DiscordRpcStatePayload } from "../contracts";
+import type { DiscordRpcSettings, DiscordRpcStatePayload } from "../contracts";
 import { useDiscordSettingsStore } from "../store/discordSettingsStore";
+import { absolutizeHttpUrl, discordGateway } from "../lib/discordGateway";
 
 const artistAvatarCache = new Map<string, string | null>();
 const pendingArtistAvatars = new Map<string, Promise<string | null>>();
@@ -37,18 +38,43 @@ export function useDiscordSync() {
       ? currentTrack.artistList[0]?.id
       : undefined);
 
+  const toSettingsSnapshot = (s: {
+    enabled: boolean;
+    statusDisplayType: DiscordRpcSettings["statusDisplayType"];
+    showArtwork: boolean;
+    showArtistSmallImage: boolean;
+    showTime: boolean;
+    showPaused: boolean;
+    showButton: boolean;
+    showDownloadButton: boolean;
+  }): DiscordRpcSettings => ({
+    enabled: s.enabled,
+    statusDisplayType: s.statusDisplayType,
+    showArtwork: s.showArtwork,
+    showArtistSmallImage: s.showArtistSmallImage,
+    showTime: s.showTime,
+    showPaused: s.showPaused,
+    showButton: s.showButton,
+    showDownloadButton: s.showDownloadButton,
+  });
+
   // Sync settings on mount
   useEffect(() => {
     const s = useDiscordSettingsStore.getState();
-    window.linerElectron?.discordUpdateSettings?.({
-      enabled: s.enabled,
-      statusDisplayType: s.statusDisplayType,
-      showArtwork: s.showArtwork,
-      showArtistSmallImage: s.showArtistSmallImage,
-      showTime: s.showTime,
-      showPaused: s.showPaused,
-      showButton: s.showButton,
-      showDownloadButton: s.showDownloadButton,
+    const snapshot = toSettingsSnapshot(s);
+    if (window.linerElectron?.discordUpdateSettings) {
+      window.linerElectron.discordUpdateSettings(snapshot);
+    } else {
+      // Web: push settings into the gateway client
+      discordGateway.updateSettings(snapshot);
+    }
+  }, []);
+
+  // Web: keep the gateway client in sync with settings changes
+  useEffect(() => {
+    if (window.linerElectron?.discordUpdateSettings) return; // desktop handles its own bridge
+    return useDiscordSettingsStore.subscribe((state) => {
+      discordGateway.updateSettings(toSettingsSnapshot(state));
     });
   }, []);
 
@@ -58,6 +84,26 @@ export function useDiscordSync() {
       const session = getAuthSession();
       if (!session) {
         window.linerElectron?.discordUpdateState?.({
+          status: "idle",
+          track: null,
+          positionMs: 0,
+          durationMs: 0,
+        });
+      }
+    };
+    window.addEventListener("auth:changed", handleAuthChange);
+    return () => {
+      window.removeEventListener("auth:changed", handleAuthChange);
+    };
+  }, []);
+
+  // Web fallback for the logout clear (gateway path)
+  useEffect(() => {
+    if (window.linerElectron?.discordUpdateState) return;
+    const handleAuthChange = () => {
+      const session = getAuthSession();
+      if (!session) {
+        discordGateway.pushState({
           status: "idle",
           track: null,
           positionMs: 0,
@@ -104,12 +150,14 @@ export function useDiscordSync() {
     coverUrl: undefined,
   });
 
-  // Push updates to Electron
+  // Push updates to Electron (desktop) or the web gateway client
   useEffect(() => {
-    if (!window.linerElectron?.discordUpdateState) return;
-
     const trackId = currentTrack?.id ?? null;
-    const coverUrl = effectiveCover || currentTrack?.coverUrl;
+    const rawCoverUrl = effectiveCover || currentTrack?.coverUrl;
+    const coverUrl =
+      rawCoverUrl && !window.linerElectron
+        ? (absolutizeHttpUrl(rawCoverUrl, window.location.origin) ?? rawCoverUrl)
+        : rawCoverUrl;
     const prev = lastStateRef.current;
     const now = Date.now();
 
@@ -128,7 +176,7 @@ export function useDiscordSync() {
       }
     }
 
-    // Only send IPC if there's a meaningful change (prevents rate-limiting Discord RPC)
+    // Only send an update if there's a meaningful change (prevents rate-limiting Discord RPC)
     if (!trackChanged && !statusChanged && !avatarChanged && !coverChanged && !seeked) {
       return;
     }
@@ -171,10 +219,18 @@ export function useDiscordSync() {
         : null,
       positionMs: player.positionMs,
       durationMs: player.durationMs || currentTrack?.durationMs || 0,
-      artistImageUrl: artistAvatar,
+      artistImageUrl:
+        artistAvatar && !window.linerElectron
+          ? (absolutizeHttpUrl(artistAvatar, window.location.origin) ?? artistAvatar)
+          : artistAvatar,
     };
 
-    window.linerElectron.discordUpdateState(payload);
+    if (window.linerElectron?.discordUpdateState) {
+      window.linerElectron.discordUpdateState(payload);
+    } else {
+      // Web: broadcast to the Discord gateway (self-bot RPC)
+      discordGateway.pushState(payload);
+    }
   }, [
     player.status,
     player.positionMs,

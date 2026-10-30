@@ -13,14 +13,6 @@ import { getProviderDef } from "./providers";
 
 export const AI_TRANSLATE_STORAGE_KEY = "liner_ai_translate_v1";
 
-/**
- * Bumped when the translation pipeline changes meaningfully: v2 guarantees
- * entries cached by older (buggy) engines are never replayed — the very first
- * web build could cache the ORIGINAL lines as "translations", and replaying
- * those would make the fixed renderer look broken too.
- */
-const TRANSLATION_CACHE_VERSION = "v2";
-
 export interface CachedTranslation {
   lines: string[];
   at: number;
@@ -44,6 +36,8 @@ interface AiTranslateState {
   pendingKey: string | null;
   /** transient — last error message for the lyrics pane */
   lastError: string | null;
+  /** bumped by an explicit retry so the fetch effect re-runs on demand */
+  retryToken: number;
 
   setEnabled: (enabled: boolean) => void;
   setAutoTranslate: (auto: boolean) => void;
@@ -54,8 +48,12 @@ interface AiTranslateState {
   setModel: (provider: AiProviderId, model: string) => void;
   setOllamaUrl: (url: string) => void;
   cacheTranslation: (cacheKey: string, lines: string[]) => void;
+  /** drop one stale entry (e.g. aligned against a different lyric set) */
+  clearCacheEntry: (cacheKey: string) => void;
   setPendingKey: (key: string | null) => void;
   setLastError: (error: string | null) => void;
+  /** clear the error and re-run the translation for the current track */
+  retry: () => void;
   clearCache: () => void;
 }
 
@@ -64,7 +62,7 @@ export function translationCacheKey(
   provider: AiProviderId,
   targetLang: string,
 ): string {
-  return `${TRANSLATION_CACHE_VERSION}::${trackId}::${provider}::${targetLang}`;
+  return `${trackId}::${provider}::${targetLang}`;
 }
 
 export function resolveModel(
@@ -89,6 +87,7 @@ export const useAiTranslateStore = create<AiTranslateState>()(
       manualTracks: {},
       pendingKey: null,
       lastError: null,
+      retryToken: 0,
 
       setEnabled: (enabled) => set({ enabled, lastError: null }),
       setAutoTranslate: (autoTranslate) => set({ autoTranslate }),
@@ -120,8 +119,20 @@ export const useAiTranslateStore = create<AiTranslateState>()(
           }
           return { cache: next };
         }),
+      clearCacheEntry: (cacheKey) =>
+        set((state) => {
+          if (!(cacheKey in state.cache)) return {};
+          const next = { ...state.cache };
+          delete next[cacheKey];
+          return { cache: next };
+        }),
       setPendingKey: (pendingKey) => set({ pendingKey }),
       setLastError: (lastError) => set({ lastError }),
+      retry: () =>
+        set((state) => ({
+          retryToken: state.retryToken + 1,
+          lastError: null,
+        })),
       clearCache: () => set({ cache: {} }),
     }),
     {
