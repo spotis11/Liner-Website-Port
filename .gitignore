@@ -70,3 +70,4 @@ server.log
 /discord-bot/
 /tool-results/
 /worklog.md
+/.secrets/
