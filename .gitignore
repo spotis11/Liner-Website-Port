@@ -81,3 +81,7 @@ scripts/email-captures/
 
 # local git credential store (PAT) — never commit
 .git-credentials
+
+# chromium e2e test profile: browser cache/cookies + dangling singleton symlinks
+# (breaks ripgrep/find with exit 2 on clones — must never be tracked)
+scripts/e2e-profile/
