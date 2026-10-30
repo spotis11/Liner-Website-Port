@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
   // docs/, multi-platform sharp binaries, typescript) into every route's
   // standalone trace — the deploy tarball hit 127MB and blows past the FC
   // ~100MB upload limit. None of these are needed at runtime.
+  //
+  // Second FC-size pass (npm-layout audit of the packaged tarball): sharp is
+  // never used (no next/image anywhere in src/ or liner-app/src), so BOTH
+  // sharp and every @img/* native binary (glibc + musl, ~40MB) are dead
+  // weight; @prisma/client/runtime ships ~30MB of wasm-base64 engine blobs
+  // for postgres/mysql/mssql/cockroach that the native sqlite engine never
+  // loads; dev.log/server.log are workspace logs that NFT swept in and grow
+  // without bound while the platform dev server runs.
   outputFileTracingExcludes: {
     "*": [
       "./skills/**/*",
@@ -26,10 +34,15 @@ const nextConfig: NextConfig = {
       "./liner-ref/**/*",
       "./db/*.json",
       "./node_modules/typescript/**/*",
-      "./node_modules/@img/sharp-linuxmusl-*",
-      "./node_modules/@img/sharp-linux-arm*",
-      "./node_modules/@img/libvips-linuxmusl-*",
-      "./node_modules/@img/libvips-linux-arm*",
+      "./node_modules/sharp/**/*",
+      "./node_modules/@img/**/*",
+      "**/node_modules/sharp/**/*",
+      "**/node_modules/@img/**/*",
+      "**/@prisma/client/runtime/*wasm-base64*",
+      "**/.prisma/client/runtime/*wasm-base64*",
+      "./dev.log",
+      "./server.log",
+      "./**/*.log",
     ],
   },
   typescript: {
