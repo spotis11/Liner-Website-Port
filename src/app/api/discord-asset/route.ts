@@ -83,6 +83,7 @@ async function uploadDiscordAsset(
     body: JSON.stringify({ filename: `${key}.png`, file_size: bytes.byteLength }),
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
+  console.log(`[discord-asset] slot ${scheme}:${slotRes.status}`);
   if (!slotRes.ok) {
     throw new Error(`asset slot failed (${slotRes.status})`);
   }
@@ -98,6 +99,7 @@ async function uploadDiscordAsset(
     body: bytes,
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
+  console.log(`[discord-asset] put ${putRes.status}`);
   if (!putRes.ok) throw new Error(`asset upload failed (${putRes.status})`);
 
   // 3. finalize the asset
@@ -107,6 +109,7 @@ async function uploadDiscordAsset(
     body: JSON.stringify({ upload_filename: slot.upload_filename, key }),
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
+  console.log(`[discord-asset] final ${finalRes.status}`);
   if (!finalRes.ok) throw new Error(`asset finalize failed (${finalRes.status})`);
   const created = (await finalRes.json()) as { asset_id?: string };
   if (!created.asset_id) throw new Error("asset finalize response incomplete");
@@ -135,6 +138,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     const { bytes, mime } = await fetchImage(url);
     const scheme: "bot" | "user" = payload.scheme === "user" ? "user" : "bot";
+    console.log(`[discord-asset] image ${bytes.byteLength}b ${mime} scheme=${scheme} app=${appId}`);
     try {
       const assetId = await uploadDiscordAsset(scheme, token, appId, safeKey, mime, bytes);
       return Response.json({ asset_id: assetId, scheme });

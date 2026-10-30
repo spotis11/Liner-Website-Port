@@ -67,6 +67,14 @@ export const DISCORD_ACTIVITY_APP_NAME = "Liner Website Port By JayJoice";
  */
 export const DISCORD_PUBLIC_ORIGIN = "https://liner-music.space-z.ai";
 
+/**
+ * Liner's official Discord application id (mirrors the desktop build's
+ * LINER_DISCORD_APPLICATION_ID). Used as the presence application so the
+ * activity renders under the Liner app exactly like the desktop client, and
+ * as the preferred target for external-assets registration.
+ */
+export const LINER_DISCORD_APPLICATION_ID = "1561339119617974362";
+
 /** Absolutizes an artwork url to an https url Discord's servers can fetch. */
 export function toDiscordFetchableUrl(
   url: string | undefined | null,
@@ -626,9 +634,46 @@ class DiscordGatewayClient {
   }
 
   /**
-   * Register artwork URLs with Discord's external assets API (user tokens
-   * only — bot auth is rejected with 20001) and return a url -> signed proxy
-   * path map. Self-heals by re-creating the application when the id is stale.
+   * One external-assets attempt against a concrete application id. Fills
+   * `result` with send-ready keys ("mp:" + signed proxy path) and returns
+   * true when at least one url resolved.
+   */
+  private async tryRegisterExternalAssets(
+    appId: string,
+    urls: string[],
+    result: Map<string, string>,
+  ): Promise<boolean> {
+    const res = (
+      await this.apiFetch<ExternalAssetEntry[]>(
+        "POST",
+        `applications/${appId}/external-assets`,
+        { urls },
+      )
+    ).data;
+    if (!Array.isArray(res)) return false;
+    let collected = false;
+    for (const entry of res) {
+      if (
+        entry &&
+        typeof entry.url === "string" &&
+        typeof entry.external_asset_path === "string" &&
+        entry.external_asset_path
+      ) {
+        // Store the send-ready key ("mp:" + signed path) — the send path
+        // replays it verbatim as large_image/small_image.
+        const finalKey = toExternalAssetKey(entry.external_asset_path);
+        this.cacheAssetPath(entry.url, finalKey);
+        result.set(entry.url, finalKey);
+        collected = true;
+      }
+    }
+    return collected;
+  }
+
+  /**
+   * Register artwork URLs with Discord's external assets API and return a
+   * url -> signed proxy path map. Self-heals by re-creating the application
+   * when the user-owned id is stale.
    */
   private async registerExternalAssets(
     urls: string[],
@@ -645,48 +690,25 @@ class DiscordGatewayClient {
     }
     if (!missing.length) return result;
 
-    let appId = await this.ensureApplicationId();
-    if (!appId) return result;
+    // Preferred target: Liner's official application (mirrors the desktop
+    // build). The external-assets API returns app-independent media-proxy
+    // paths, so registration does not require owning the application.
+    if (await this.tryRegisterExternalAssets(LINER_DISCORD_APPLICATION_ID, missing, result)) {
+      return result;
+    }
 
-    let res = (
-      await this.apiFetch<ExternalAssetEntry[]>(
-        "POST",
-        `applications/${appId}/external-assets`,
-        { urls: missing },
-      )
-    ).data;
-    if (!res) {
-      // The stored application may have been deleted — recreate once and retry
+    // Fallback: the user-owned application, recreated once when stale.
+    const ownAppId = await this.ensureApplicationId();
+    if (ownAppId) {
+      if (await this.tryRegisterExternalAssets(ownAppId, missing, result)) {
+        return result;
+      }
       storeAppId(null);
       this.applicationId = null;
       this.ensureAppPromise = null;
       const freshId = await this.ensureApplicationId();
-      if (freshId && freshId !== appId) {
-        appId = freshId;
-        res = (
-          await this.apiFetch<ExternalAssetEntry[]>(
-            "POST",
-            `applications/${appId}/external-assets`,
-            { urls: missing },
-          )
-        ).data;
-      }
-    }
-
-    if (Array.isArray(res)) {
-      for (const entry of res) {
-        if (
-          entry &&
-          typeof entry.url === "string" &&
-          typeof entry.external_asset_path === "string" &&
-          entry.external_asset_path
-        ) {
-          // Store the send-ready key ("mp:" + signed path) — the send path
-          // replays it verbatim as large_image/small_image.
-          const finalKey = toExternalAssetKey(entry.external_asset_path);
-          this.cacheAssetPath(entry.url, finalKey);
-          result.set(entry.url, finalKey);
-        }
+      if (freshId && freshId !== ownAppId) {
+        await this.tryRegisterExternalAssets(freshId, missing, result);
       }
     }
     return result;
@@ -844,24 +866,29 @@ class DiscordGatewayClient {
     if (assets.large_image?.startsWith("mp:")) rawUrls.push(assets.large_image.slice(3));
     if (assets.small_image?.startsWith("mp:")) rawUrls.push(assets.small_image.slice(3));
 
-    const resolved = new Map<string, string>();
+    /** key + the application id it resolves against (null = global media-proxy path). */
+    const resolved = new Map<string, { key: string; appId: string | null }>();
     await Promise.all(
       rawUrls.map(async (url) => {
         const direct = toDirectAssetKey(url);
         if (direct) {
-          resolved.set(url, direct);
+          resolved.set(url, { key: direct, appId: null });
           return;
         }
         const scheme = (await this.ensureAuthScheme()) ?? null;
         if (scheme === "user") {
           const registered = await this.resolveUserAssetKey(url);
           if (registered) {
-            resolved.set(url, registered);
+            resolved.set(url, { key: registered, appId: null });
             return;
           }
         }
         const uploaded = await this.resolveUploadedAssetKey(url);
-        if (uploaded) resolved.set(url, uploaded);
+        if (uploaded) {
+          // Uploaded ids live in the application's asset store — they only
+          // render against that exact application.
+          resolved.set(url, { key: uploaded, appId: this.applicationId });
+        }
       }),
     );
 
@@ -869,17 +896,20 @@ class DiscordGatewayClient {
     if (assets.large_text) next.large_text = assets.large_text;
     if (assets.small_text) next.small_text = assets.small_text;
     if (assets.large_image) {
-      const key = resolved.get(assets.large_image.slice(3));
-      if (key) next.large_image = key;
+      const entry = resolved.get(assets.large_image.slice(3));
+      if (entry) next.large_image = entry.key;
     }
     if (assets.small_image) {
-      const key = resolved.get(assets.small_image.slice(3));
-      if (key) next.small_image = key;
+      const entry = resolved.get(assets.small_image.slice(3));
+      if (entry) next.small_image = entry.key;
     }
     if (next.large_image || next.small_image) {
       activity.assets = next;
-      // Assets only render against their owning application.
-      if (this.applicationId) activity.application_id = this.applicationId;
+      // Uploaded application-asset ids only render against their owning
+      // application; global mp: media-proxy paths render under any — prefer
+      // Liner's official app so the presence looks like the desktop build.
+      const uploadedAppId = [...resolved.values()].find((r) => r.appId)?.appId;
+      activity.application_id = uploadedAppId ?? LINER_DISCORD_APPLICATION_ID;
     } else {
       delete activity.assets;
       delete activity.application_id;

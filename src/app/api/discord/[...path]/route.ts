@@ -68,12 +68,16 @@ async function relay(
   const order: Array<"bot" | "user"> =
     schemeHint === "user" ? ["user", "bot"] : ["bot", "user"];
 
+  const started = Date.now();
   let result: { status: number; body: string; scheme: "bot" | "user" } | null = null;
   for (const scheme of order) {
     let res: Response;
     try {
       res = await relayOnce(scheme, token, method, upstreamUrl, bodyText);
     } catch {
+      console.log(
+        `[discord-relay] ${method} /${path} upstream-unreachable ${Date.now() - started}ms`,
+      );
       return Response.json(
         { message: "Discord upstream unreachable" },
         { status: 502 },
@@ -84,6 +88,12 @@ async function relay(
     if (res.status !== 401) break;
     // 401 under the wrong scheme — try the other one once
   }
+
+  // Diagnostic trace only: method, path, resolved scheme and upstream status.
+  // Never logs the token or body contents.
+  console.log(
+    `[discord-relay] ${method} /${path} ${result!.scheme}:${result!.status} ${Date.now() - started}ms`,
+  );
 
   const response = new Response(result!.body, {
     status: result!.status,
