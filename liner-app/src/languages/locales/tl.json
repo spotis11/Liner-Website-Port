@@ -433,7 +433,10 @@
       "preset_custom": "Custom"
     },
     "miniplayer": "Miniplayer",
-    "close_miniplayer": "Isara ang miniplayer"
+    "close_miniplayer": "Isara ang miniplayer",
+    "song": "Kanta",
+    "video": "Video",
+    "video_unavailable": "Hindi available ang video"
   },
   "playlist": {
     "playlist": "Playlist",

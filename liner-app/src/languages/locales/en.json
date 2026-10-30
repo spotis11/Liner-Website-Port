@@ -434,7 +434,10 @@
       "preset_custom": "Custom"
     },
     "miniplayer": "Miniplayer",
-    "close_miniplayer": "Close miniplayer"
+    "close_miniplayer": "Close miniplayer",
+    "song": "Song",
+    "video": "Video",
+    "video_unavailable": "Video unavailable"
   },
   "playlist": {
     "playlist": "Playlist",

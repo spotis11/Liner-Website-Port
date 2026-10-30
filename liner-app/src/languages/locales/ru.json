@@ -428,7 +428,10 @@
       "preset_custom": "Свой"
     },
     "miniplayer": "Мини-плеер",
-    "close_miniplayer": "Закрыть мини-плеер"
+    "close_miniplayer": "Закрыть мини-плеер",
+    "song": "Трек",
+    "video": "Видео",
+    "video_unavailable": "Видео недоступно"
   },
   "playlist": {
     "playlist": "Плейлист",

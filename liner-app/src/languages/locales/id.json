@@ -433,7 +433,10 @@
       "preset_custom": "Kustom"
     },
     "miniplayer": "Pemutar mini",
-    "close_miniplayer": "Tutup pemutar mini"
+    "close_miniplayer": "Tutup pemutar mini",
+    "song": "Lagu",
+    "video": "Video",
+    "video_unavailable": "Video tidak tersedia"
   },
   "playlist": {
     "playlist": "Playlist",

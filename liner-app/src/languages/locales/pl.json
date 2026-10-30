@@ -430,7 +430,10 @@
       "preset_custom": "Własny"
     },
     "miniplayer": "Miniodtwarzacz",
-    "close_miniplayer": "Zamknij miniodtwarzacz"
+    "close_miniplayer": "Zamknij miniodtwarzacz",
+    "song": "Utwór",
+    "video": "Wideo",
+    "video_unavailable": "Wideo niedostępne"
   },
   "playlist": {
     "playlist": "Playlista",

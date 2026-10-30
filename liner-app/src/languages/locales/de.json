@@ -431,7 +431,10 @@
       "preset_custom": "Benutzerdefiniert"
     },
     "miniplayer": "Miniplayer",
-    "close_miniplayer": "Miniplayer schließen"
+    "close_miniplayer": "Miniplayer schließen",
+    "song": "Titel",
+    "video": "Video",
+    "video_unavailable": "Video nicht verfügbar"
   },
   "playlist": {
     "playlist": "Playlist",

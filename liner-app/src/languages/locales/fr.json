@@ -428,7 +428,10 @@
       "preset_custom": "Personnalisé"
     },
     "miniplayer": "Mini-lecteur",
-    "close_miniplayer": "Fermer le mini-lecteur"
+    "close_miniplayer": "Fermer le mini-lecteur",
+    "song": "Titre",
+    "video": "Vidéo",
+    "video_unavailable": "Vidéo indisponible"
   },
   "playlist": {
     "playlist": "Playlist",

@@ -428,7 +428,10 @@
       "preset_custom": "Personalizado"
     },
     "miniplayer": "Minirreproductor",
-    "close_miniplayer": "Cerrar minirreproductor"
+    "close_miniplayer": "Cerrar minirreproductor",
+    "song": "Canción",
+    "video": "Vídeo",
+    "video_unavailable": "Vídeo no disponible"
   },
   "playlist": {
     "playlist": "Lista de reproducción",

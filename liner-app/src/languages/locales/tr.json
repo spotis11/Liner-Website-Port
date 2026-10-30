@@ -426,7 +426,10 @@
       "preset_custom": "Özel"
     },
     "miniplayer": "Mini oynatıcı",
-    "close_miniplayer": "Mini oynatıcıyı kapat"
+    "close_miniplayer": "Mini oynatıcıyı kapat",
+    "song": "Şarkı",
+    "video": "Video",
+    "video_unavailable": "Video kullanılamıyor"
   },
   "playlist": {
     "playlist": "Çalma listesi",
