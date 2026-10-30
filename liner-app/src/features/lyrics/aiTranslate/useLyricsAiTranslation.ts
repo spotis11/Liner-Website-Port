@@ -30,17 +30,10 @@ import {
   translationCacheKey,
   getConfigFromState,
 } from "./aiTranslateStore";
-import { translateLines, TranslationError, providerIsReady } from "./translate";
+import { ensureTranslation } from "./ensureTranslation";
 import { startTranslationGlow } from "./translationGlow";
 import { isNoopTranslation } from "./lyricsLanguage";
 import type { AiProviderId } from "./providers";
-
-// In-flight translation requests, keyed by cache key (track::provider::lang).
-// Module scope, NOT component state: the fullscreen lyrics view remounts on
-// every track change (AnimatePresence key), and a fetch started by the old
-// instance must still be visible to the new one — otherwise the same song's
-// translation is fetched twice across the remount.
-const inflightTranslations = new Map<string, Promise<void>>();
 
 export type TranslationStatus =
   | "idle"
@@ -164,69 +157,27 @@ export function useLyricsAiTranslation(
   }, []);
 
   // ---- 1. ensure translation exists for the current track ----
-  // One pendingKey for the whole store used to make a slow fetch for the
-  // PREVIOUS track block every new track: the guard "another fetch won —
-  // leave it alone" bailed out, and when the old fetch finally resolved
-  // nothing re-triggered the new track's fetch (the store's pendingKey isn't
-  // a dependency). The user saw a song with no translation that neither
-  // toggling nor waiting fixed — only closing and reopening the fullscreen
-  // player, which remounted this hook. Now every cache key fetches on its
-  // own: a slow/hung fetch for track A never blocks track B.
+  // The fetch-and-cache flow lives in ensureTranslation.ts, shared with the
+  // root-level prefetcher that starts the same request the moment lyrics
+  // arrive — usually long before this view opens, so the Liner AI
+  // round-trip (2–5 s) is already done and the pane renders translated
+  // lines instantly. Deduping (cache → inflight map) means the foreground
+  // call here is a no-op when the prefetcher got there first.
+  //
+  // History: one pendingKey for the whole store used to make a slow fetch
+  // for the PREVIOUS track block every new track — every cache key now
+  // fetches on its own, so a slow/hung fetch for track A never blocks
+  // track B.
   useEffect(() => {
     if (!wantsTranslation || !trackId) return;
     const store = useAiTranslateStore.getState();
     const config = getConfigFromState(store);
-    const cacheKey = translationCacheKey(trackId, config.provider, config.targetLang);
-
-    if (store.cache[cacheKey]) {
-      store.setLastError(null);
-      return;
-    }
-    if (inflightTranslations.has(cacheKey)) return;
-    if (!providerIsReady(config.provider, config)) {
-      store.setLastError(
-        `${config.provider === "ollama" ? "Ollama" : "API key missing"} — open Settings → AI Translate.`,
-      );
-      return;
-    }
-
-    const sourceLines = lyrics.map((line) => String(line?.words ?? ""));
-    if (sourceLines.every((line) => !line.trim())) return;
-
-    const run = async () => {
-      const current = useAiTranslateStore.getState();
-      // presentation state for the CURRENT track — overwriting a slower
-      // fetch's key is the point, not a race to defend against
-      current.setPendingKey(cacheKey);
-      current.setLastError(null);
-      try {
-        const translated = await translateLines(sourceLines, config);
-        const after = useAiTranslateStore.getState();
-        // cache unconditionally: pendingKey may have moved on to a newer
-        // track's fetch, and dropping the result here used to throw away
-        // finished work — going back to this song paid for it again
-        after.cacheTranslation(cacheKey, translated);
-        if (after.pendingKey === cacheKey) after.setPendingKey(null);
-      } catch (error) {
-        const after = useAiTranslateStore.getState();
-        // surface the error only while THIS track is still the one being
-        // waited on — a stale failure must not light the button red on a
-        // song the user has already left
-        if (after.pendingKey === cacheKey) {
-          const message =
-            error instanceof TranslationError
-              ? error.message
-              : error instanceof Error
-                ? error.message
-                : String(error);
-          after.setLastError(message);
-          after.setPendingKey(null);
-        }
-      } finally {
-        inflightTranslations.delete(cacheKey);
-      }
-    };
-    inflightTranslations.set(cacheKey, run());
+    ensureTranslation(
+      trackId,
+      lyrics.map((line) => String(line?.words ?? "")),
+      config,
+      { reportErrors: true },
+    );
   }, [wantsTranslation, trackId, lyrics, provider, targetLang, retryToken]);
 
   // ---- 2. inject translated lines under each rendered line ----

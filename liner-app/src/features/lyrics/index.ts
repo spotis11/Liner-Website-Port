@@ -36,6 +36,8 @@ export {
   TranslationError,
   providerIsReady,
   useLyricsAiTranslation,
+  ensureTranslation,
+  useAiTranslatePrefetch,
   AiTranslateButton,
   AiTranslateSettingsTab,
   type AiProviderId,

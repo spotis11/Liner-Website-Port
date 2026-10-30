@@ -12,6 +12,7 @@ import { usePresenceSync } from "@/shared/presence";
 import { useTouchBarSync } from "@/features/touchbar";
 import { useOverlaySync } from "@/features/overlay";
 import { useDiscordSync } from "@/features/discord";
+import { useAiTranslatePrefetch } from "@/features/lyrics";
 import { AppRoutes } from "./routes";
 import DeeplinkHandler from "./DeeplinkHandler";
 import EnvironmentWarning from "./EnvironmentWarning";
@@ -54,6 +55,11 @@ function DiscordSync() {
   return null;
 }
 
+function AiTranslatePrefetch() {
+  useAiTranslatePrefetch();
+  return null;
+}
+
 export default function App() {
   useWindowDrag();
 
@@ -74,6 +80,7 @@ export default function App() {
         <TouchBarSync />
         <OverlaySync />
         <DiscordSync />
+        <AiTranslatePrefetch />
         <AppleEmojiProvider>
           <I18nProvider>
             <ToastProvider>

@@ -21,5 +21,10 @@ export {
   useLyricsAiTranslation,
   type TranslationStatus,
 } from "./useLyricsAiTranslation";
+export {
+  ensureTranslation,
+  useAiTranslatePrefetch,
+  type EnsureTranslationOptions,
+} from "./ensureTranslation";
 export { AiTranslateButton } from "./ui/AiTranslateButton";
 export { AiTranslateSettingsTab } from "./ui/AiTranslateSettingsTab";

@@ -10,6 +10,7 @@
 // Output: { lines: string[] }  — aligned 1:1 with the input.
 
 import { NextRequest } from "next/server";
+import { createHash } from "node:crypto";
 import ZAI from "z-ai-web-dev-sdk";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,30 @@ export const runtime = "nodejs";
 
 const MAX_LINES = 160;
 const MAX_LINE_CHARS = 600;
+
+// One SDK client for the process. ZAI.create() pays connection/setup cost
+// on every call; keeping the instance around turns repeat requests into a
+// single model round-trip instead of setup + round-trip.
+let zaiClient: Awaited<ReturnType<typeof ZAI.create>> | null = null;
+async function getZai() {
+  if (!zaiClient) zaiClient = await ZAI.create();
+  return zaiClient;
+}
+
+// Warm result cache. Lyric text is deterministic input — the same song in
+// the same language always maps to the same answer, so a finished
+// translation is served instantly on every later request (second device,
+// cleared browser storage, a re-render of the same song). Insertion-order
+// Map as a bounded LRU; keyed by a sha256 of lines+language so oversized
+// lyric text never bloats the map.
+const RESULT_CACHE_MAX = 200;
+const resultCache = new Map<string, string[]>();
+
+function resultCacheKey(lines: string[], targetLang: string): string {
+  return createHash("sha256")
+    .update(`${targetLang}\u0000${JSON.stringify(lines)}`)
+    .digest("hex");
+}
 
 const SYSTEM_PROMPT =
   "You are a song lyric translator. You receive a JSON array of lyric lines. " +
@@ -70,9 +95,21 @@ export async function POST(request: NextRequest) {
       ? body.targetLang.trim().slice(0, 32)
       : "en";
 
+  const cacheKey = resultCacheKey(lines, targetLang);
+  const cached = resultCache.get(cacheKey);
+  if (cached) {
+    // LRU bump: re-insert so the entry counts as freshly used
+    resultCache.delete(cacheKey);
+    resultCache.set(cacheKey, cached);
+    return Response.json(
+      { lines: cached, cached: true },
+      { headers: { "cache-control": "no-store" } },
+    );
+  }
+
   let content: string | undefined;
   try {
-    const zai = await ZAI.create();
+    const zai = await getZai();
     const completion = await zai.chat.completions.create({
       messages: [
         { role: "assistant", content: SYSTEM_PROMPT },
@@ -104,6 +141,12 @@ export async function POST(request: NextRequest) {
       ? translated.trim()
       : line;
   });
+
+  resultCache.set(cacheKey, aligned);
+  if (resultCache.size > RESULT_CACHE_MAX) {
+    const oldest = resultCache.keys().next().value;
+    if (oldest !== undefined) resultCache.delete(oldest);
+  }
 
   return Response.json({ lines: aligned }, { headers: { "cache-control": "no-store" } });
 }
