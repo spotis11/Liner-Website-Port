@@ -707,7 +707,7 @@ export default function SettingsModal() {
                 type="button"
                 onClick={() =>
                   openExternal(
-                    "https://github.com/tryliner/desktop/blob/main/README.md",
+                    "https://github.com/goodbyeworld42-ai/Liner-Website-Port/blob/main/README.md",
                   )
                 }
                 className="w-full flex items-center gap-[10px] px-[10px] py-[7px] rounded-[10px] border-0 bg-transparent text-text-secondary hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-text-primary cursor-pointer text-left transition-colors"

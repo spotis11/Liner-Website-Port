@@ -35,7 +35,7 @@ export function AboutTabLinks() {
     },
     {
       id: "github",
-      url: "https://github.com/tryliner/desktop",
+      url: "https://github.com/goodbyeworld42-ai/Liner-Website-Port",
       label: t("settings.about.github"),
       icon: <GithubFill size={17} />,
     },
