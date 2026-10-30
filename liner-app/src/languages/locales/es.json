@@ -431,7 +431,8 @@
     "close_miniplayer": "Cerrar minirreproductor",
     "song": "Canción",
     "video": "Vídeo",
-    "video_unavailable": "Vídeo no disponible"
+    "video_unavailable": "Vídeo no disponible",
+    "watch_on_youtube": "Ver en YouTube"
   },
   "playlist": {
     "playlist": "Lista de reproducción",

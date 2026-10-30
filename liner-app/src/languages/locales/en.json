@@ -437,7 +437,8 @@
     "close_miniplayer": "Close miniplayer",
     "song": "Song",
     "video": "Video",
-    "video_unavailable": "Video unavailable"
+    "video_unavailable": "Video unavailable",
+    "watch_on_youtube": "Watch on YouTube"
   },
   "playlist": {
     "playlist": "Playlist",

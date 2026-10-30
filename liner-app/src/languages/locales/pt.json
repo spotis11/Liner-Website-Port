@@ -440,7 +440,8 @@
     "close_miniplayer": "Fechar miniplayer",
     "song": "Música",
     "video": "Vídeo",
-    "video_unavailable": "Vídeo indisponível"
+    "video_unavailable": "Vídeo indisponível",
+    "watch_on_youtube": "Assistir no YouTube"
   },
   "playlist": {
     "playlist": "Playlist",

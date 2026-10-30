@@ -8,7 +8,7 @@ import { findCatalogMatch } from "@/shared/media/matching";
 import { cn } from "@/shared/lib";
 import { useTranslation } from "@/languages";
 import { usePlayerState } from "../hooks/usePlayerState";
-import { findMusicVideoVersion } from "../engine/musicVideoVersion";
+import { findMusicVideoCandidates } from "../engine/musicVideoVersion";
 import { getTrackVideoId, FullscreenVideoStage } from "./FullscreenVideoStage";
 import { VolumePicker } from "./VolumePicker";
 import { FullscreenTrackInfo } from "./FullscreenTrackInfo";
@@ -43,14 +43,15 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
   }, [canHaveVideo]);
   const showVideo = viewMode === "video" && canHaveVideo;
 
-  // Per-track resolved video id. undefined = not attempted yet, null =
-  // attempted and nothing found (cover + "unavailable" note), a string = id
-  // to embed.
+  // Per-track resolved video candidates (best first — the stage walks the
+  // list when YouTube refuses to embed one). undefined = not attempted yet,
+  // null = attempted and nothing found (cover + "unavailable" note),
+  // a list = ids to embed.
   const [resolvedVideoIds, setResolvedVideoIds] = useState<
-    Record<string, string | null>
+    Record<string, string[] | null>
   >({});
   const resolved = trackId ? resolvedVideoIds[trackId] : undefined;
-  const videoId = resolved ?? ownVideoId;
+  const videoId = resolved?.[0] ?? ownVideoId;
   const resolving = showVideo && videoId == null && resolved === undefined;
   const audioVariant = track?.audioVariant;
 
@@ -63,12 +64,13 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
       // rows are static art tracks — refine to the official music video
       // (YT Music's OMV) in the background.
       let cancelled = false;
-      findMusicVideoVersion(track, ownVideoId)
-        .then((omv) => {
+      findMusicVideoCandidates(track, ownVideoId)
+        .then((ids) => {
           if (!cancelled) {
             setResolvedVideoIds((prev) => ({
               ...prev,
-              [trackId]: omv ?? ownVideoId,
+              // nothing trustworthy matched → keep the track's own video
+              [trackId]: ids.length > 0 ? ids : [ownVideoId],
             }));
           }
         })
@@ -97,10 +99,10 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
           setResolvedVideoIds((prev) => ({ ...prev, [trackId]: null }));
           return;
         }
-        const omv = await findMusicVideoVersion(track, candidate);
+        const omvIds = await findMusicVideoCandidates(track, candidate);
         setResolvedVideoIds((prev) => ({
           ...prev,
-          [trackId]: omv ?? candidate,
+          [trackId]: omvIds.length > 0 ? omvIds : [candidate],
         }));
       } catch {
         if (!cancelled) {
@@ -173,7 +175,12 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
           )}
         >
           {showVideo && videoId ? (
-            <FullscreenVideoStage key={videoId} videoId={videoId} track={track} />
+            <FullscreenVideoStage
+              key={videoId}
+              videoId={videoId}
+              alternates={resolved?.slice(1)}
+              track={track}
+            />
           ) : (
             <AnimatePresence>
               <motion.div

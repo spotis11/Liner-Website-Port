@@ -429,7 +429,8 @@
     "close_miniplayer": "Mini oynatıcıyı kapat",
     "song": "Şarkı",
     "video": "Video",
-    "video_unavailable": "Video kullanılamıyor"
+    "video_unavailable": "Video kullanılamıyor",
+    "watch_on_youtube": "YouTube'da izle"
   },
   "playlist": {
     "playlist": "Çalma listesi",

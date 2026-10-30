@@ -434,7 +434,8 @@
     "close_miniplayer": "Miniplayer schließen",
     "song": "Titel",
     "video": "Video",
-    "video_unavailable": "Video nicht verfügbar"
+    "video_unavailable": "Video nicht verfügbar",
+    "watch_on_youtube": "Auf YouTube ansehen"
   },
   "playlist": {
     "playlist": "Playlist",

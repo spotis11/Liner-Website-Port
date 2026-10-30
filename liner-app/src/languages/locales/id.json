@@ -436,7 +436,8 @@
     "close_miniplayer": "Tutup pemutar mini",
     "song": "Lagu",
     "video": "Video",
-    "video_unavailable": "Video tidak tersedia"
+    "video_unavailable": "Video tidak tersedia",
+    "watch_on_youtube": "Tonton di YouTube"
   },
   "playlist": {
     "playlist": "Playlist",

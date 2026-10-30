@@ -431,7 +431,8 @@
     "close_miniplayer": "Закрити мініплеєр",
     "song": "Трек",
     "video": "Відео",
-    "video_unavailable": "Відео недоступне"
+    "video_unavailable": "Відео недоступне",
+    "watch_on_youtube": "Дивитися на YouTube"
   },
   "playlist": {
     "playlist": "Плейліст",

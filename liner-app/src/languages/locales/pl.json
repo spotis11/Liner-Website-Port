@@ -433,7 +433,8 @@
     "close_miniplayer": "Zamknij miniodtwarzacz",
     "song": "Utwór",
     "video": "Wideo",
-    "video_unavailable": "Wideo niedostępne"
+    "video_unavailable": "Wideo niedostępne",
+    "watch_on_youtube": "Obejrzyj na YouTube"
   },
   "playlist": {
     "playlist": "Playlista",

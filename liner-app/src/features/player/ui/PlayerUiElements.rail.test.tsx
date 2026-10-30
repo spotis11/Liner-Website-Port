@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   usePlayerState: vi.fn(),
   VideoStage: vi.fn(() => <div data-testid="video-stage" />),
-  findMusicVideoVersion: vi.fn(async (): Promise<string | null> => null),
+  findMusicVideoCandidates: vi.fn(async (): Promise<string[]> => []),
   findCatalogMatch: vi.fn(async (): Promise<unknown> => ({ status: "pending", reason: "no_catalog_candidates" })),
 }));
 
@@ -50,7 +50,7 @@ vi.mock("./FullscreenVideoStage", () => ({
 }));
 
 vi.mock("../engine/musicVideoVersion", () => ({
-  findMusicVideoVersion: mocks.findMusicVideoVersion,
+  findMusicVideoCandidates: mocks.findMusicVideoCandidates,
 }));
 
 vi.mock("@/shared/youtube", () => ({
@@ -88,8 +88,8 @@ describe("PlayerUiElements song/video rail", () => {
 
   beforeEach(() => {
     mocks.VideoStage.mockClear();
-    mocks.findMusicVideoVersion.mockClear();
-    mocks.findMusicVideoVersion.mockResolvedValue(null);
+    mocks.findMusicVideoCandidates.mockClear();
+    mocks.findMusicVideoCandidates.mockResolvedValue([]);
     mocks.findCatalogMatch.mockClear();
     mocks.findCatalogMatch.mockResolvedValue({ status: "pending", reason: "no_catalog_candidates" });
     container = document.createElement("div");
@@ -212,7 +212,7 @@ describe("PlayerUiElements song/video rail", () => {
   });
 
   it("swaps to the official music video id once resolved", async () => {
-    mocks.findMusicVideoVersion.mockResolvedValue("OMVID12345");
+    mocks.findMusicVideoCandidates.mockResolvedValue(["OMVID12345"]);
     mocks.usePlayerState.mockReturnValue({
       currentTrack: {
         id: "yt:dQw4w9WgXcQ",
@@ -237,12 +237,41 @@ describe("PlayerUiElements song/video rail", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(mocks.findMusicVideoVersion).toHaveBeenCalledWith(
+    expect(mocks.findMusicVideoCandidates).toHaveBeenCalledWith(
       expect.objectContaining({ id: "yt:dQw4w9WgXcQ" }),
       "dQw4w9WgXcQ",
     );
     expect(mocks.VideoStage).toHaveBeenLastCalledWith(
       expect.objectContaining({ videoId: "OMVID12345" }),
+      undefined,
+    );
+  });
+
+  it("hands resolved alternates to the stage for embed-error fallback", async () => {
+    mocks.findMusicVideoCandidates.mockResolvedValue(["OMVID12345", "MIRRORID01"]);
+    mocks.usePlayerState.mockReturnValue({
+      currentTrack: {
+        id: "yt:dQw4w9WgXcQ",
+        title: "Pepas",
+        artists: "Farruko",
+        coverUrl: "",
+      },
+    });
+    act(() => {
+      root.render(<PlayerUiElements />);
+    });
+    const videoButton = findButton(container, "player.video");
+    act(() => {
+      videoButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.VideoStage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        videoId: "OMVID12345",
+        alternates: ["MIRRORID01"],
+      }),
       undefined,
     );
   });

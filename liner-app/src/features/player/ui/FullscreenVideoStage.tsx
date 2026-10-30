@@ -27,6 +27,17 @@ const DRIFT_TOLERANCE_S = 1.2;
 /** Mirror polling interval — cheap, and tight enough to feel instant. */
 const SYNC_INTERVAL_MS = 250;
 
+/**
+ * Embed failures are per-video, not per-track: small channels (and some
+ * labels) disable embedding, so the best-ranked upload can be refused while
+ * an alternate mirror plays. Returns the next candidate index to try, or
+ * null when the pool is exhausted — exported for tests.
+ */
+export function nextVideoIndex(failedIndex: number, pool: string[]): number | null {
+  const next = failedIndex + 1;
+  return next < pool.length ? next : null;
+}
+
 type YTPlayer = {
   destroy: () => void;
   getPlayerState: () => string | undefined;
@@ -118,18 +129,26 @@ export function syncVideoWithAudio(player: YTPlayer, audio: HTMLAudioElement) {
 }
 
 interface FullscreenVideoStageProps {
+  /** Best-ranked music video id for the track. */
   videoId: string;
+  /**
+   * Fallback ids tried in order when YouTube refuses to embed `videoId`
+   * (onError 101/150). Same title/artist, alternate upload.
+   */
+  alternates?: string[];
   track: Track | null;
   className?: string;
 }
 
 /**
  * The muted, mirrored YouTube video. Rendered inside the same square frame
- * that otherwise holds the cover art; falls back to the cover (plus a hint)
- * when YouTube refuses embedding for this video.
+ * that otherwise holds the cover art; walks the candidate pool when YouTube
+ * refuses embedding, and falls back to the cover (plus a "watch on
+ * YouTube" link) when every candidate is refused.
  */
 export function FullscreenVideoStage({
   videoId,
+  alternates,
   track,
   className,
 }: FullscreenVideoStageProps) {
@@ -137,7 +156,22 @@ export function FullscreenVideoStage({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const [ready, setReady] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // null = playing fine, otherwise the id YouTube refused to embed
+  const [failedId, setFailedId] = useState<string | null>(null);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+
+  const pool = (() => {
+    const ids = [videoId, ...(alternates ?? [])];
+    return [...new Set(ids)];
+  })();
+  // primitives only in effect deps — the pool array is rebuilt every render
+  const poolKey = pool.join("|");
+  const currentId = pool[Math.min(candidateIndex, pool.length - 1)] ?? videoId;
+
+  // a new track (or a fresh resolution) always starts from the best candidate
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [poolKey]);
 
   // Build the player for this video; rebuild when the video changes. The
   // host div is created imperatively because YT.Player *replaces* whatever
@@ -146,9 +180,11 @@ export function FullscreenVideoStage({
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
+    const ids = poolKey.split("|");
+    const thisIndex = ids.indexOf(currentId);
     let cancelled = false;
     setReady(false);
-    setFailed(false);
+    setFailedId(null);
 
     const host = document.createElement("div");
     host.style.width = "100%";
@@ -159,7 +195,7 @@ export function FullscreenVideoStage({
       .then((YT) => {
         if (cancelled) return;
         playerRef.current = new YT.Player(host, {
-          videoId,
+          videoId: currentId,
           playerVars: {
             // the audio owns the soundtrack — the frame is a silent mirror
             mute: 1,
@@ -190,13 +226,18 @@ export function FullscreenVideoStage({
               setReady(true);
             },
             onError: () => {
-              if (!cancelled) setFailed(true);
+              if (cancelled) return;
+              // this upload can't be embedded — try the next mirror, and
+              // only give up (cover + watch link) when the pool is spent
+              const next = nextVideoIndex(thisIndex, ids);
+              if (next === null) setFailedId(currentId);
+              else setCandidateIndex(next);
             },
           },
         });
       })
       .catch(() => {
-        if (!cancelled) setFailed(true);
+        if (!cancelled) setFailedId(currentId);
       });
 
     return () => {
@@ -209,12 +250,13 @@ export function FullscreenVideoStage({
       playerRef.current = null;
       wrapper.innerHTML = "";
     };
-  }, [videoId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentId]);
 
   // Keep the mirror glued to #liner-audio: poll for play/pause/drift/rate and
   // react instantly to seeks.
   useEffect(() => {
-    if (!ready || failed) return;
+    if (!ready || failedId) return;
 
     const interval = window.setInterval(() => {
       const player = playerRef.current;
@@ -234,7 +276,7 @@ export function FullscreenVideoStage({
       window.clearInterval(interval);
       audio?.removeEventListener("seeking", onSeeking);
     };
-  }, [ready, failed, videoId]);
+  }, [ready, failedId, currentId]);
 
   const coverUrl = track?.coverUrl || "";
   return (
@@ -248,18 +290,27 @@ export function FullscreenVideoStage({
           sizes="340px"
           unoptimized
           className="rounded-xl object-cover"
-          style={{ opacity: failed ? 1 : 0, transition: "opacity 0.2s" }}
+          style={{ opacity: failedId ? 1 : 0, transition: "opacity 0.2s" }}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-white/5 text-white/40">
           <MusicNote size={64} />
         </div>
       )}
-      {failed ? (
-        <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center px-3">
+      {failedId ? (
+        <div className="absolute inset-x-0 bottom-3 z-10 flex flex-col items-center gap-[6px] px-3">
           <span className="rounded-full bg-black/60 px-3 py-1 text-[12px] font-[500] text-white/80 backdrop-blur-md">
             {t("player.video_unavailable")}
           </span>
+          <a
+            href={`https://www.youtube.com/watch?v=${failedId}`}
+            target="_blank"
+            rel="noreferrer"
+            data-no-window-drag
+            className="rounded-full bg-black/60 px-3 py-1 text-[12px] font-[500] text-white/80 backdrop-blur-md transition-colors hover:bg-white/20 hover:text-white"
+          >
+            {t("player.watch_on_youtube")}
+          </a>
         </div>
       ) : null}
       <div
@@ -267,7 +318,7 @@ export function FullscreenVideoStage({
         aria-hidden="true"
         className="absolute inset-0 overflow-hidden rounded-xl [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:border-0"
         style={{
-          opacity: ready && !failed ? 1 : 0,
+          opacity: ready && !failedId ? 1 : 0,
           pointerEvents: "none",
           transition: "opacity 0.2s",
         }}

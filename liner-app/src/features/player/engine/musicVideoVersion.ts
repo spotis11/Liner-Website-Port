@@ -25,7 +25,7 @@ import { isAbortError } from "@/shared/utils/abort";
  * caller keeps the track's own id.
  */
 
-const videoVersions = new Map<string, string | null>();
+const videoVersions = new Map<string, string[] | null>();
 
 type VideoTrack = Pick<
   Track,
@@ -150,38 +150,36 @@ function evaluate(
   return score === null ? null : { id: result.id, tier: 2, score, order };
 }
 
-function outranks(candidate: Candidate, best: Candidate): boolean {
-  if (candidate.tier !== best.tier) return candidate.tier < best.tier;
-  if (candidate.score !== best.score) return candidate.score > best.score;
-  return candidate.order < best.order;
-}
-
 export function clearMusicVideoVersions(): void {
   videoVersions.clear();
 }
 
 /**
- * Resolves the music video id for a track, or null when none is found (the
- * search outcome is cached either way). `ownVideoId` is the id we would
- * otherwise display — the track's own YouTube video.
+ * Resolves EVERY music video candidate for a track, best first — the video
+ * stage walks this list when YouTube refuses to embed one of them
+ * (onError 101/150: small channels like Havexy disable embedding, so the
+ * best-ranked upload can be unplayable while an alternate mirror works).
+ * Empty list when nothing trustworthy matched; the search outcome is cached
+ * either way. `ownVideoId` is the id we would otherwise display — the
+ * track's own YouTube video.
  */
-export async function findMusicVideoVersion(
+export async function findMusicVideoCandidates(
   track: VideoTrack,
   ownVideoId: string,
   signal?: AbortSignal,
-): Promise<string | null> {
-  if (videoVersions.has(track.id)) return videoVersions.get(track.id) ?? null;
+): Promise<string[]> {
+  if (videoVersions.has(track.id)) return videoVersions.get(track.id) ?? [];
   // the row already IS the official video — nothing to look up
-  if (track.audioVariant === "music-video") return null;
+  if (track.audioVariant === "music-video") return [];
   const artist = primaryArtist(track);
-  if (!artist || !track.title?.trim()) return null;
+  if (!artist || !track.title?.trim()) return [];
   try {
     const results = await searchRaw(
       `${track.title} ${artist.name}`,
       "video",
       signal,
     );
-    let best: Candidate | null = null;
+    const picked: Candidate[] = [];
     for (let order = 0; order < results.length; order += 1) {
       const candidate = evaluate(
         results[order]!,
@@ -190,12 +188,33 @@ export async function findMusicVideoVersion(
         ownVideoId,
         order,
       );
-      if (candidate && (!best || outranks(candidate, best))) best = candidate;
+      if (candidate) picked.push(candidate);
     }
-    videoVersions.set(track.id, best?.id ?? null);
-    return best?.id ?? null;
+    // deterministic rank: curated OMVs first, then closest duration,
+    // then original result order
+    picked.sort((a, b) => a.tier - b.tier || b.score - a.score || a.order - b.order);
+    const ids: string[] = [];
+    for (const candidate of picked) {
+      if (!ids.includes(candidate.id)) ids.push(candidate.id);
+    }
+    videoVersions.set(track.id, ids);
+    return ids;
   } catch (error) {
     if (isAbortError(error, signal)) throw error;
-    return null;
+    return [];
   }
+}
+
+/**
+ * Resolves the single best music video id for a track, or null when none is
+ * found (the search outcome is cached either way). See
+ * {@link findMusicVideoCandidates} for the ranked candidate list.
+ */
+export async function findMusicVideoVersion(
+  track: VideoTrack,
+  ownVideoId: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const ids = await findMusicVideoCandidates(track, ownVideoId, signal);
+  return ids[0] ?? null;
 }

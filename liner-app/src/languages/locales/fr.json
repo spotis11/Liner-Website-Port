@@ -431,7 +431,8 @@
     "close_miniplayer": "Fermer le mini-lecteur",
     "song": "Titre",
     "video": "Vidéo",
-    "video_unavailable": "Vidéo indisponible"
+    "video_unavailable": "Vidéo indisponible",
+    "watch_on_youtube": "Regarder sur YouTube"
   },
   "playlist": {
     "playlist": "Playlist",

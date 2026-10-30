@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getTrackVideoId,
+  nextVideoIndex,
   syncVideoWithAudio,
   type YTPlayerLike,
 } from "./FullscreenVideoStage";
@@ -10,6 +11,7 @@ import {
  *  - video id extraction from the current track
  *  - the mirror loop that glues the muted frame to #liner-audio
  *    (play/pause mirroring, drift re-seek, playback-rate mirroring)
+ *  - the embed-error candidate walk (onError 101/150 → next mirror)
  */
 
 type PlayerStub = {
@@ -55,6 +57,23 @@ describe("getTrackVideoId", () => {
     expect(getTrackVideoId({ id: "sc:123456" } as never)).toBeNull();
     expect(getTrackVideoId({ id: "liner-abc" } as never)).toBeNull();
     expect(getTrackVideoId(null)).toBeNull();
+  });
+});
+
+describe("nextVideoIndex", () => {
+  const pool = ["BESTVID001", "MIRROR002", "MIRROR003"];
+
+  it("advances to the next mirror after an embed failure", () => {
+    expect(nextVideoIndex(0, pool)).toBe(1);
+    expect(nextVideoIndex(1, pool)).toBe(2);
+  });
+
+  it("reports exhaustion when the last candidate failed", () => {
+    expect(nextVideoIndex(2, pool)).toBeNull();
+  });
+
+  it("handles a single-candidate pool", () => {
+    expect(nextVideoIndex(0, ["ONLYVID01"])).toBeNull();
   });
 });
 

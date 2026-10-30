@@ -21,6 +21,7 @@ vi.mock("@/shared/youtube", () => ({
 
 import {
   clearMusicVideoVersions,
+  findMusicVideoCandidates,
   findMusicVideoVersion,
 } from "./musicVideoVersion";
 
@@ -184,5 +185,69 @@ describe("findMusicVideoVersion", () => {
   it("returns null when the search throws", async () => {
     mocks.searchRaw.mockRejectedValue(new Error("offline"));
     expect(await findMusicVideoVersion(TRACK, "SONGID00001")).toBeNull();
+  });
+});
+
+describe("findMusicVideoCandidates", () => {
+  beforeEach(() => {
+    clearMusicVideoVersions();
+    mocks.searchRaw.mockClear();
+    mocks.searchRaw.mockResolvedValue([]);
+  });
+
+  it("returns every match ranked: curated OMVs first, then closest duration", async () => {
+    mocks.searchRaw.mockResolvedValue([
+      // appearance order vs rank order is deliberately shuffled
+      videoResult({
+        id: "UGCFARVID1",
+        title: "Pepas - Official Video",
+        audioVariant: undefined,
+        durationMs: 248_000 + 30_000, // within a minute → 0.25
+      }),
+      videoResult({ id: "OMVCLOSE01", durationMs: 249_000 }), // tier 1, 1s off
+      videoResult({
+        id: "UGCCLOSE01",
+        title: "Pepas (Official Music Video)",
+        audioVariant: undefined,
+        durationMs: 248_500, // tier 2, 0.5s off → 1
+      }),
+      videoResult({ id: "OMVFAR0001", durationMs: 248_000 + 40_000 }), // tier 1, 40s off
+    ]);
+    expect(await findMusicVideoCandidates(TRACK, "SONGID00001")).toEqual([
+      "OMVCLOSE01", // tier 1, score 1
+      "OMVFAR0001", // tier 1, score 0.25
+      "UGCCLOSE01", // tier 2, score 1
+      "UGCFARVID1", // tier 2, score 0.25
+    ]);
+  });
+
+  it("dedupes repeated ids across results", async () => {
+    mocks.searchRaw.mockResolvedValue([
+      videoResult({ id: "SAME0000001" }),
+      videoResult({ id: "SAME0000001", title: "Pepas - Official Music Video" }),
+    ]);
+    expect(await findMusicVideoCandidates(TRACK, "SONGID00001")).toEqual([
+      "SAME0000001",
+    ]);
+  });
+
+  it("caches the ranked list — the second call does not search again", async () => {
+    mocks.searchRaw.mockResolvedValue([videoResult()]);
+    const first = await findMusicVideoCandidates(TRACK, "SONGID00001");
+    const second = await findMusicVideoCandidates(TRACK, "SONGID00001");
+    expect(mocks.searchRaw).toHaveBeenCalledTimes(1);
+    expect(second).toEqual(first);
+  });
+
+  it("returns an empty list when the search throws", async () => {
+    mocks.searchRaw.mockRejectedValue(new Error("offline"));
+    expect(await findMusicVideoCandidates(TRACK, "SONGID00001")).toEqual([]);
+  });
+
+  it("returns an empty list when nothing matches", async () => {
+    mocks.searchRaw.mockResolvedValue([
+      videoResult({ id: "JUNK000001", title: "Pepas (sped up)" }),
+    ]);
+    expect(await findMusicVideoCandidates(TRACK, "SONGID00001")).toEqual([]);
   });
 });

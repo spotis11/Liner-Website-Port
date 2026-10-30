@@ -429,7 +429,8 @@
     "close_miniplayer": "Chiudi miniplayer",
     "song": "Brano",
     "video": "Video",
-    "video_unavailable": "Video non disponibile"
+    "video_unavailable": "Video non disponibile",
+    "watch_on_youtube": "Guarda su YouTube"
   },
   "playlist": {
     "playlist": "Playlist",
