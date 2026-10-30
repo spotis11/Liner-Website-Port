@@ -28,7 +28,9 @@ const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 const TOKEN_STORAGE_KEY = "liner_discord_rpc_token";
 const APP_ID_STORAGE_KEY = "liner_discord_rpc_app_id";
 const SCHEME_STORAGE_KEY = "liner_discord_rpc_auth_scheme";
-const ASSET_ID_STORAGE_KEY = "liner_discord_rpc_assets_v1";
+// v2: entries are bound to the application id they were uploaded under — v1
+// entries replayed against a recreated application rendered as "?" forever.
+const ASSET_ID_STORAGE_KEY = "liner_discord_rpc_assets_v2";
 
 // Discord REST is relayed through Liner's server (same-origin route) because
 // bot-scheme auth requires a User-Agent browsers cannot send.
@@ -56,6 +58,34 @@ const MAX_TEXT_LENGTH = 128;
 
 /** App name Discord renders as "Listening to <name>" (statusDisplayType: "app"). */
 export const DISCORD_ACTIVITY_APP_NAME = "Liner Website Port By JayJoice";
+
+/**
+ * Public https origin of this deployment. When the app is browsed over an
+ * http origin (localhost / LAN), same-origin artwork can't be absolutized to
+ * an https url locally — Discord's servers must be able to fetch it, so it is
+ * resolved against this origin instead.
+ */
+export const DISCORD_PUBLIC_ORIGIN = "https://liner-music.space-z.ai";
+
+/** Absolutizes an artwork url to an https url Discord's servers can fetch. */
+export function toDiscordFetchableUrl(
+  url: string | undefined | null,
+  pageOrigin: string,
+): string | undefined {
+  return absolutizeHttpUrl(url, pageOrigin) ?? absolutizeHttpUrl(url, DISCORD_PUBLIC_ORIGIN);
+}
+
+/**
+ * Discord's external-assets API returns the bare signed proxy path; the
+ * gateway presence needs it prefixed with `mp:` (mirrors the official
+ * client's parseImage mapping and working third-party implementations).
+ * Numeric application-asset ids and already-prefixed keys pass through.
+ */
+export function toExternalAssetKey(path: string): string {
+  const trimmed = path.trim();
+  if (!trimmed) return trimmed;
+  return /^(\d+$|mp:)/.test(trimmed) ? trimmed : `mp:${trimmed}`;
+}
 
 export type GatewayActivityAssets = {
   large_image?: string;
@@ -344,7 +374,7 @@ function storeAuthScheme(scheme: AuthScheme | null): void {
   }
 }
 
-type AssetIdCache = Record<string, { asset_id: string; at: number }>;
+type AssetIdCache = Record<string, { asset_id: string; appId?: string; at: number }>;
 
 function readAssetIdCache(): AssetIdCache {
   try {
@@ -651,16 +681,19 @@ class DiscordGatewayClient {
           typeof entry.external_asset_path === "string" &&
           entry.external_asset_path
         ) {
-          this.cacheAssetPath(entry.url, entry.external_asset_path);
-          result.set(entry.url, entry.external_asset_path);
+          // Store the send-ready key ("mp:" + signed path) — the send path
+          // replays it verbatim as large_image/small_image.
+          const finalKey = toExternalAssetKey(entry.external_asset_path);
+          this.cacheAssetPath(entry.url, finalKey);
+          result.set(entry.url, finalKey);
         }
       }
     }
     return result;
   }
 
-  private cacheAssetId(url: string, assetId: string): void {
-    this.assetIdCache[url] = { asset_id: assetId, at: Date.now() };
+  private cacheAssetId(url: string, assetId: string, appId: string): void {
+    this.assetIdCache[url] = { asset_id: assetId, appId, at: Date.now() };
     const entries = Object.entries(this.assetIdCache);
     if (entries.length > ASSET_ID_CACHE_MAX_ENTRIES) {
       entries.sort((a, b) => a[1].at - b[1].at);
@@ -689,7 +722,9 @@ class DiscordGatewayClient {
     const missing: string[] = [];
     for (const url of urls) {
       const cached = this.assetIdCache[url];
-      if (cached?.asset_id) result.set(url, cached.asset_id);
+      // Ids are bound to the application they were uploaded under — replaying
+      // one against a recreated application renders as "?" in Discord.
+      if (cached?.asset_id && cached.appId === appId) result.set(url, cached.asset_id);
       else missing.push(url);
     }
     if (!missing.length) return result;
@@ -713,7 +748,7 @@ class DiscordGatewayClient {
             if (!res.ok) return;
             const data = (await res.json()) as { asset_id?: string };
             if (data.asset_id) {
-              this.cacheAssetId(url, data.asset_id);
+              this.cacheAssetId(url, data.asset_id, appId);
               result.set(url, data.asset_id);
             }
           } catch {
@@ -795,13 +830,15 @@ class DiscordGatewayClient {
    *   application asset — Discord rejects external-assets for some
    *   accounts/applications, and without this second chance those users
    *   never saw a single cover.
+   *
+   * application_id is only sent when at least one asset key resolved: an
+   * activity that carries application_id without a resolvable asset makes
+   * Discord render the application icon (or a "?" placeholder) in the image
+   * slot instead of a clean imageless presence.
    */
   private async attachExternalAssets(activity: GatewayActivity): Promise<void> {
     const assets = activity.assets;
-    if (!assets) {
-      if (this.applicationId) activity.application_id = this.applicationId;
-      return;
-    }
+    if (!assets) return;
 
     const rawUrls: string[] = [];
     if (assets.large_image?.startsWith("mp:")) rawUrls.push(assets.large_image.slice(3));
@@ -839,10 +876,14 @@ class DiscordGatewayClient {
       const key = resolved.get(assets.small_image.slice(3));
       if (key) next.small_image = key;
     }
-    if (next.large_image || next.small_image) activity.assets = next;
-    else delete activity.assets;
-
-    if (this.applicationId) activity.application_id = this.applicationId;
+    if (next.large_image || next.small_image) {
+      activity.assets = next;
+      // Assets only render against their owning application.
+      if (this.applicationId) activity.application_id = this.applicationId;
+    } else {
+      delete activity.assets;
+      delete activity.application_id;
+    }
   }
 
   private setStatus(next: DiscordGatewayStatus): void {

@@ -5,7 +5,7 @@ import { api, mediaUrl, toMaxQualityAvatarUrl } from "@/shared/api";
 import { getAuthSession } from "@/shared/api/auth-session";
 import type { DiscordRpcSettings, DiscordRpcStatePayload } from "../contracts";
 import { useDiscordSettingsStore } from "../store/discordSettingsStore";
-import { absolutizeHttpUrl, discordGateway } from "../lib/discordGateway";
+import { discordGateway, toDiscordFetchableUrl } from "../lib/discordGateway";
 
 const artistAvatarCache = new Map<string, string | null>();
 const pendingArtistAvatars = new Map<string, Promise<string | null>>();
@@ -154,9 +154,11 @@ export function useDiscordSync() {
   useEffect(() => {
     const trackId = currentTrack?.id ?? null;
     const rawCoverUrl = effectiveCover || currentTrack?.coverUrl;
+    // Discord's servers fetch this url — it must be absolute https, even when
+    // the app itself is browsed over http (falls back to the public origin).
     const coverUrl =
       rawCoverUrl && !window.linerElectron
-        ? (absolutizeHttpUrl(rawCoverUrl, window.location.origin) ?? rawCoverUrl)
+        ? (toDiscordFetchableUrl(rawCoverUrl, window.location.origin) ?? rawCoverUrl)
         : rawCoverUrl;
     const prev = lastStateRef.current;
     const now = Date.now();
@@ -221,7 +223,7 @@ export function useDiscordSync() {
       durationMs: player.durationMs || currentTrack?.durationMs || 0,
       artistImageUrl:
         artistAvatar && !window.linerElectron
-          ? (absolutizeHttpUrl(artistAvatar, window.location.origin) ?? artistAvatar)
+          ? (toDiscordFetchableUrl(artistAvatar, window.location.origin) ?? artistAvatar)
           : artistAvatar,
     };
 

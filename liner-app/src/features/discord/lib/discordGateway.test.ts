@@ -4,7 +4,10 @@ import {
   toDiscordImageUrl,
   toDirectAssetKey,
   absolutizeHttpUrl,
+  toDiscordFetchableUrl,
+  toExternalAssetKey,
   activityFingerprint,
+  DISCORD_PUBLIC_ORIGIN,
 } from "./discordGateway";
 import { DEFAULT_DISCORD_SETTINGS } from "../contracts";
 import type { DiscordRpcStatePayload } from "../contracts";
@@ -241,5 +244,42 @@ describe("toDirectAssetKey", () => {
     expect(toDirectAssetKey("https://i.ytimg.com/vi/x/hqdefault.jpg")).toBeUndefined();
     expect(toDirectAssetKey("blob:https://app/x")).toBeUndefined();
     expect(toDirectAssetKey("not a url")).toBeUndefined();
+  });
+});
+
+describe("toExternalAssetKey", () => {
+  it("prefixes the bare signed path from the external-assets API with mp:", () => {
+    expect(toExternalAssetKey("external/us-east-1/AbCdEf/GhIjKl")).toBe(
+      "mp:external/us-east-1/AbCdEf/GhIjKl",
+    );
+    expect(toExternalAssetKey("  external/x  ")).toBe("mp:external/x");
+  });
+
+  it("passes through already-prefixed and numeric application-asset ids", () => {
+    expect(toExternalAssetKey("mp:external/already")).toBe("mp:external/already");
+    expect(toExternalAssetKey("123456789012345678")).toBe("123456789012345678");
+    expect(toExternalAssetKey("")).toBe("");
+  });
+});
+
+describe("toDiscordFetchableUrl", () => {
+  it("resolves same-origin paths on https pages", () => {
+    expect(toDiscordFetchableUrl("/api/media?u=x", "https://app.example.com")).toBe(
+      "https://app.example.com/api/media?u=x",
+    );
+  });
+
+  it("falls back to the public origin when the page itself is http", () => {
+    expect(toDiscordFetchableUrl("/covers/a.jpg", "http://localhost:3000")).toBe(
+      `${DISCORD_PUBLIC_ORIGIN}/covers/a.jpg`,
+    );
+  });
+
+  it("passes absolute https urls through and rejects http ones", () => {
+    expect(toDiscordFetchableUrl("https://i.ytimg.com/a.jpg", "http://localhost:3000")).toBe(
+      "https://i.ytimg.com/a.jpg",
+    );
+    expect(toDiscordFetchableUrl("http://i.ytimg.com/a.jpg", "https://app.example.com")).toBeUndefined();
+    expect(toDiscordFetchableUrl(undefined, "https://app.example.com")).toBeUndefined();
   });
 });
