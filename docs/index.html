@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Liner Web — the browser port of Liner</title>
+<meta name="description" content="Liner Web is a port of the Liner music player: syllable-synced lyrics, reactive visuals and full streaming playback, running entirely in your browser." />
+<meta property="og:title" content="Liner Web — the browser port of Liner" />
+<meta property="og:description" content="Syllable-synced lyrics, reactive visuals and full streaming playback, running entirely in your browser." />
+<meta property="og:image" content="screenshots/01-album.png" />
+<meta property="og:type" content="website" />
+<link rel="icon" href="logo.svg" type="image/svg+xml" />
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --panel: rgba(255, 255, 255, 0.045);
+    --panel-line: rgba(255, 255, 255, 0.09);
+    --text: #f2f2f5;
+    --muted: #9d9daa;
+    --dim: #6f6f7d;
+    --violet: #7a4dff;
+    --cyan: #2ec4b6;
+    --mint: #3ddc97;
+    --radius: 18px;
+    --max: 1140px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI Variable Display", "Segoe UI", -apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ambient glow */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -20% -10% auto -10%;
+    height: 720px;
+    background:
+      radial-gradient(46% 60% at 22% 18%, rgba(122, 77, 255, 0.30), transparent 70%),
+      radial-gradient(40% 55% at 78% 8%, rgba(46, 196, 182, 0.20), transparent 72%);
+    filter: blur(12px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { width: min(var(--max), calc(100% - 48px)); margin-inline: auto; position: relative; z-index: 1; }
+
+  /* ---------- header ---------- */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    background: rgba(10, 10, 12, 0.62);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .bar { display: flex; align-items: center; gap: 14px; height: 68px; }
+
+  .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--text); font-weight: 650; letter-spacing: -0.01em; }
+  .brand img { width: 30px; height: 30px; border-radius: 9px; display: block; }
+
+  nav.links { display: flex; gap: 4px; margin-left: 18px; }
+  nav.links a {
+    color: var(--muted); text-decoration: none; font-size: 14px; padding: 8px 12px;
+    border-radius: 10px; transition: color .18s, background .18s;
+  }
+  nav.links a:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+
+  .spacer { flex: 1; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px; justify-content: center;
+    font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap;
+    padding: 10px 16px; border-radius: 12px; border: 1px solid var(--panel-line);
+    color: var(--text); background: var(--panel);
+    transition: transform .18s, background .18s, border-color .18s;
+  }
+  .btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.18); }
+
+  .btn.primary {
+    border: none;
+    background: linear-gradient(120deg, var(--violet), #4d71ff 55%, var(--cyan));
+    color: #fff;
+    box-shadow: 0 12px 34px -14px rgba(122, 77, 255, 0.9);
+  }
+  .btn.primary:hover { box-shadow: 0 16px 40px -14px rgba(122, 77, 255, 1); }
+
+  .btn svg { width: 16px; height: 16px; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 88px 0 26px; text-align: center; }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase;
+    color: #c8c6ff; background: rgba(122, 77, 255, 0.13);
+    border: 1px solid rgba(122, 77, 255, 0.32);
+    padding: 7px 14px; border-radius: 999px; font-weight: 600;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 10px var(--mint); }
+
+  h1 {
+    font-size: clamp(38px, 6.2vw, 74px);
+    line-height: 1.03;
+    letter-spacing: -0.035em;
+    font-weight: 700;
+    margin: 26px 0 0;
+  }
+
+  h1 .grad {
+    background: linear-gradient(105deg, #fff 12%, #b7a8ff 46%, var(--cyan) 92%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+
+  .lede {
+    max-width: 660px; margin: 22px auto 0;
+    font-size: clamp(16px, 1.55vw, 18.5px);
+    color: var(--muted);
+  }
+
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+  .cta .btn { padding: 13px 22px; font-size: 15px; }
+
+  /* ---------- browser mock ---------- */
+  .shot {
+    margin: 56px 0 0;
+    border-radius: 22px;
+    border: 1px solid var(--panel-line);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px;
+    box-shadow: 0 60px 120px -50px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  }
+
+  .chrome {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px 12px;
+  }
+  .chrome i { width: 10px; height: 10px; border-radius: 50%; background: #2c2c33; display: block; }
+  .chrome i:nth-child(1) { background: #ff5f57; }
+  .chrome i:nth-child(2) { background: #febc2e; }
+  .chrome i:nth-child(3) { background: #28c840; }
+
+  .url {
+    margin-left: 10px; flex: 1; max-width: 430px;
+    font-size: 12px; color: var(--dim);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px; padding: 5px 12px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-align: left;
+  }
+
+  .shot img { width: 100%; display: block; border-radius: 13px; }
+
+  /* ---------- chips ---------- */
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 34px; }
+  .chip {
+    font-size: 13px; color: var(--muted);
+    border: 1px solid var(--panel-line); background: var(--panel);
+    padding: 8px 15px; border-radius: 999px;
+  }
+  .chip b { color: var(--text); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+  section { padding: 84px 0; }
+
+  .kicker { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--cyan); font-weight: 700; }
+
+  h2 {
+    font-size: clamp(26px, 3.4vw, 40px);
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin: 14px 0 0;
+    font-weight: 680;
+  }
+
+  .sub { color: var(--muted); max-width: 640px; margin-top: 14px; font-size: 16px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
+
+  .card {
+    border: 1px solid var(--panel-line);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+    border-radius: var(--radius);
+    padding: 26px 24px;
+    transition: transform .22s, border-color .22s, background .22s;
+  }
+  .card:hover { transform: translateY(-4px); border-color: rgba(255, 255, 255, 0.2); }
+
+  .card .icon {
+    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+    background: rgba(122, 77, 255, 0.16);
+    border: 1px solid rgba(122, 77, 255, 0.3);
+    margin-bottom: 18px;
+  }
+  .card .icon svg { width: 20px; height: 20px; stroke: #b9a8ff; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+  .card h3 { margin: 0 0 8px; font-size: 17px; font-weight: 640; letter-spacing: -0.01em; }
+  .card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+  .card code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 12.5px; color: #cfc6ff;
+    background: rgba(122, 77, 255, 0.14);
+    border: 1px solid rgba(122, 77, 255, 0.22);
+    padding: 1px 6px; border-radius: 6px;
+  }
+
+  /* ---------- feature list ---------- */
+  .features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 34px; margin-top: 44px; }
+  .feat { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+  .feat:last-child, .feat:nth-last-child(2) { border-bottom: none; }
+  .feat .tick {
+    flex: none; width: 22px; height: 22px; border-radius: 50%; margin-top: 2px;
+    display: grid; place-items: center;
+    background: rgba(61, 220, 151, 0.14); border: 1px solid rgba(61, 220, 151, 0.34);
+    color: var(--mint); font-size: 12px; font-weight: 700;
+  }
+  .feat h3 { margin: 0 0 3px; font-size: 15.5px; font-weight: 620; }
+  .feat p { margin: 0; font-size: 14px; color: var(--muted); }
+
+  /* ---------- preview ---------- */
+  .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 44px; }
+  .gallery figure { margin: 0; }
+  .gallery .shot { margin: 0; padding: 8px; border-radius: 18px; }
+  .gallery img { border-radius: 11px; }
+  .gallery figcaption { margin-top: 14px; font-size: 14px; color: var(--dim); }
+  .gallery figcaption b { display: block; color: var(--text); font-weight: 620; font-size: 15px; margin-bottom: 3px; }
+
+  /* ---------- disclaimer ---------- */
+  .note {
+    margin-top: 40px;
+    border: 1px solid rgba(255, 190, 90, 0.28);
+    background: rgba(255, 190, 90, 0.07);
+    border-radius: 14px;
+    padding: 18px 20px;
+    font-size: 14px;
+    color: #e9d3ae;
+  }
+  .note b { color: #ffd79a; }
+
+  /* ---------- footer ---------- */
+  footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    padding: 44px 0 60px;
+    margin-top: 40px;
+  }
+  .foot { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: space-between; }
+  .foot p { margin: 0; font-size: 13.5px; color: var(--dim); }
+  .foot a { color: var(--muted); text-decoration: none; }
+  .foot a:hover { color: var(--text); text-decoration: underline; }
+  .foot nav { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13.5px; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 900px) {
+    .cards { grid-template-columns: 1fr; }
+    .features { grid-template-columns: 1fr; }
+    .feat:nth-last-child(2) { border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+    .gallery { grid-template-columns: 1fr; }
+    nav.links { display: none; }
+    .hero { padding-top: 62px; }
+    section { padding: 62px 0; }
+  }
+
+  @media (max-width: 560px) {
+    .wrap { width: calc(100% - 32px); }
+    .bar { height: 62px; }
+    .btn span.hide-sm { display: none; }
+    .cta { flex-direction: column; }
+    .cta .btn { width: 100%; }
+    .url { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="#top">
+      <img src="logo.svg" alt="" />
+      Liner Web
+    </a>
+    <nav class="links">
+      <a href="#port">The port</a>
+      <a href="#features">Features</a>
+      <a href="#preview">Preview</a>
+    </nav>
+    <div class="spacer"></div>
+    <a class="btn" href="https://github.com/goodbyeworld42-ai/Liner-Website-Port" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      GitHub
+    </a>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- hero -->
+  <div class="wrap hero">
+    <span class="eyebrow"><span class="dot"></span> Unofficial browser port · v0.2.10</span>
+
+    <h1>Liner,<br /><span class="grad">running in your browser.</span></h1>
+
+    <p class="lede">
+      The same player — every screen, animation and audio engine — rebuilt for the web.
+      Syllable-synced lyrics, reactive visuals and full streaming playback, with nothing to install.
+    </p>
+
+    <div class="cta">
+      <a class="btn primary" href="https://liner-music.space-z.ai/#/" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        Open the live port
+      </a>
+      <a class="btn" href="https://github.com/goodbyeworld42-ai/Liner-Website-Port" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
+        View source
+      </a>
+    </div>
+
+    <figure class="shot">
+      <div class="chrome">
+        <i></i><i></i><i></i>
+        <div class="url">liner-music.space-z.ai/#/album/sweet-boy</div>
+      </div>
+      <img src="screenshots/01-album.png" alt="Liner Web album view: Sweet Boy by Malcolm Todd, track list on the left, blurred artwork behind, player bar at the bottom" />
+    </figure>
+
+    <div class="chips">
+      <span class="chip"><b>React 19</b> renderer</span>
+      <span class="chip"><b>Vite</b> build</span>
+      <span class="chip"><b>Next.js</b> shell &amp; relays</span>
+      <span class="chip"><b>IndexedDB</b> storage</span>
+      <span class="chip"><b>Web Audio</b> engine</span>
+    </div>
+  </div>
+
+  <!-- port not client -->
+  <section id="port">
+    <div class="wrap">
+      <span class="kicker">A port, not a client</span>
+      <h2>No Electron. No installer. No wrapper.</h2>
+      <p class="sub">
+        There is no desktop binary behind this and no webview pointed at one. The renderer was rebuilt for the
+        browser, and every part of the desktop layer was replaced with a web-native equivalent.
+      </p>
+
+      <div class="cards">
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M7 6h.01M10 6h.01"/></svg></div>
+          <h3>Electron → browser</h3>
+          <p>Main-process windows and IPC are gone. A thin Next.js shell serves the bundle and hosts the API relays.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></div>
+          <h3>Filesystem → IndexedDB</h3>
+          <p>Likes, playlists, history and cached covers live in <code>linerDb</code>, on your device, in the browser.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M2 14h4v6H4a2 2 0 0 1-2-2v-4zM18 14h4v4a2 2 0 0 1-2 2h-2v-6z"/></svg></div>
+          <h3>IPC → API relays</h3>
+          <p>Playback, presence and translation run through <code>/api/*</code> routes instead of native handlers.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- features -->
+  <section id="features">
+    <div class="wrap">
+      <span class="kicker">What it does</span>
+      <h2>Everything the desktop app does.</h2>
+
+      <div class="features">
+        <div class="feat">
+          <div class="tick">✓</div>
+          <div>
+            <h3>Full streaming player</h3>
+            <p>Search, albums, artists, playlists, mixes, queue and library.</p>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="tick">✓</div>
+          <div>
+            <h3>Syllable-synced lyrics</h3>
+            <p>Word-level timing, AI translation and a fullscreen reactive background.</p>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="tick">✓</div>
+          <div>
+            <h3>Mini player &amp; overlay</h3>
+            <p>A compact always-visible bar with full transport controls.</p>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="tick">✓</div>
+          <div>
+            <h3>Discord Rich Presence</h3>
+            <p>Broadcasts what you're playing straight from the browser, cover art included.</p>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="tick">✓</div>
+          <div>
+            <h3>Equalizer, speed &amp; pitch</h3>
+            <p>The desktop audio engines, running on the Web Audio API.</p>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="tick">✓</div>
+          <div>
+            <h3>12 languages</h3>
+            <p>The same translation set as the desktop app, browser-native.</p>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="tick">✓</div>
+          <div>
+            <h3>Local-first storage</h3>
+            <p>Your library stays on your device. Clear it any time from settings.</p>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="tick">✓</div>
+          <div>
+            <h3>Keyboard shortcuts</h3>
+            <p>The full desktop shortcut set, remapped for the browser.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- preview -->
+  <section id="preview">
+    <div class="wrap">
+      <span class="kicker">Preview</span>
+      <h2>Library and lyrics.</h2>
+
+      <div class="gallery">
+        <figure>
+          <div class="shot">
+            <img src="screenshots/02-library.png" alt="Liner Web library view with liked songs, playlists, artists and auto-generated mixes" loading="lazy" />
+          </div>
+          <figcaption><b>Library</b> Likes, playlists, saved albums and artists, plus daily mixes.</figcaption>
+        </figure>
+        <figure>
+          <div class="shot">
+            <img src="screenshots/03-lyrics.png" alt="Liner Web fullscreen lyrics view with word-level highlighting" loading="lazy" />
+          </div>
+          <figcaption><b>Lyrics</b> Word-by-word highlighting with AI translation and a reactive background.</figcaption>
+        </figure>
+      </div>
+
+      <div class="note">
+        <b>Unofficial port.</b> Liner Web is a community-made port of the
+        <a href="https://github.com/tryliner/desktop" target="_blank" rel="noopener" style="color:#ffd79a">Liner desktop app</a>
+        and is not affiliated with, endorsed by, or supported by the Liner team. It is distributed under the
+        same source-available, non-commercial license as upstream — personal use and builds are fine, public
+        competing forks are not.
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <p>Liner Web · an unofficial browser port · source-available, non-commercial</p>
+    <nav>
+      <a href="https://liner-music.space-z.ai/#/" target="_blank" rel="noopener">Live demo</a>
+      <a href="https://github.com/goodbyeworld42-ai/Liner-Website-Port" target="_blank" rel="noopener">Source</a>
+      <a href="https://github.com/tryliner/desktop" target="_blank" rel="noopener">Upstream</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
