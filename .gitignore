@@ -78,3 +78,6 @@ server.log
 # local SMTP catcher captures (test artifacts)
 scripts/email-captures/
 .env
+
+# local git credential store (PAT) — never commit
+.git-credentials
