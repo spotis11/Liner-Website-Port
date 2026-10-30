@@ -1,1 +1,0 @@
-import{i as e,o as t}from"./index-77W-YyiR.js";import{a as n,tn as r}from"./cacheManager-Dp3zwFnH.js";function i(){return typeof window>`u`?()=>{}:window.linerElectron?.onBundleStamp?.(e=>t(`gray`,`bundle`,e))??(()=>{})}function a(){e(),n(),r(),i()}export{a as initMainWindowServices};
