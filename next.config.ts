@@ -10,6 +10,28 @@ const nextConfig: NextConfig = {
   // into the standalone output — keep it a runtime require (the build script
   // copies it into .next/standalone/node_modules explicitly)
   serverExternalPackages: ["undici", "z-ai-web-dev-sdk", "nodemailer"],
+  // The tracer pulls the whole workspace (skills/ design templates, scripts/,
+  // docs/, multi-platform sharp binaries, typescript) into every route's
+  // standalone trace — the deploy tarball hit 127MB and blows past the FC
+  // ~100MB upload limit. None of these are needed at runtime.
+  outputFileTracingExcludes: {
+    "*": [
+      "./skills/**/*",
+      "./scripts/**/*",
+      "./docs/**/*",
+      "./download/**/*",
+      "./upload/**/*",
+      "./mini-services/**/*",
+      "./discord-bot/**/*",
+      "./liner-ref/**/*",
+      "./db/*.json",
+      "./node_modules/typescript/**/*",
+      "./node_modules/@img/sharp-linuxmusl-*",
+      "./node_modules/@img/sharp-linux-arm*",
+      "./node_modules/@img/libvips-linuxmusl-*",
+      "./node_modules/@img/libvips-linux-arm*",
+    ],
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
