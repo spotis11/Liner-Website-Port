@@ -1,4 +1,4 @@
-# Liner Web
+# Liner Website Port
 
 **The website port of Liner — the modern music streaming player with syllable-synced lyrics and reactive dynamic visuals, running entirely in your browser.**
 
@@ -205,6 +205,23 @@ This port follows the upstream project. Bug fixes, small features, translations 
 - The [Liner](https://github.com/tryliner/desktop) team — the app this port is built from.
 
 ---
+## who is JayJoice?
+
+JayJoice is a 15 year old boy who codes, port things, loves music and etc.
+as he learns haxe, python, lua, typescript, javascript and much all. (coding isnt easy btw)
+He is a FNF Modder and loves porting psych engine mods into v slice (base game)
+
+**How did Liner inspired him to make a website port?**
+
+People must need what they need, thats why JayJoice exist to fulfill people's request/dream
+they make a suggestion in the liner discord (discord.gg/liner) he added those. things get boring? dm him on discord. tell him what you want to be added in liner website port, he adds them. 
+
+**How do i add him/contact him?**
+Below is his contact info:
+Discord: cryptojay.eth, thearchyexpunged
+Gamebanana: https://gamebanana.com/members/4869559
+Gmail: seekfromohio@gmail.com
+
 
 ## License
 
