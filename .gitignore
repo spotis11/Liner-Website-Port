@@ -77,3 +77,4 @@ server.log
 
 # local SMTP catcher captures (test artifacts)
 scripts/email-captures/
+.env
