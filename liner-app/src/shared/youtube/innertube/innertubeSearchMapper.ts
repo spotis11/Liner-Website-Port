@@ -10,6 +10,7 @@ import {
 import { mapCardShelf } from "./innertubeCardMapper";
 import { coverFromThumbnail } from "./innertubeThumbnail";
 import { mapInnertubeTrack } from "./innertubeTrackMapper";
+import { audioVariantOf } from "./innertubeAudioVariant";
 
 interface ListRow {
   renderer: JsonRecord;
@@ -95,7 +96,16 @@ export function mapInnertubeSearchResult(raw: unknown): SearchResult | null {
   const card = mapCardShelf(raw);
   if (card) return card;
   const track = mapInnertubeTrack(raw);
-  if (track) return { type: "track", ...track };
+  if (track) {
+    // search rows carry the same music-video / greyed-out markers as
+    // album & playlist rows — surface them for consumers like the
+    // official-music-video resolver
+    const audioVariant = audioVariantOf(raw);
+    return {
+      type: "track",
+      ...(audioVariant ? { ...track, audioVariant } : track),
+    };
+  }
   const row = readListRow(raw);
   return row ? mapListRow(row) : null;
 }

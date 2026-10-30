@@ -144,6 +144,56 @@ describe("innertube search mapper", () => {
     });
   });
 
+  it("marks official music video rows with the music-video audio variant", () => {
+    const omvRow = {
+      musicResponsiveListItemRenderer: {
+        playlistItemData: { videoId: "y8trd3gjJt0" },
+        flexColumns: [
+          {
+            musicResponsiveListItemFlexColumnRenderer: {
+              text: {
+                runs: [
+                  {
+                    text: "Pepas",
+                    navigationEndpoint: {
+                      watchEndpoint: {
+                        videoId: "y8trd3gjJt0",
+                        watchEndpointMusicSupportedConfigs: {
+                          watchEndpointMusicConfig: {
+                            musicVideoType: "MUSIC_VIDEO_TYPE_OMV",
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+          {
+            musicResponsiveListItemFlexColumnRenderer: {
+              text: {
+                runs: [
+                  {
+                    text: "Farruko",
+                    navigationEndpoint: artistEndpoint("UCartist1"),
+                  },
+                  { text: " • " },
+                  { text: "4:22" },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    };
+    expect(mapInnertubeSearchResult(omvRow)).toMatchObject({
+      type: "track",
+      id: "y8trd3gjJt0",
+      audioVariant: "music-video",
+    });
+  });
+
   it("maps an artist row from a browse endpoint", () => {
     const result = mapInnertubeSearchResult({
       musicResponsiveListItemRenderer: {
