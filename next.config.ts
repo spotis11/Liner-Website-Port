@@ -5,8 +5,11 @@ const nextConfig: NextConfig = {
   compress: false,
   // keep undici external so instrumentation.ts wires the raised
   // response-header cap into the real Node global fetch; the z-ai SDK stays
-  // external so its runtime config lookup (/etc/.z-ai-config) is untouched
-  serverExternalPackages: ["undici", "z-ai-web-dev-sdk"],
+  // external so its runtime config lookup (/etc/.z-ai-config) is untouched;
+  // nodemailer is dynamically imported by the mailer and NOT reliably traced
+  // into the standalone output — keep it a runtime require (the build script
+  // copies it into .next/standalone/node_modules explicitly)
+  serverExternalPackages: ["undici", "z-ai-web-dev-sdk", "nodemailer"],
   typescript: {
     ignoreBuildErrors: true,
   },

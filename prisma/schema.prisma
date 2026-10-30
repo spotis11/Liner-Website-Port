@@ -144,3 +144,23 @@ model SystemKey {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// Transactional email audit + dedupe for the no-reply mailer. One row per
+// delivery attempt; the (type, refKey) unique pair is the dedupe contract:
+//  - welcome → refKey = username (an account is welcomed exactly once, ever)
+//  - banned  → refKey = ban row id (every NEW ban row emails again, but a
+//    retried / re-upserted ban of the same row never double-sends)
+model EmailLog {
+  id        String   @id @default(cuid())
+  type      String
+  username  String
+  email     String
+  refKey    String
+  provider  String?
+  status    String
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@unique([type, refKey])
+  @@index([createdAt])
+}

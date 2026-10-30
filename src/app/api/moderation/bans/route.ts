@@ -79,6 +79,9 @@ export async function POST(req: NextRequest) {
     durationHours,
     reason,
     createdBy: auth.username,
+    // powers the live upstream email lookup when the ban mail has no cached
+    // address (the notification is fire-and-forget and never blocks this)
+    ownerAccessToken: accessToken,
   });
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });

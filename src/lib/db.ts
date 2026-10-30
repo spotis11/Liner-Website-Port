@@ -158,6 +158,19 @@ const SCHEMA_DDL: string[] = [
   "lastSeenAt" DATETIME NOT NULL
 )`,
   `CREATE INDEX IF NOT EXISTS "UserSeen_lastSeenAt_idx" ON "UserSeen"("lastSeenAt")`,
+  `CREATE TABLE IF NOT EXISTS "EmailLog" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "type" TEXT NOT NULL,
+  "username" TEXT NOT NULL,
+  "email" TEXT NOT NULL,
+  "refKey" TEXT NOT NULL,
+  "provider" TEXT,
+  "status" TEXT NOT NULL,
+  "error" TEXT,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "EmailLog_type_refKey_key" ON "EmailLog"("type", "refKey")`,
+  `CREATE INDEX IF NOT EXISTS "EmailLog_createdAt_idx" ON "EmailLog"("createdAt")`,
 ]
 
 // Column additions for pre-existing tables: SQLite has no ADD COLUMN IF NOT

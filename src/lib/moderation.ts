@@ -4,6 +4,8 @@ import {
   fetchLinerMeVerified,
   verifyAnnouncementAdmin,
 } from "@/lib/announcements";
+import { deliverBannedEmail, deliverWelcomeEmail } from "@/lib/mailer";
+import { resolveUpstreamUser } from "@/lib/linerUsers";
 
 /**
  * Website-port moderation (ban) system.
@@ -142,6 +144,11 @@ export async function verifyLinerTokenFull(
  * Persist what a verified account's own session proves about it (User Finder
  * cache). Only called with a token-verified identity — unverified claims are
  * never stored. Best effort: any failure must not break the ban probe.
+ *
+ * First verified sighting = the account has just been created on this
+ * website's books: if the account's own /v1/me payload volunteers an email
+ * address, the Liner System welcome mail goes out (once, ever — EmailLog
+ * dedupes). Every failure here is swallowed; the probe must never break.
  */
 export async function recordUserSeen(
   identity: LinerIdentity,
@@ -193,6 +200,13 @@ export async function recordUserSeen(
         }
       })(),
     };
+    // Detect the first-ever sighting BEFORE the upsert — Prisma's upsert
+    // does not report whether it created. Cheap indexed read, probe context.
+    const existedBefore = await db.userSeen.findUnique({
+      where: { username: data.username },
+      select: { username: true },
+    });
+
     await db.userSeen.upsert({
       where: { username: data.username },
       // lastSeenAt always moves; profile fields only fill in (never blank out)
@@ -207,8 +221,71 @@ export async function recordUserSeen(
         raw: data.raw ?? undefined,
       },
     });
+
+    // Account creation moment on this website: first verified sighting.
+    // Fire-and-forget — a mailer hiccup must never fail the ban probe.
+    if (!existedBefore && data.email && identity.username !== MODERATION_ADMIN_USERNAME) {
+      void deliverWelcomeEmail({
+        username: data.username,
+        displayName: data.displayName,
+        email: data.email,
+        accountCreatedAt: data.accountCreatedAt ?? new Date(),
+      }).catch(() => {});
+    }
   } catch (err) {
     console.warn("[moderation] user-seen cache failed:", err);
+  }
+}
+
+/**
+ * Best-effort ban notification: email the banned account the reason + date
+ * + the owner's appeal contact. The address comes from the site's user cache
+ * (what the account's own session proved about it) and — when the cache has
+ * nothing — a live upstream directory lookup using the site owner's token
+ * (covers accounts that were banned without ever probing this website).
+ * No address anywhere → nothing is sent. Never throws: a mailer failure
+ * must not fail the ban mutation itself.
+ */
+async function notifyBanByEmail(input: {
+  username: string;
+  reason: string | null;
+  createdAt: Date;
+  expiresAt: Date | null;
+  banId: string;
+  ownerAccessToken?: string;
+}): Promise<void> {
+  try {
+    const cached = await db.userSeen.findUnique({
+      where: { username: input.username },
+      select: { email: true, displayName: true },
+    });
+    let email = cached?.email ?? null;
+    let displayName = cached?.displayName ?? null;
+    if (!email && input.ownerAccessToken) {
+      const upstream = await resolveUpstreamUser(
+        input.username,
+        input.ownerAccessToken,
+      );
+      email = upstream?.email ?? null;
+      displayName = upstream?.displayName ?? displayName;
+    }
+    if (!email) {
+      console.log(
+        `[moderation] no email known for banned account ${input.username} — ban mail skipped`,
+      );
+      return;
+    }
+    await deliverBannedEmail({
+      username: input.username,
+      displayName,
+      reason: input.reason,
+      bannedAt: input.createdAt,
+      expiresAt: input.expiresAt,
+      email,
+      banId: input.banId,
+    });
+  } catch (err) {
+    console.warn("[moderation] ban notification failed:", err);
   }
 }
 
@@ -304,6 +381,8 @@ export async function addBan(input: {
   durationHours: number | null;
   reason: string | null;
   createdBy: string;
+  /** Site owner's token — powers the live upstream email lookup fallback. */
+  ownerAccessToken?: string;
 }): Promise<AddBanResult> {
   const username = normalizeUsername(input.username);
   if (!username) return { ok: false, error: "invalid_username" };
@@ -360,6 +439,15 @@ export async function addBan(input: {
   // Keep the on-disk mirror in sync so a lost/reset db file can never erase
   // the owner's ban list (fire-and-forget — never fail the mutation).
   void refreshBansMirror().catch(() => {});
+  // Notify the banned account (fire-and-forget — never fail the mutation).
+  void notifyBanByEmail({
+    username,
+    reason: row.reason,
+    createdAt: row.createdAt,
+    expiresAt: row.expiresAt,
+    banId: row.id,
+    ownerAccessToken: input.ownerAccessToken,
+  }).catch(() => {});
   return { ok: true, ban: serializeBan(row, frozenIps) };
 }
 
