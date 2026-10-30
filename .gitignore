@@ -68,7 +68,11 @@ server.log
 /discord-bot/bot_data.json
 /discord-bot/bot_status.json
 /download/
-/.zscripts/
+# platform pipeline scripts — committed for durability (survive env rebuilds);
+# only runtime artifacts inside are ignored
+/.zscripts/dev.pid
+/.zscripts/*.log
+/.zscripts-backup*
 /mini-services/
 /discord-bot/
 /tool-results/
