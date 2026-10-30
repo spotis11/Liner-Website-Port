@@ -65,4 +65,8 @@ server.log
 /discord-bot/bot.pid
 /discord-bot/bot_data.json
 /discord-bot/bot_status.json
-/download/
+/download//.zscripts/
+/mini-services/
+/discord-bot/
+/tool-results/
+/worklog.md

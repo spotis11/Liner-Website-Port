@@ -1,9 +1,0 @@
-{
-  "name": "alfredo-bot",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Alfredo Discord bot - headless 24/7 service (platform-boot managed)",
-  "scripts": {
-    "dev": "bash /home/z/my-project/discord-bot/service.sh"
-  }
-}
