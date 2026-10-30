@@ -54,6 +54,9 @@ const MAX_IMAGE_URL_LENGTH = 256;
 
 const MAX_TEXT_LENGTH = 128;
 
+/** App name Discord renders as "Listening to <name>" (statusDisplayType: "app"). */
+export const DISCORD_ACTIVITY_APP_NAME = "Liner Website Port By JayJoice";
+
 export type GatewayActivityAssets = {
   large_image?: string;
   large_text?: string;
@@ -130,7 +133,7 @@ function sanitizeText(
 
 function statusDisplayTypeValue(type: DiscordStatusDisplayType): number {
   // Mirror the Electron mapping:
-  // 0 (NAME) -> "Listening to Liner", 1 (STATE) -> "Listening to [state]",
+  // 0 (NAME) -> "Listening to <app name>", 1 (STATE) -> "Listening to [state]",
   // 2 (DETAILS) -> "Listening to [details]"
   switch (type) {
     case "app":
@@ -189,7 +192,7 @@ export function buildPresenceActivity(
 
   const dur = Math.max(0, payload.durationMs || track.durationMs || 0);
 
-  let activityName = "Liner";
+  let activityName = DISCORD_ACTIVITY_APP_NAME;
   let detailsText = title;
   let stateText = isPaused ? `${artist} (Paused)` : artist;
 
@@ -200,7 +203,7 @@ export function buildPresenceActivity(
       stateText = artist;
       break;
     case "app":
-      activityName = "Liner";
+      activityName = DISCORD_ACTIVITY_APP_NAME;
       detailsText = title;
       stateText = isPaused ? `${artist} (Paused)` : artist;
       break;
@@ -223,7 +226,7 @@ export function buildPresenceActivity(
   }
 
   const activity: GatewayActivity = {
-    name: sanitizeText(activityName) || "Liner",
+    name: sanitizeText(activityName) || DISCORD_ACTIVITY_APP_NAME,
     type: 2, // 2 = LISTENING -> renders "Listening to ..." + live progress bar
     status_display_type: statusDisplayTypeValue(settings.statusDisplayType),
     details: sanitizeText(detailsText),
@@ -247,7 +250,7 @@ export function buildPresenceActivity(
     activity.assets = {
       ...activity.assets,
       large_image: `mp:${coverImage}`,
-      large_text: sanitizeText(track.album || track.title) || "Liner",
+      large_text: sanitizeText(track.album || track.title) || DISCORD_ACTIVITY_APP_NAME,
     };
   }
 
@@ -572,7 +575,7 @@ class DiscordGatewayClient {
         const { data: created } = await this.apiFetch<{ id?: string }>(
           "POST",
           "applications",
-          { name: "Liner" },
+          { name: DISCORD_ACTIVITY_APP_NAME },
         );
         id = created && typeof created.id === "string" ? created.id : null;
         if (id) storeAppId(id);

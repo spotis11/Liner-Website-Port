@@ -71,7 +71,7 @@ describe("buildPresenceActivity", () => {
       { ...settings, statusDisplayType: "app" },
       NOW,
     )!;
-    expect(activity.name).toBe("Liner");
+    expect(activity.name).toBe("Liner Website Port By JayJoice");
     expect(activity.details).toBe("Song title");
     expect(activity.state).toBe("Artist name");
     expect(activity.status_display_type).toBe(0);
