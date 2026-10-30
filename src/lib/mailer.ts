@@ -22,10 +22,11 @@ import {
  *              user cache or, failing that, a live upstream directory lookup
  *
  * Providers (first match wins):
- *   1. Resend HTTPS API     — RESEND_API_KEY            (recommended: no SMTP
- *      ports needed, add the SPF/DKIM records for jayjoice.tryliner.fun)
- *   2. Any standard SMTP    — SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS
- *      (Brevo, Mailgun, Gmail app password, Zoho, self-hosted…)
+ *   1. Resend HTTPS API     — RESEND_API_KEY            (disabled: the
+ *      jayjoice.tryliner.fun domain was never verified on Resend)
+ *   2. Proton SMTP          — SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS
+ *      (smtp.protonmail.ch:465; the password is an SMTP token generated in
+ *      Proton settings, NOT the account login password)
  *   3. Nothing configured   → sends nothing, logs "not_configured" — the
  *      site keeps working exactly as before, triggers never throw.
  *
@@ -212,9 +213,10 @@ export interface DeliveryOutcome {
 }
 
 /**
- * Record the attempt in EmailLog. The unique (type, refKey) index is the
- * dedupe guarantee — a P2002 here means this exact mail was already
- * attempted, so callers treat it as "duplicate" and stop.
+ * Record the attempt in EmailLog. The unique (type, refKey) index keeps one
+ * row per transactional mail; a FAILED row is overwritten by the next
+ * attempt (retry-on-failed) so provider outages never permanently eat a
+ * user's welcome/ban mail — only a successful send pins the row forever.
  */
 async function logAttempt(input: {
   type: TransactionalEmailType;
@@ -224,8 +226,9 @@ async function logAttempt(input: {
   result: SendResult;
 }): Promise<"logged" | "duplicate"> {
   try {
-    await db.emailLog.create({
-      data: {
+    await db.emailLog.upsert({
+      where: { type_refKey: { type: input.type, refKey: input.refKey } },
+      create: {
         type: input.type,
         refKey: input.refKey,
         username: input.username,
@@ -234,6 +237,15 @@ async function logAttempt(input: {
         status: input.result.ok ? "sent" : "failed",
         error: input.result.error ?? null,
       },
+      // Only reachable when the pre-check raced a concurrent delivery that
+      // actually sent — keep the original "sent" record untouched.
+      update: input.result.ok
+        ? {
+            provider: input.result.provider ?? null,
+            status: "sent",
+            error: null,
+          }
+        : {},
     });
     return "logged";
   } catch (err) {
@@ -271,7 +283,9 @@ export async function deliverTransactionalEmail(input: {
       where: { type_refKey: { type: input.type, refKey: input.refKey } },
       select: { status: true },
     });
-    if (already) {
+    // "sent" is final — never double-deliver. A "failed" row means an earlier
+    // attempt never landed, so fall through and try again.
+    if (already && already.status === "sent") {
       return { sent: false, detail: "duplicate" };
     }
 
