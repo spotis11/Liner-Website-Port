@@ -218,8 +218,11 @@ they make a suggestion in the liner discord (discord.gg/liner) he added those. t
 
 **How do i add him/contact him?**
 Below is his contact info:
+
 Discord: cryptojay.eth, thearchyexpunged
+
 Gamebanana: https://gamebanana.com/members/4869559
+
 Gmail: seekfromohio@gmail.com
 
 
