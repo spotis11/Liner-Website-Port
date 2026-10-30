@@ -6,6 +6,7 @@ import { useCoverReady, CoverImage } from "@/features/covers";
 import { cn } from "@/shared/lib";
 import { useTranslation } from "@/languages";
 import { usePlayerState } from "../hooks/usePlayerState";
+import { findMusicVideoVersion } from "../engine/musicVideoVersion";
 import { getTrackVideoId, FullscreenVideoStage } from "./FullscreenVideoStage";
 import { VolumePicker } from "./VolumePicker";
 import { FullscreenTrackInfo } from "./FullscreenTrackInfo";
@@ -22,21 +23,55 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
   const track = usePlayerState().currentTrack;
   const coverUrl = track?.coverUrl || "";
   const isCoverLoaded = useCoverReady(coverUrl);
-  const videoId = getTrackVideoId(track);
+  const trackId = track?.id ?? null;
+  const ownVideoId = getTrackVideoId(track);
 
   // YouTube-Music-style Song/Video view. The choice is sticky for the
   // session; tracks without a video always fall back to the cover.
   const [viewMode, setViewMode] = useState<"song" | "video">("song");
   useEffect(() => {
-    if (!videoId) setViewMode("song");
-  }, [videoId]);
-  const showVideo = videoId !== null && viewMode === "video";
+    if (!ownVideoId) setViewMode("song");
+  }, [ownVideoId]);
+  const showVideo = ownVideoId !== null && viewMode === "video";
+
+  // Most tracks carry the *song* id — an art-track video whose frame is a
+  // static cover. When the user asks for video, resolve the official music
+  // video (YT Music's OMV) and hot-swap to it; until then (or on failure)
+  // the track's own video plays.
+  const [videoVersions, setVideoVersions] = useState<
+    Record<string, string | undefined>
+  >({});
+  const videoId = (trackId ? videoVersions[trackId] : undefined) ?? ownVideoId;
+  const audioVariant = track?.audioVariant;
+  useEffect(() => {
+    if (!showVideo || !track || !trackId || !ownVideoId) return;
+    if (videoVersions[trackId] !== undefined) return;
+    let cancelled = false;
+    findMusicVideoVersion(track, ownVideoId)
+      .then((resolved) => {
+        // resolved === null means "no official video found" — remember the
+        // own id so we stop re-searching on every render pass
+        if (!cancelled) {
+          setVideoVersions((prev) => ({
+            ...prev,
+            [trackId]: resolved ?? ownVideoId,
+          }));
+        }
+      })
+      .catch(() => {
+        // keep the own id playing; a later toggle retries
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showVideo, trackId, ownVideoId, audioVariant]);
 
   return (
     <div className="flex w-[min(340px,32vw,calc(100vh-340px))] min-w-[240px] flex-col items-stretch">
       <div className="flex w-full items-center gap-[10px]">
         {/* video/song rail — mirrors YouTube Music's left-edge switcher */}
-        {videoId && (
+        {ownVideoId && (
           <div className="flex shrink-0 flex-col gap-[8px]">
             <button
               type="button"
@@ -75,7 +110,9 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
 
         <div
           className={cn(
-            "relative aspect-square w-full shrink-0 overflow-hidden rounded-xl bg-black/20",
+            // square like a cover in song view, 16:9 like a video in video view
+            showVideo ? "aspect-video" : "aspect-square",
+            "relative w-full shrink-0 overflow-hidden rounded-xl bg-black/20",
             coverUrl && !isCoverLoaded && !showVideo && "animate-pulse",
           )}
         >
