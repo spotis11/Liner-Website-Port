@@ -3,6 +3,8 @@ import { VideoLine } from "@mingcute/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useCoverReady, CoverImage } from "@/features/covers";
+import { toVideoId } from "@/shared/youtube";
+import { findCatalogMatch } from "@/shared/media/matching";
 import { cn } from "@/shared/lib";
 import { useTranslation } from "@/languages";
 import { usePlayerState } from "../hooks/usePlayerState";
@@ -25,42 +27,88 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
   const isCoverLoaded = useCoverReady(coverUrl);
   const trackId = track?.id ?? null;
   const ownVideoId = getTrackVideoId(track);
+  const title = (track?.title ?? "").trim();
+  const artists = (track?.artists ?? "").trim();
 
-  // YouTube-Music-style Song/Video view. The choice is sticky for the
-  // session; tracks without a video always fall back to the cover.
+  // YouTube Music shows the Song/Video toggle for every song and swaps to a
+  // "video unavailable" state when there is none. We do the same: any track
+  // with searchable metadata can have a video — YouTube-sourced tracks
+  // already know their id, catalog tracks get resolved on demand.
+  const canHaveVideo = Boolean(ownVideoId) || (title.length > 0 && artists.length > 0);
+
+  // The Song/Video choice is sticky for the session.
   const [viewMode, setViewMode] = useState<"song" | "video">("song");
   useEffect(() => {
-    if (!ownVideoId) setViewMode("song");
-  }, [ownVideoId]);
-  const showVideo = ownVideoId !== null && viewMode === "video";
+    if (!canHaveVideo) setViewMode("song");
+  }, [canHaveVideo]);
+  const showVideo = viewMode === "video" && canHaveVideo;
 
-  // Most tracks carry the *song* id — an art-track video whose frame is a
-  // static cover. When the user asks for video, resolve the official music
-  // video (YT Music's OMV) and hot-swap to it; until then (or on failure)
-  // the track's own video plays.
-  const [videoVersions, setVideoVersions] = useState<
-    Record<string, string | undefined>
+  // Per-track resolved video id. undefined = not attempted yet, null =
+  // attempted and nothing found (cover + "unavailable" note), a string = id
+  // to embed.
+  const [resolvedVideoIds, setResolvedVideoIds] = useState<
+    Record<string, string | null>
   >({});
-  const videoId = (trackId ? videoVersions[trackId] : undefined) ?? ownVideoId;
+  const resolved = trackId ? resolvedVideoIds[trackId] : undefined;
+  const videoId = resolved ?? ownVideoId;
+  const resolving = showVideo && videoId == null && resolved === undefined;
   const audioVariant = track?.audioVariant;
+
   useEffect(() => {
-    if (!showVideo || !track || !trackId || !ownVideoId) return;
-    if (videoVersions[trackId] !== undefined) return;
+    if (!showVideo || !track || !trackId) return;
+    if (resolvedVideoIds[trackId] !== undefined) return;
+
+    if (ownVideoId) {
+      // YouTube-sourced track: its own id plays right away, but most song
+      // rows are static art tracks — refine to the official music video
+      // (YT Music's OMV) in the background.
+      let cancelled = false;
+      findMusicVideoVersion(track, ownVideoId)
+        .then((omv) => {
+          if (!cancelled) {
+            setResolvedVideoIds((prev) => ({
+              ...prev,
+              [trackId]: omv ?? ownVideoId,
+            }));
+          }
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // Catalog track (Liner API / SoundCloud / local): deep-search YouTube
+    // for the matching video via the same scored matcher the audio
+    // stand-in uses, then prefer its official music video.
     let cancelled = false;
-    findMusicVideoVersion(track, ownVideoId)
-      .then((resolved) => {
-        // resolved === null means "no official video found" — remember the
-        // own id so we stop re-searching on every render pass
-        if (!cancelled) {
-          setVideoVersions((prev) => ({
-            ...prev,
-            [trackId]: resolved ?? ownVideoId,
-          }));
+    const run = async () => {
+      try {
+        const outcome = await findCatalogMatch({
+          sourceId: track.id,
+          title: track.title,
+          artists: artists ? [artists] : [],
+          ...(track.durationMs > 0 ? { durationMs: track.durationMs } : {}),
+        });
+        if (cancelled) return;
+        const candidate =
+          outcome.status === "approved" ? toVideoId(outcome.track.id) : null;
+        if (!candidate) {
+          setResolvedVideoIds((prev) => ({ ...prev, [trackId]: null }));
+          return;
         }
-      })
-      .catch(() => {
-        // keep the own id playing; a later toggle retries
-      });
+        const omv = await findMusicVideoVersion(track, candidate);
+        setResolvedVideoIds((prev) => ({
+          ...prev,
+          [trackId]: omv ?? candidate,
+        }));
+      } catch {
+        if (!cancelled) {
+          setResolvedVideoIds((prev) => ({ ...prev, [trackId]: null }));
+        }
+      }
+    };
+    void run();
     return () => {
       cancelled = true;
     };
@@ -70,7 +118,7 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
   return (
     <div className="flex w-[min(340px,32vw,calc(100vh-340px))] min-w-[240px] flex-col items-stretch">
       {/* song/video toggle — sits on top of the cover, YouTube-Music style */}
-      {ownVideoId && (
+      {canHaveVideo && (
         <div className="mb-[10px] flex w-full items-center justify-start gap-[8px]">
           <button
             type="button"
@@ -119,7 +167,9 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
             // square like a cover in song view, 16:9 like a video in video view
             showVideo ? "aspect-video" : "aspect-square",
             "relative w-full shrink-0 overflow-hidden rounded-xl bg-black/20",
-            coverUrl && !isCoverLoaded && !showVideo && "animate-pulse",
+            (coverUrl && !isCoverLoaded && !showVideo) || resolving
+              ? "animate-pulse"
+              : "",
           )}
         >
           {showVideo && videoId ? (
@@ -153,6 +203,13 @@ export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
               </motion.div>
             </AnimatePresence>
           )}
+          {showVideo && resolved === null ? (
+            <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center px-3">
+              <span className="rounded-full bg-black/60 px-3 py-1 text-[12px] font-[500] text-white/80 backdrop-blur-md">
+                {t("player.video_unavailable")}
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
 

@@ -38,7 +38,7 @@ const isChannelId = (id: string | undefined): id is string =>
 function primaryArtist(track: VideoTrack): { id?: string; name: string } | null {
   const listed = track.artistList?.[0];
   if (listed?.name) return { id: listed.id, name: listed.name };
-  const name = track.artists.split(",")[0]?.trim();
+  const name = track.artists?.split(",")[0]?.trim();
   return name ? { name } : null;
 }
 
@@ -78,7 +78,7 @@ export async function findMusicVideoVersion(
   // the row already IS the official video — nothing to look up
   if (track.audioVariant === "music-video") return null;
   const artist = primaryArtist(track);
-  if (!artist || !track.title.trim()) return null;
+  if (!artist || !track.title?.trim()) return null;
   try {
     const results = await searchRaw(
       `${track.title} ${artist.name}`,

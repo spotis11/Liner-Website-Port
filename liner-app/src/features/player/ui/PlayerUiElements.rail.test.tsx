@@ -6,10 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * Focused tests for the YouTube-Music-style Song/Video toggle in the
  * fullscreen player UI:
- *  - the toggle only appears when the current track has a video
+ *  - the toggle shows for every track that can have a video (YouTube id or
+ *    searchable title/artist), and hides for metadata-less tracks
  *  - switching to Video mounts the muted video stage with the right id
  *    and swaps the square cover frame for a 16:9 video frame
  *  - the official music video id replaces the song id once resolved
+ *  - catalog tracks (no YouTube id) resolve via findCatalogMatch on demand
  *  - switching back to Song unmounts it
  */
 
@@ -17,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   usePlayerState: vi.fn(),
   VideoStage: vi.fn(() => <div data-testid="video-stage" />),
   findMusicVideoVersion: vi.fn(async (): Promise<string | null> => null),
+  findCatalogMatch: vi.fn(async (): Promise<unknown> => ({ status: "pending", reason: "no_catalog_candidates" })),
 }));
 
 vi.mock("../hooks/usePlayerState", () => ({
@@ -50,6 +53,17 @@ vi.mock("../engine/musicVideoVersion", () => ({
   findMusicVideoVersion: mocks.findMusicVideoVersion,
 }));
 
+vi.mock("@/shared/youtube", () => ({
+  toVideoId: (trackId: string) => {
+    const videoId = trackId.replace(/^yt:/, "");
+    return /^[a-zA-Z0-9_-]{11}$/.test(videoId) ? videoId : null;
+  },
+}));
+
+vi.mock("@/shared/media/matching", () => ({
+  findCatalogMatch: mocks.findCatalogMatch,
+}));
+
 vi.mock("./VolumePicker", () => ({ VolumePicker: () => <div /> }));
 vi.mock("./FullscreenTrackInfo", () => ({
   FullscreenTrackInfo: () => <div />,
@@ -76,6 +90,8 @@ describe("PlayerUiElements song/video rail", () => {
     mocks.VideoStage.mockClear();
     mocks.findMusicVideoVersion.mockClear();
     mocks.findMusicVideoVersion.mockResolvedValue(null);
+    mocks.findCatalogMatch.mockClear();
+    mocks.findCatalogMatch.mockResolvedValue({ status: "pending", reason: "no_catalog_candidates" });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -86,9 +102,9 @@ describe("PlayerUiElements song/video rail", () => {
     container.remove();
   });
 
-  it("hides the rail for tracks without a video", () => {
+  it("hides the toggle for metadata-less tracks", () => {
     mocks.usePlayerState.mockReturnValue({
-      currentTrack: { id: "sc:12345", title: "Test", coverUrl: "" },
+      currentTrack: { id: "whatever", title: "", artists: "", coverUrl: "" },
     });
     act(() => {
       root.render(<PlayerUiElements />);
@@ -96,6 +112,74 @@ describe("PlayerUiElements song/video rail", () => {
     expect(findButton(container, "player.video")).toBeNull();
     expect(findButton(container, "player.song")).toBeNull();
     expect(container.querySelector('[data-testid="video-stage"]')).toBeNull();
+  });
+
+  it("shows the toggle for catalog tracks and deep-searches a video on demand", async () => {
+    mocks.findCatalogMatch.mockResolvedValue({
+      status: "approved",
+      track: { id: "yt:CATVID00001", title: "Pepas" },
+      score: 95,
+    });
+    mocks.usePlayerState.mockReturnValue({
+      currentTrack: {
+        id: "liner-abc-uuid",
+        title: "Pepas",
+        artists: "Farruko",
+        coverUrl: "",
+      },
+    });
+    act(() => {
+      root.render(<PlayerUiElements />);
+    });
+    // optimistic toggle, nothing mounted yet
+    expect(findButton(container, "player.video")).not.toBeNull();
+    expect(container.querySelector('[data-testid="video-stage"]')).toBeNull();
+
+    act(() => {
+      findButton(container, "player.video")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+    // resolving — no stage yet, "unavailable" not yet shown
+    expect(container.querySelector('[data-testid="video-stage"]')).toBeNull();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mocks.findCatalogMatch).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceId: "liner-abc-uuid", title: "Pepas" }),
+    );
+    expect(mocks.VideoStage).toHaveBeenCalledWith(
+      expect.objectContaining({ videoId: "CATVID00001" }),
+      undefined,
+    );
+  });
+
+  it("shows the unavailable note when the catalog match finds nothing", async () => {
+    mocks.usePlayerState.mockReturnValue({
+      currentTrack: {
+        id: "liner-abc-uuid",
+        title: "Pepas",
+        artists: "Farruko",
+        coverUrl: "",
+      },
+    });
+    act(() => {
+      root.render(<PlayerUiElements />);
+    });
+    act(() => {
+      findButton(container, "player.video")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-testid="video-stage"]')).toBeNull();
+    expect(container.textContent).toContain("player.video_unavailable");
   });
 
   it("shows the rail for YouTube tracks and mounts the video stage on toggle", () => {
