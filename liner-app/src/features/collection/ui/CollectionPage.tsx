@@ -24,6 +24,7 @@ import {
 import { LuShuffle } from "react-icons/lu";
 import Button from "@/shared/ui/Button";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
+import { DownloadAllButton } from "@/features/downloads";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import { DailyMixCover } from "@/features/home";
 import { playerEngine } from "@/features/player";
@@ -412,6 +413,7 @@ function CollectionContent() {
                       >
                         <LuShuffle size={18} />
                       </Button>
+                      <DownloadAllButton tracks={data?.tracks ?? NO_TRACKS} />
                     </>
                   }
                   trailingActions={

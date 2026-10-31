@@ -55,6 +55,7 @@ import { buildShareUrl } from "@/shared/utils/share";
 import Button from "@/shared/ui/Button";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
+import { DownloadAllButton } from "@/features/downloads";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import {
   useCustomPlaylistCoverUrl,
@@ -783,6 +784,7 @@ function LibraryPlaylistContent() {
                       >
                         <LuShuffle size={18} />
                       </Button>
+                      <DownloadAllButton tracks={sortedTracks} />
                     </>
                   }
                   trailingActions={

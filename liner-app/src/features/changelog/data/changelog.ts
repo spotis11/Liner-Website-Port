@@ -19,6 +19,25 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.11.0",
+    date: "2026-10-31",
+    title: "Download all — a whole collection in one tap",
+    entries: [
+      {
+        type: "added",
+        text: "A \"Download all\" button now sits next to Play on Liked Songs, every playlist, album and daily mix: one tap queues the entire collection for offline. The batch drains through the fast parallel downloader (2 songs at a time, 4 range requests each), and the button itself turns into a live \"Downloading 12/45\" counter so you always know where the batch is.",
+      },
+      {
+        type: "added",
+        text: "The queue drawer got its own download-all action too: the download arrow in the queue header saves everything lined up, with the same n/m progress right on the button. Songs already downloaded are skipped — press it again any time and it only fetches what's missing — and the button flips to a green checkmark once every song in the collection is on your device.",
+      },
+      {
+        type: "changed",
+        text: "Batch downloads stay polite: playback always gets the bandwidth first, each finished song is written to pinned storage immediately (so a completed album is safe even if you close the tab mid-batch), and any song that fails shows its red state on its own row for a one-tap retry.",
+      },
+    ],
+  },
+  {
     version: "1.10.0",
     date: "2026-10-31",
     title: "Take your music anywhere — offline downloads",

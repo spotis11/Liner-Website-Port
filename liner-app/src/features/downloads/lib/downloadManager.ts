@@ -50,6 +50,77 @@ class DownloadManager {
     this.pump();
   }
 
+  /**
+   * Queue a whole collection (liked songs, a playlist, the queue, …) in one
+   * tap. Tracks already downloaded (or already queued/active) are skipped, so
+   * pressing it again only fetches what is missing. The existing queue pumps
+   * everything through 2 concurrent downloads, keeping playback smooth.
+   *
+   * Returns how many tracks were newly queued (0 = nothing to do).
+   */
+  async downloadMany(tracks: DownloadMeta[]): Promise<number> {
+    const store = useDownloadsStore.getState();
+    if (store.hydrated === false) await store.hydrate();
+
+    const candidates: DownloadMeta[] = [];
+    const seen = new Set<string>();
+    for (const track of tracks) {
+      if (!track?.id || track.id.startsWith("local:")) continue;
+      if (seen.has(track.id)) continue;
+      seen.add(track.id);
+
+      const status = useDownloadsStore.getState().statuses[track.id];
+      if (
+        status?.status === "downloaded" ||
+        status?.status === "queued" ||
+        status?.status === "downloading"
+      ) {
+        continue;
+      }
+      candidates.push(track);
+    }
+    if (candidates.length === 0) return 0;
+
+    // statuses come from a once-per-session hydrate, so double-check the db
+    // in parallel — a pinned record (download made before a refresh, another
+    // tab) still counts as downloaded. One round-trip, instant even for
+    // 1000-track libraries.
+    const pinnedFlags = await Promise.all(
+      candidates.map((track) =>
+        linerDb
+          .getAudio(track.id)
+          .then((record) => Boolean(record?.pinnedAt))
+          .catch(() => false),
+      ),
+    );
+
+    const fresh: DownloadMeta[] = [];
+    candidates.forEach((track, index) => {
+      if (pinnedFlags[index]) {
+        useDownloadsStore
+          .getState()
+          .setStatus(track.id, { status: "downloaded" });
+      } else {
+        fresh.push(track);
+      }
+    });
+
+    for (const track of fresh) {
+      await this.downloadTrack(track);
+    }
+    return fresh.length;
+  }
+
+  /** true while any track of the given ids is queued or downloading */
+  isBusy(ids: string[]): boolean {
+    const statuses = useDownloadsStore.getState().statuses;
+    return ids.some(
+      (id) =>
+        statuses[id]?.status === "queued" ||
+        statuses[id]?.status === "downloading",
+    );
+  }
+
   cancel(trackId: string): void {
     this.queue = this.queue.filter((item) => item.id !== trackId);
     this.queued.delete(trackId);

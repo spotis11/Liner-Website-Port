@@ -261,6 +261,7 @@ function RightDrawer({ onClose }: RightDrawerProps) {
         shuffle={player.shuffle}
         repeat={player.repeat}
         canClear={player.queue.length > 1}
+        downloadTracks={player.queue}
         onShuffleToggle={() => playerEngine.setShuffle(!player.shuffle)}
         onRepeatCycle={() =>
           playerEngine.setRepeat(

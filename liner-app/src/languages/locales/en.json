@@ -1359,6 +1359,11 @@
     "empty_hint": "Open the ⋮ menu on any song — or hover a row in Liked Songs, a playlist, search or the queue — and hit \"Download (offline)\". Downloads are pinned, never auto-cleared, and keep playing without a network.",
     "started_toast": "Download started",
     "removed_toast": "Download removed",
-    "failed_toast": "Download failed"
+    "failed_toast": "Download failed",
+    "download_all": "Download all",
+    "downloaded_all": "Downloaded",
+    "downloading_progress": "Downloading {done}/{total}",
+    "batch_started_toast": "Downloading {count} songs",
+    "all_downloaded_toast": "All songs downloaded"
   }
 }

@@ -6,4 +6,5 @@ export {
 } from "./store/downloadsStore";
 export type { DownloadState, DownloadStatus } from "./store/downloadsStore";
 export { TrackDownloadButton } from "./ui/TrackDownloadButton";
+export { DownloadAllButton } from "./ui/DownloadAllButton";
 export { default as DownloadsPage } from "./ui/DownloadsPage";
