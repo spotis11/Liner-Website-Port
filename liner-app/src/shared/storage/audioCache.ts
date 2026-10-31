@@ -56,6 +56,8 @@ class AudioCache {
     const oldest = await linerDb.getOldestAudioRecords();
     for (const item of oldest) {
       if (evictedBytes >= bytesToEvict) break;
+      // user downloads are pinned — they survive cache-limit enforcement
+      if (item.pinnedAt) continue;
       const size = item.byteSize || item.blob?.size || 0;
       await this.deleteAudio(item.trackId);
       evictedBytes += size;

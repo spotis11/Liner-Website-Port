@@ -27,6 +27,8 @@ export interface CachedAudioRecord {
   byteSize: number;
   savedAt: number;
   lastPlayedAt?: number;
+  /** user-requested offline download — never evicted by the LRU cache limit */
+  pinnedAt?: number;
 }
 
 export interface CachedLyricsRecord {
@@ -323,7 +325,9 @@ class LinerDb {
     mimeType: string,
     lastPlayedAt?: number,
   ): Promise<void> {
-    const existing = this.memAudio.get(trackId);
+    // pull the authoritative record (possibly beyond the in-memory window) so a
+    // re-save never silently drops a download pin
+    const existing = (await this.getAudio(trackId)) ?? undefined;
     const now = Date.now();
     const record: CachedAudioRecord = {
       trackId,
@@ -332,6 +336,7 @@ class LinerDb {
       byteSize: blob.size,
       savedAt: existing?.savedAt ?? now,
       lastPlayedAt: lastPlayedAt ?? now,
+      ...(existing?.pinnedAt ? { pinnedAt: existing.pinnedAt } : {}),
     };
     this.rememberAudio(trackId, record);
 
@@ -389,6 +394,53 @@ class LinerDb {
     memList.sort(
       (a, b) => (a.lastPlayedAt ?? a.savedAt) - (b.lastPlayedAt ?? b.savedAt),
     );
+    return memList;
+  }
+
+  /** mark/unmark a cached audio blob as a user download (pinned, never evicted) */
+  async setAudioPinned(trackId: string, pinned: boolean): Promise<void> {
+    const record = await this.getAudio(trackId);
+    if (!record) return;
+    if (pinned) record.pinnedAt = record.pinnedAt ?? Date.now();
+    else delete record.pinnedAt;
+    this.rememberAudio(trackId, record);
+
+    await this.runTransaction("audio", "readwrite", (store) => {
+      return new Promise<void>((resolve) => {
+        const req = store.put(record);
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+      });
+    });
+  }
+
+  /** all pinned (downloaded) audio records, newest download first */
+  async getPinnedAudioRecords(): Promise<CachedAudioRecord[]> {
+    const result = await this.runTransaction("audio", "readonly", (store) => {
+      return new Promise<CachedAudioRecord[]>((resolve) => {
+        const records: CachedAudioRecord[] = [];
+        const req = store.openCursor();
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (cursor) {
+            const val = cursor.value as CachedAudioRecord;
+            if (val.pinnedAt) records.push(val);
+            cursor.continue();
+          } else {
+            records.sort((a, b) => (b.pinnedAt ?? 0) - (a.pinnedAt ?? 0));
+            resolve(records);
+          }
+        };
+        req.onerror = () => resolve([]);
+      });
+    });
+
+    if (result && result.length > 0) return result;
+
+    const memList = Array.from(this.memAudio.values()).filter(
+      (item) => item.pinnedAt,
+    );
+    memList.sort((a, b) => (b.pinnedAt ?? 0) - (a.pinnedAt ?? 0));
     return memList;
   }
 

@@ -7,6 +7,8 @@ import {
   LuPlus,
   LuTrash2,
   LuFolderPlus,
+  LuDownload,
+  LuCheck,
 } from "react-icons/lu";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import { playerEngine } from "../engine/playerEngine";
@@ -17,6 +19,8 @@ import {
   useIsTrackLiked,
   useModalStore,
 } from "@/features/library";
+import { useDownloadsStore } from "@/features/downloads";
+import { downloadManager } from "@/features/downloads";
 import { useTranslation } from "@/languages";
 import { showToast } from "@/shared/ui";
 
@@ -57,6 +61,70 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
 
   const liked = useIsTrackLiked(id);
 
+  const downloadState = useDownloadsStore((state) =>
+    id ? state.statuses[id] : undefined,
+  );
+  const downloadStatus = downloadState?.status;
+
+  const buildDownloadItem = useCallback((): DropdownMenuItem | null => {
+    if (!id) return null;
+    const meta = {
+      id,
+      title,
+      artists,
+      coverUrl,
+      durationMs: durationMs ?? 0,
+    };
+
+    if (downloadStatus === "downloaded") {
+      return {
+        id: "remove-download",
+        label: t("common.remove_download"),
+        icon: <LuCheck size={15} className="text-green-500" />,
+        onClick: () => {
+          void downloadManager.removeDownload(id).then(() => {
+            showToast(t("downloads.removed_toast"), "success", {
+              description: artists ? `${title} — ${artists}` : title,
+            });
+          });
+        },
+      };
+    }
+
+    if (downloadStatus === "downloading" || downloadStatus === "queued") {
+      return {
+        id: "cancel-download",
+        label: t("common.cancel_download"),
+        icon: <LuDownload size={15} className="animate-pulse" />,
+        onClick: () => downloadManager.cancel(id),
+      };
+    }
+
+    return {
+      id: "download-track",
+      label: t("common.download"),
+      icon: <LuDownload size={15} />,
+      onClick: () => {
+        void downloadManager.downloadTrack(meta).catch((error: Error) => {
+          showToast(t("downloads.failed_toast"), "error", {
+            description: error?.message || title,
+          });
+        });
+        showToast(t("downloads.started_toast"), "success", {
+          description: artists ? `${title} — ${artists}` : title,
+        });
+      },
+    };
+  }, [
+    id,
+    title,
+    artists,
+    coverUrl,
+    durationMs,
+    downloadStatus,
+    t,
+  ]);
+
   const handleLike = useCallback(async () => {
     if (!id) return;
     if (liked) {
@@ -68,6 +136,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
 
   const buildMenu = useCallback((): DropdownMenuItem[] => {
     const isTrack = searchType === "track" || !searchType;
+    const downloadItem = isTrack ? buildDownloadItem() : null;
 
     if (isTrack) {
       if (playlistId) {
@@ -136,6 +205,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
             ),
             onClick: handleLike,
           },
+          ...(downloadItem ? [downloadItem] : []),
           {
             id: "remove-from-playlist",
             label: t("common.remove_from_playlist"),
@@ -222,6 +292,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
           ),
           onClick: handleLike,
         },
+        ...(downloadItem ? [downloadItem] : []),
         {
           id: "add-to-playlist",
           label: t("common.add_to_playlist"),
@@ -274,6 +345,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     liked,
     handleLike,
     playlistsData,
+    buildDownloadItem,
     t,
   ]);
 

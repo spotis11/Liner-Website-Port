@@ -54,7 +54,8 @@
       "settings": "Settings",
       "local": "Local Music",
       "profile": "Profile",
-      "changelog": "Changelog"
+      "changelog": "Changelog",
+      "downloads": "Downloads"
     },
     "minimize": "Minimize",
     "exitFullscreen": "Exit fullscreen",
@@ -77,7 +78,7 @@
     "share": "Share",
     "back": "Back",
     "link_copied": "Link copied",
-    "download": "Download",
+    "download": "Download (offline)",
     "more": "More",
     "rename": "Rename",
     "edit_description": "Edit description",
@@ -191,7 +192,9 @@
     "tracks_plural": "{count} tracks",
     "songs_plural": "{count} songs",
     "env_warning": "App should run inside Electron — deeplinks, offline checks and sharing need the desktop bridge.",
-    "env_skip": "Skip"
+    "env_skip": "Skip",
+    "remove_download": "Remove download",
+    "cancel_download": "Cancel download"
   },
   "home": {
     "speedDial": "Speed dial",
@@ -1346,5 +1349,16 @@
     "added": "Added",
     "fixed": "Fixed",
     "changed": "Changed"
+  },
+  "downloads": {
+    "title": "Downloads",
+    "subtitle": "{count} songs · {size} saved on this device — they play instantly, even offline",
+    "storage_used": "{size} of browser storage used",
+    "preparing": "Preparing…",
+    "empty_title": "No downloads yet",
+    "empty_hint": "Open the ⋮ menu on any song — or hover a row in Liked Songs, a playlist, search or the queue — and hit \"Download (offline)\". Downloads are pinned, never auto-cleared, and keep playing without a network.",
+    "started_toast": "Download started",
+    "removed_toast": "Download removed",
+    "failed_toast": "Download failed"
   }
 }

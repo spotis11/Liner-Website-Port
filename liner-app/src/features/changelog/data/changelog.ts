@@ -19,6 +19,29 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.10.0",
+    date: "2026-10-31",
+    title: "Take your music anywhere — offline downloads",
+    entries: [
+      {
+        type: "added",
+        text: "Every song now has a \"Download (offline)\" action: hover a row in Liked Songs, any playlist, search results, the artist page or the queue and hit the download arrow — or pick it from the ⋮ menu. The audio is fetched with parallel range requests (the same fast chunked engine the preload cache uses), validated, and stored in your browser's IndexedDB as a pinned, never-evicted copy.",
+      },
+      {
+        type: "added",
+        text: "Downloads play even with zero network: the player already prefers locally stored audio, so a downloaded song starts instantly on a plane, on mobile data, or when the upstream source is down. Progress shows right on the row (percent while streaming), and the sidebar has a new Downloads page listing everything you've saved with sizes, one-tap play, and per-song removal.",
+      },
+      {
+        type: "added",
+        text: "The website itself now works offline: a service worker caches the app shell and hashed bundles (network-first for the shell so deploys land instantly, cache-first for immutable assets), plus your cover art. Lose connection mid-session and the interface still loads — downloaded songs keep playing.",
+      },
+      {
+        type: "changed",
+        text: "Downloads are pinned and exempt from the audio cache limit — clearing the playback cache or hitting the 3 GB LRU ceiling can no longer take away a song you explicitly saved. Removing a download frees its space immediately.",
+      },
+    ],
+  },
+  {
     version: "1.9.2",
     date: "2026-10-29",
     title: "One player, not two — lyrics behave again",

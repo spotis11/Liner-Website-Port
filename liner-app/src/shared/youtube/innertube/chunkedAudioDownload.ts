@@ -5,6 +5,8 @@ export interface AudioDownloadOptions {
   signal?: AbortSignal;
   chunkSize?: number;
   concurrency?: number;
+  /** called after each chunk/segment lands — total is undefined when unknown */
+  onProgress?: (received: number, total?: number) => void;
 }
 
 const DEFAULT_CHUNK_SIZE = 1024 * 1024;
@@ -65,12 +67,16 @@ async function downloadInChunks(
     (_, index) => index * chunkSize,
   );
   const output = new Uint8Array(total);
+  let received = 0;
   await runWorkerPool(
     starts,
     options.concurrency ?? DEFAULT_CONCURRENCY,
     async (start) => {
       const end = Math.min(start + chunkSize, total) - 1;
-      output.set(await fetchChunk(url, start, end, options.signal), start);
+      const bytes = await fetchChunk(url, start, end, options.signal);
+      output.set(bytes, start);
+      received += bytes.byteLength;
+      options.onProgress?.(received, total);
     },
   );
   return output;
@@ -79,14 +85,49 @@ async function downloadInChunks(
 async function downloadWhole(
   url: string,
   signal?: AbortSignal,
+  onProgress?: (received: number, total?: number) => void,
 ): Promise<Uint8Array<ArrayBuffer> | null> {
   const response = await fetch(url, { signal });
   if (!response.ok && response.status !== 206) return null;
   const totalBytes = Number(
     /\/(\d+)$/.exec(response.headers.get("content-range") ?? "")?.[1],
   );
+  const contentLength = Number(response.headers.get("content-length"));
+  const total = Number.isFinite(totalBytes) && totalBytes > 0
+    ? totalBytes
+    : Number.isFinite(contentLength) && contentLength > 0
+      ? contentLength
+      : undefined;
+
+  // stream the body so callers get progress; fall back to arrayBuffer when
+  // the runtime gives us no readable stream
+  if (response.body && typeof response.body.getReader === "function") {
+    const reader = response.body.getReader();
+    const parts: Uint8Array[] = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        parts.push(value);
+        received += value.byteLength;
+        onProgress?.(received, total);
+      }
+    }
+    const output = new Uint8Array(received);
+    let offset = 0;
+    for (const part of parts) {
+      output.set(part, offset);
+      offset += part.byteLength;
+    }
+    if (Number.isFinite(totalBytes) && output.byteLength < totalBytes)
+      return null;
+    return output;
+  }
+
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (Number.isFinite(totalBytes) && bytes.byteLength < totalBytes) return null;
+  onProgress?.(bytes.byteLength, total);
   return bytes;
 }
 
@@ -98,6 +139,6 @@ export async function downloadAudioBytes(
   const bytes =
     total && total > 0 && isGoogleVideoUrl(url)
       ? await downloadInChunks(url, total, options)
-      : await downloadWhole(url, options.signal);
+      : await downloadWhole(url, options.signal, options.onProgress);
   return bytes && bytes.byteLength > 0 ? bytes : null;
 }
