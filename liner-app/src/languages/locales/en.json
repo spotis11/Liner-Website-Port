@@ -598,7 +598,7 @@
     "issue_youtube_refused_title": "YouTube is blocking playback",
     "issue_youtube_refused_desc": "This often happens with a VPN or proxy. Switch VPN server or turn it off, then try again.",
     "issue_server_title": "Liner's servers aren't responding",
-    "issue_server_desc": "Your internet works, but Liner can't reach its servers. Music saved on this device still plays.",
+    "issue_server_desc": "Your internet works, but Liner can't reach its servers. Music saved on this device still plays. If Liner is blocked on your network or region, a VPN often helps.",
     "issue_offline_title": "You're offline",
     "issue_offline_desc": "Check your internet connection. Music saved on this device still plays.",
     "try_again": "Try again",

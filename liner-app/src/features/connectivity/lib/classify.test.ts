@@ -50,6 +50,39 @@ describe("classifyConnection", () => {
       classifyConnection({ ...base, api: { ok: false }, internet: null }),
     ).toBe("offline");
   });
+
+  it("web: blames the upstream when the port backend still answers", () => {
+    expect(
+      classifyConnection({
+        ...base,
+        api: { ok: false },
+        port: { ok: true, status: 200 },
+        internet: null,
+      }),
+    ).toBe("server_unreachable");
+  });
+
+  it("web: upstream 5xx still reads as a server error even with a live backend", () => {
+    expect(
+      classifyConnection({
+        ...base,
+        api: { ok: false, status: 503 },
+        port: { ok: true, status: 200 },
+        internet: null,
+      }),
+    ).toBe("server_error");
+  });
+
+  it("web: stays offline when both the upstream and the port backend fail", () => {
+    expect(
+      classifyConnection({
+        ...base,
+        api: { ok: false },
+        port: { ok: false },
+        internet: null,
+      }),
+    ).toBe("offline");
+  });
 });
 
 describe("youtubeReach", () => {
@@ -75,6 +108,11 @@ describe("youtubeReach failure kinds", () => {
 });
 
 describe("connectionIssue", () => {
+  it("maps upstream trouble to the server issue", () => {
+    expect(connectionIssue("server_unreachable", "unknown")).toBe("server");
+    expect(connectionIssue("offline", "unknown")).toBe("offline");
+  });
+
   it("puts device and server problems ahead of youtube", () => {
     expect(connectionIssue("offline", "blocked")).toBe("offline");
     expect(connectionIssue("server_unreachable", "blocked")).toBe("server");

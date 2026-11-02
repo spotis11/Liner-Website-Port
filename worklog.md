@@ -1104,3 +1104,10 @@ Stage Summary:
 - Real official brand logos everywhere in Settings → AI Translate.
 - Changelog v1.9 records all of it; sidebar Changelog button intact.
 - Known env-limited: Google gtx + MyMemory remain blocked from THIS sandbox IP — browser-direct is the path that matters for users.
+
+Task: "on liner, it says network error. check everything" — diagnose + honest diagnostics (v1.12.1)
+- Root cause found: upstream tryliner.fun zone-wide Cloudflare WAF block on our egress regions (HK sandbox 403, Aliyun-HK FC egress 403 via /api/media, headless Chromium 403) while WebFetch egress gets 200 {status:ok} from api.tryliner.fun/health — API healthy, region/IP-scoped block. Covers/link/monitor 403 too. Proxying can't help (server egress blocked as well).
+- Web bug exposed: probeConnection had no web signal (internet=null without electron bridge) → classifyConnection fell to "offline" for blocked upstream — false "You're offline".
+- Fix: probe.ts probes same-origin /api/health on web (ConnectionProbe.port); classify returns server_unreachable when port backend answers but upstream doesn't (5xx still server_error first); modal shows accurate "Liner's servers aren't responding / Your internet works... VPN often helps" copy (en desc extended).
+- Tests: 4 new classify cases; full suite 1181/1181 green; bundle App-B2IFmkhD.js deployed to public/liner + standalone, :3000 200.
+- User workarounds: VPN to unblocked region restores everything instantly; report/upvote to upstream (tryliner/desktop discussions) to whitelist region.

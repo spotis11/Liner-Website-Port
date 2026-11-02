@@ -15,6 +15,8 @@ export type IssueGroup = "youtube" | "server" | "offline";
 export interface ConnectionProbe {
   deviceOnline: boolean;
   api: { ok: boolean; status?: number };
+  /** web port only: the shell's own same-origin backend (/api/health) */
+  port?: { ok: boolean; status?: number };
   internet: boolean | null;
   youtube: boolean | null;
   youtubeFailure?: "timeout" | "blocked" | null;
@@ -26,6 +28,11 @@ export function classifyConnection(probe: ConnectionProbe): ConnectionVerdict {
   if (!probe.deviceOnline) return "offline";
   if (probe.api.status !== undefined && probe.api.status >= 500)
     return "server_error";
+  // web port: our own backend answered, so the user's internet works and the
+  // upstream API is what's blocked (regional block, firewall, DNS hijack...).
+  // Without this check the old code fell through to "offline" even though the
+  // user is clearly online.
+  if (probe.port?.ok) return "server_unreachable";
   if (probe.internet === true) return "server_unreachable";
   return "offline";
 }

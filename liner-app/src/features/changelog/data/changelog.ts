@@ -19,6 +19,21 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.12.1",
+    date: "2026-11-02",
+    title: "Honest connection errors — you're online, the upstream isn't",
+    entries: [
+      {
+        type: "fixed",
+        text: "The web app no longer claims you are offline when you are not. Liner's servers are reached from your browser directly, and when they block your network or region (Cloudflare 403s) the old code fell through to a false \"You're offline\" plus generic network-error toasts. The connectivity probe now also checks this website's own backend: if it answers but Liner's upstream does not, you get the accurate message — \"Your internet works, but Liner can't reach its servers\" — with a VPN hint, while downloaded and local music keep playing.",
+      },
+      {
+        type: "changed",
+        text: "If Liner's upstream servers are unreachable from your network or region, a VPN to another region usually restores full functionality instantly — nothing on the website needs to change.",
+      },
+    ],
+  },
+  {
     version: "1.12.0",
     date: "2026-10-31",
     title: "Core updated to Liner v0.2.11 — and your liked songs are all here",
