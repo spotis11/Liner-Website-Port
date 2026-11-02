@@ -51,7 +51,6 @@ export default function LibraryControls({
         role="search"
         data-no-window-drag
         className={`flex h-[32px] w-[220px] items-center gap-[8px] rounded-[9px] px-[10px] text-text-primary ${HERO_GLASS_CLASS}`}
-        style={{ fontFamily: "var(--font-inter), sans-serif" }}
       >
         <Search2Line size={16} className="shrink-0 text-text-secondary" />
         <input
@@ -90,7 +89,9 @@ export default function LibraryControls({
         aria-pressed={viewMode === "grid"}
         onClick={() => onViewModeChange("grid")}
         className={`${iconButtonClass} ${
-          viewMode === "grid" ? "" : "!text-text-tertiary hover:!text-text-primary"
+          viewMode === "grid"
+            ? ""
+            : "!text-text-tertiary hover:!text-text-primary"
         }`}
       >
         {viewMode === "grid" ? <GridFill size={16} /> : <GridLine size={16} />}
@@ -102,7 +103,9 @@ export default function LibraryControls({
         aria-pressed={viewMode === "list"}
         onClick={() => onViewModeChange("list")}
         className={`${iconButtonClass} ${
-          viewMode === "list" ? "" : "!text-text-tertiary hover:!text-text-primary"
+          viewMode === "list"
+            ? ""
+            : "!text-text-tertiary hover:!text-text-primary"
         }`}
       >
         {viewMode === "list" ? (

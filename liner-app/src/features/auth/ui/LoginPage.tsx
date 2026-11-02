@@ -14,6 +14,7 @@ import {
   useAuthStore,
 } from "../store/authStore";
 import { useTranslation } from "@/languages";
+import { HumanCheckNotice } from "@/features/human-check";
 import { cn } from "@/shared/lib";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -61,6 +62,10 @@ export default function LoginPage() {
     if (code === "invalid_username") return t("login.errors.username_invalid");
     if (code === "invalid_input")
       return t("login.errors.display_name_required");
+    if (code === "human_check_cancelled")
+      return t("login.errors.human_check_cancelled");
+    if (code === "human_check_failed")
+      return t("login.errors.human_check_failed");
     return authErrorMessage(nextError);
   };
 
@@ -200,7 +205,7 @@ export default function LoginPage() {
     >
       <LoginBackdrop edgeToEdge={isEdgeToEdge} />
 
-      <WindowControls variant="glass" />
+      <WindowControls variant="glass" isFullscreen />
 
       <section className="relative z-10 mx-4 my-auto grid max-h-[calc(100%-48px)] w-full max-w-[780px] grid-cols-[300px_1fr] gap-[8px] overflow-y-auto rounded-[20px] border border-border-primary bg-bg-panel p-[8px]">
         <LoginBrandPanel title={heading} subtitle={subheading} />
@@ -410,7 +415,9 @@ export default function LoginPage() {
                             @
                           </span>
                         }
-                        hasError={Boolean(error) && errorField !== "displayName"}
+                        hasError={
+                          Boolean(error) && errorField !== "displayName"
+                        }
                         aria-invalid={
                           Boolean(error) && errorField !== "displayName"
                         }
@@ -462,11 +469,7 @@ export default function LoginPage() {
                         aria-invalid={
                           Boolean(error) && errorField !== "username"
                         }
-                        aria-describedby={
-                          error && errorField !== "username"
-                            ? "auth-form-error"
-                            : undefined
-                        }
+                        aria-describedby={error ? "auth-form-error" : undefined}
                         onChange={(event) => {
                           setDisplayName(event.target.value);
                           if (error) setError("");
@@ -618,6 +621,7 @@ export default function LoginPage() {
           </p>
         </div>
       </section>
+      <HumanCheckNotice />
     </main>
   );
 }

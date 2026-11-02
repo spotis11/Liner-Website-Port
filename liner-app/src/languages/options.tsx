@@ -55,6 +55,7 @@ export const LOCALE_OPTIONS: SelectOption<Locale>[] = [
     icon: <Emoji name="flag-brazil" width={16} />,
   },
   {
+
     value: "tl",
     label: "Tagalog",
     icon: <Emoji name="flag-philippines" width={16} />,

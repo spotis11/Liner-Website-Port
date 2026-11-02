@@ -123,7 +123,8 @@ function splitSegments(runs: JsonRecord[]): JsonRecord[][] {
   const segments: JsonRecord[][] = [[]];
   for (const run of runs) {
     const text = typeof run.text === "string" ? run.text : "";
-    if (text.trim() === "•") {
+    if (text.trim() === "\u2022") {
+
       segments.push([]);
     } else {
       segments[segments.length - 1]!.push(run);
@@ -164,7 +165,10 @@ export function fallbackArtistsFromRuns(runs: JsonRecord[]): TrackArtist[] {
       .filter(Boolean)
       .map((name) => ({ id: "unknown", name }));
   });
-  return artists.length > 0 ? artists : [{ id: "unknown", name: "Unknown Artist" }];
+  return artists.length > 0
+    ? artists
+    : [{ id: "unknown", name: "Unknown Artist" }];
+
 }
 
 function fallbackArtistsFromColumn(renderer: JsonRecord): TrackArtist[] {

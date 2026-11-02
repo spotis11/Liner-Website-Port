@@ -1,6 +1,12 @@
 import { HashRouter } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { ToastProvider, AppleEmojiProvider, RootErrorBoundary, GlobalTooltip, WindowAnimationContainer } from "@/shared/ui";
+import {
+  ToastProvider,
+  AppleEmojiProvider,
+  RootErrorBoundary,
+  GlobalTooltip,
+  WindowAnimationContainer,
+} from "@/shared/ui";
 import { useWindowDrag } from "@/shared/hooks";
 import { useAppIconSync } from "@/features/player";
 import { I18nProvider } from "@/languages";
@@ -16,7 +22,7 @@ import { useAiTranslatePrefetch } from "@/features/lyrics";
 import { AppRoutes } from "./routes";
 import DeeplinkHandler from "./DeeplinkHandler";
 import EnvironmentWarning from "./EnvironmentWarning";
-import { ConnectivityWall } from "@/features/connectivity";
+import { ConnectionIssueModal } from "@/features/connectivity";
 import { useThemeCustomizationSync, useAppearanceSync } from "@/features/settings";
 import "./globals.css";
 
@@ -37,6 +43,7 @@ function ThemeSync() {
 
 function AppearanceSync() {
   useAppearanceSync();
+
   return null;
 }
 
@@ -88,7 +95,7 @@ export default function App() {
                 <WindowAnimationContainer>
                   <DeeplinkHandler />
                   <EnvironmentWarning />
-                  <ConnectivityWall />
+                  <ConnectionIssueModal />
                   <BanGate />
                   <WelcomeGate />
                   <AuthLock>

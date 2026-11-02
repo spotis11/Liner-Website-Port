@@ -9,10 +9,12 @@ describe("sidebarNavItems", () => {
       "search",
       "library",
       "local",
+      "downloads",
       "changelog",
       "settings",
     ]);
-    expect(ids.indexOf("changelog")).toBe(ids.indexOf("local") + 1);
+    expect(ids.indexOf("downloads")).toBe(ids.indexOf("local") + 1);
+    expect(ids.indexOf("changelog")).toBe(ids.indexOf("downloads") + 1);
     expect(ids.indexOf("settings")).toBe(ids.indexOf("changelog") + 1);
   });
 

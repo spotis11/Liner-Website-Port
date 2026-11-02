@@ -64,6 +64,7 @@ export function AboutTab({ searchQuery }: { searchQuery?: string }) {
           style={font}
         >
           {`Client v${appVersion} (website port by JayJoice)`}
+
           {lastCheckedTime ? ` · ${lastCheckedTime}` : ""}
         </span>
         <button

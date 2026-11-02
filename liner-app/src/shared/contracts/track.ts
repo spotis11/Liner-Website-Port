@@ -1,16 +1,16 @@
-import type { Cover } from './cover';
+import type { Cover } from "./cover";
 
 export interface TrackArtist {
   id: string;
   name: string;
 }
 
-export type TrackAudioVariant = 'music-video' | 'premium-only';
-
 export interface TrackAlbum {
   id: string;
   title: string;
 }
+
+export type TrackAudioVariant = "music-video" | "premium-only";
 
 export interface Track {
   id: string;
@@ -24,7 +24,7 @@ export interface Track {
 }
 
 export interface ApiTrack extends Track {
-  type?: 'track';
+  type?: "track";
   viewer?: {
     liked: boolean;
   };

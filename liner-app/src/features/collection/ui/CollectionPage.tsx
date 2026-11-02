@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   useCallback,
   useEffect,
@@ -15,8 +15,6 @@ import {
   FolderCheckFill,
   ShareForwardLine,
   PlaylistFill,
-  PlaylistLine,
-  DiscLine,
   MusicLine,
   CheckLine,
   More1Fill,
@@ -26,6 +24,7 @@ import Button from "@/shared/ui/Button";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
 import { DownloadAllButton } from "@/features/downloads";
 import CoverImage from "@/features/covers/ui/CoverImage";
+import { preloadCoverArt } from "@/features/covers/lib/coverArt";
 import { DailyMixCover } from "@/features/home";
 import { playerEngine } from "@/features/player";
 import { AnimatePresence, motion } from "framer-motion";
@@ -35,6 +34,7 @@ import {
   DropdownMenu,
   HERO_TITLE_CLASS,
   HERO_SUBTITLE_CLASS,
+  HeroSubtitle,
   HERO_CHIP_CLASS,
   HERO_BUTTON_CLASS,
   HERO_GLASS_BUTTON_CLASS,
@@ -51,6 +51,7 @@ import { useModalStore } from "@/features/library";
 import { buildShareUrl } from "@/shared/utils/share";
 import { useExternalItems } from "@/features/library/hooks";
 import { useCollection } from "../hooks/useCollection";
+import { readCollectionPreview } from "../lib/collectionPreview";
 import {
   useTrackSearch,
   TrackSearchField,
@@ -67,10 +68,12 @@ function CollectionContent() {
   const id = searchParams.get("id");
   const { t } = useTranslation();
 
+  const location = useLocation();
+  const preview = readCollectionPreview(location.state);
   const { data, loading } = useCollection(type, id);
   const classicSurfaces = useClassicSurfaces();
   const hasCustomBg = useHasCustomBackground();
-  usePageBackdrop(data?.coverUrl);
+  usePageBackdrop(preview?.coverUrl || data?.coverUrl);
   const isSingleArtistAlbum = useMemo(() => {
     if (type === "playlist" || !data || data.tracks.length === 0) return false;
     const first = data.tracks[0].artists;
@@ -93,8 +96,10 @@ function CollectionContent() {
       ? savedAlbums.some((album) => album.id === decodedId)
       : savedPlaylists.some((playlist) => playlist.id === decodedId);
 
-  const [imagesLoaded, setImagesLoaded] = useState(false);
-  const [skeletonExited, setSkeletonExited] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState(() => !loading && !!data);
+  const [skeletonExited, setSkeletonExited] = useState(
+    () => !loading && !!data,
+  );
 
   const urlsToPreload = useMemo(() => {
     if (!data) return [];
@@ -122,19 +127,7 @@ function CollectionContent() {
       }
     }, 150);
 
-    const promises = urlsToPreload.map(
-      (url) =>
-        new Promise<void>((resolve) => {
-          const img = new Image();
-          img.src = url;
-          if (img.complete) {
-            resolve();
-            return;
-          }
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-        }),
-    );
+    const promises = urlsToPreload.map((url) => preloadCoverArt(url));
 
     Promise.all(promises).then(() => {
       if (active && !settled) {
@@ -151,15 +144,24 @@ function CollectionContent() {
   }, [loading, data, urlsToPreload]);
 
   const isReady = !loading && !!data && imagesLoaded;
+  const contentLayerRef = useRef<HTMLDivElement>(null);
+  const swapsInPlace = Boolean(preview?.title);
 
   useEffect(() => {
-    if (isReady && !skeletonExited) {
-      const timer = setTimeout(() => {
-        setSkeletonExited(true);
-      }, 250);
-      return () => clearTimeout(timer);
-    }
-  }, [isReady, skeletonExited]);
+    if (!isReady || skeletonExited) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const settle = () => {
+      const layer = contentLayerRef.current;
+      const shown =
+        !swapsInPlace ||
+        !layer ||
+        Number(getComputedStyle(layer).opacity) >= 0.99;
+      if (shown) setSkeletonExited(true);
+      else timer = setTimeout(settle, 120);
+    };
+    timer = setTimeout(settle, 250);
+    return () => clearTimeout(timer);
+  }, [isReady, skeletonExited, swapsInPlace]);
 
   const playbackContext = id
     ? `${entityType}:${decodedId}`
@@ -277,9 +279,20 @@ function CollectionContent() {
       <div className="relative z-1 grid grid-cols-1 w-full h-full min-h-0 overflow-hidden">
         {data && (
           <div
-            className={`col-start-1 row-start-1 w-full h-full min-h-0 overflow-hidden transition-opacity duration-200 ease-out ${
-              isReady ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
+            className={`col-start-1 row-start-1 w-full h-full min-h-0 overflow-hidden ${
+              swapsInPlace
+                ? "relative z-20 transition-opacity duration-[180ms] ease-out"
+                : "transition-opacity duration-200 ease-out"
+            } ${isReady ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            ref={contentLayerRef}
+            onTransitionEnd={(event) => {
+              if (
+                swapsInPlace &&
+                isReady &&
+                event.target === event.currentTarget
+              )
+                setSkeletonExited(true);
+            }}
           >
             <div
               ref={scrollRef}
@@ -287,7 +300,10 @@ function CollectionContent() {
               className="relative z-10 flex flex-col h-full w-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain box-border pt-(--page-inset-top) pb-(--page-inset-bottom)"
               style={{ willChange: "scroll-position" }}
             >
-              <div className="shrink-0 pl-[16px] pr-[12px] pt-[8px]" data-no-window-drag>
+              <div
+                className="shrink-0 pl-[16px] pr-[12px] pt-[8px]"
+                data-no-window-drag
+              >
                 <EntityHero
                   cover={
                     data.coverUrl ? (
@@ -347,22 +363,18 @@ function CollectionContent() {
                     ) : data.author ? (
                       <p className={HERO_SUBTITLE_CLASS}>{data.author}</p>
                     ) : data.description ? (
-                      <p className={HERO_SUBTITLE_CLASS}>{data.description}</p>
+                      <HeroSubtitle text={data.description} />
                     ) : undefined
                   }
                   meta={
                     <div className="flex items-center flex-wrap gap-[6px]">
                       {data.year && (
-                        <div
-                          className={HERO_CHIP_CLASS}
-                        >
+                        <div className={HERO_CHIP_CLASS}>
                           <span>{data.year}</span>
                         </div>
                       )}
 
-                      <div
-                        className={HERO_CHIP_CLASS}
-                      >
+                      <div className={HERO_CHIP_CLASS}>
                         <MusicLine
                           size={13}
                           className="text-text-secondary shrink-0"
@@ -575,12 +587,18 @@ function CollectionContent() {
         {/* Direct Crossfade Skeleton Layer */}
         {!skeletonExited && (
           <div
-            className={`col-start-1 row-start-1 w-full h-full z-10 transition-opacity duration-200 ease-out overflow-hidden pointer-events-none ${
-              isReady ? "opacity-0" : "opacity-100"
+            className={`col-start-1 row-start-1 w-full h-full overflow-hidden pointer-events-none ${
+              swapsInPlace
+                ? "z-0"
+                : `z-10 transition-opacity duration-200 ease-out ${
+                    isReady ? "opacity-0" : "opacity-100"
+                  }`
             }`}
-            onTransitionEnd={() => setSkeletonExited(true)}
+            onTransitionEnd={(event) => {
+              if (event.target === event.currentTarget) setSkeletonExited(true);
+            }}
           >
-            <CollectionPageSkeleton isAlbum={isAlbum} />
+            <CollectionPageSkeleton isAlbum={isAlbum} preview={preview} />
           </div>
         )}
       </div>

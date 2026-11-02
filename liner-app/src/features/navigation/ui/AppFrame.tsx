@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -8,6 +9,10 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import {
+  collectionPath,
+  collectionPreviewState,
+} from "@/features/collection/lib/collectionPreview";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Search3Line,
@@ -21,10 +26,11 @@ import {
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { cn } from "@/shared/lib";
-import WindowControls from "./WindowControls";
-import PageTransition from "./PageTransition";
+import WindowControlsNotch from "./WindowControlsNotch";
 import RightDrawer from "./RightDrawer";
+import { FullscreenRouteContext } from "../fullscreenRouteContext";
 import DynamicBlurBackground from "./DynamicBlurBackground";
+import AmbientTopGlow from "./AmbientTopGlow";
 import { useGlobalShortcuts } from "../hooks/useGlobalShortcuts";
 import { useDisableButtonFocus } from "../hooks/useDisableButtonFocus";
 import { useWindowState } from "../hooks/useWindowState";
@@ -41,6 +47,7 @@ import {
   playerEngine,
   MiniPlayer,
   usePlayerStore,
+  useGlassBlur,
   attachMiniPipAutoBehavior,
 } from "@/features/player";
 import SearchResultsList from "@/features/search/ui/SearchResultsList";
@@ -54,6 +61,7 @@ import {
   RemoveFromLibraryModal,
   ImportLikesModal,
   ImportReviewModal,
+  LocalDropZone,
   CreatePlaylistModal,
   useModalStore,
 } from "@/features/library";
@@ -68,6 +76,7 @@ import { UpdateModal, UpdateToastBridge } from "@/features/updater";
 import { YoutubeSignInNotice } from "@/features/youtube-auth";
 import { AnnouncementPopup } from "@/features/announcements";
 import { ChangelogModal } from "@/features/changelog";
+import { useOfflineModeStore } from "@/features/connectivity";
 
 interface AppFrameProps {
   children: React.ReactNode;
@@ -84,6 +93,27 @@ const LEGACY_LAYOUT_STORAGE_KEYS = [
   "liner_queue_popup_open",
 ] as const;
 
+const AppOverlays = memo(function AppOverlays() {
+  return (
+    <>
+      <AddToPlaylistModal />
+      <AddToLibraryModal />
+      <RemoveFromPlaylistModal />
+      <RemoveFromLibraryModal />
+      <ImportLikesModal />
+      <CreatePlaylistModal />
+      <ImportReviewModal />
+      <LocalDropZone />
+      <SettingsModal />
+      <UpdateModal />
+      <YoutubeSignInNotice />
+      <UpdateToastBridge />
+      <ChangelogModal />
+      <AnnouncementPopup />
+    </>
+  );
+});
+
 export default function AppFrame({ children }: AppFrameProps) {
   const location = useLocation();
   const { pathname, search } = location;
@@ -96,6 +126,12 @@ export default function AppFrame({ children }: AppFrameProps) {
   const closeSearch = useModalStore((state) => state.closeSearch);
   const toggleSearch = useModalStore((state) => state.toggleSearch);
   const openSettings = useModalStore((state) => state.openSettings);
+  const offline = useOfflineModeStore((state) => state.offline);
+
+  // Spotify-style miniplayer: detect tab switches / Chrome media controls and
+  // pop the floating mini player window (Chromium only — silently no-ops
+  // elsewhere). Returns its detach function for unmount cleanup.
+  useEffect(() => attachMiniPipAutoBehavior(), []);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [queuePopupOpen, setQueuePopupOpen] = useState(false);
@@ -113,15 +149,14 @@ export default function AppFrame({ children }: AppFrameProps) {
   }, [pathname, openSettings, navigate]);
 
   useEffect(() => {
+    if (offline && searchOpen) closeSearch();
+  }, [offline, searchOpen, closeSearch]);
+
+  useEffect(() => {
     for (const key of LEGACY_LAYOUT_STORAGE_KEYS) {
       localStorage.removeItem(key);
     }
   }, []);
-
-  // Spotify-style miniplayer: detect tab switches / Chrome media controls and
-  // pop the floating mini player window (Chromium only — silently no-ops
-  // elsewhere). Returns its detach function for unmount cleanup.
-  useEffect(() => attachMiniPipAutoBehavior(), []);
 
   const handleQueuePopupToggle = useCallback((open: boolean) => {
     setQueuePopupOpen(open);
@@ -162,14 +197,8 @@ export default function AppFrame({ children }: AppFrameProps) {
   }, [pathname, search, searchOpen, searchQuery, closeSearch]);
 
   useLayoutEffect(() => {
-    if (mainScrollRef.current) {
-      mainScrollRef.current.scrollTop = 0;
-      const innerScrollables =
-        mainScrollRef.current.querySelectorAll(".overflow-y-auto");
-      innerScrollables.forEach((el) => {
-        el.scrollTop = 0;
-      });
-    }
+    const main = mainScrollRef.current;
+    if (main && main.scrollTop !== 0) main.scrollTop = 0;
   }, [pathname, search]);
 
   const updateSearchMask = useCallback(() => {
@@ -230,25 +259,20 @@ export default function AppFrame({ children }: AppFrameProps) {
   const hasSearchQuery = searchQuery.trim().length > 0;
   const isFullscreenRoute = pathname === "/player";
   const isFullscreenPlayer = isFullscreenRoute || fullscreenPlayerOpen;
-  // NOTE: `children` is the router <Outlet/> element — a STABLE element whose
-  // resolved content changes with the route. Rendering it in two places at once
-  // instantiates the matched route twice, so the /player route must be
-  // exclusively owned by the z-[70] fullscreen layer below (see the ternary
-  // near the file end). The shell renders nothing while that route is active —
-  // rendering it here as well double-mounted the FullscreenPlayer, which
-  // stacked two lyric panes: the Lyrics pill collapsed one while the
-  // duplicate's pane stayed on screen ("lyrics won't be gone"), and the two
-  // translation hooks raced over the same cache key ("translate didn't work").
+  const shellChildrenRef = useRef<React.ReactNode>(null);
+  if (!isFullscreenRoute) {
+    shellChildrenRef.current = children;
+  }
   const isRightDrawerOpen =
     queuePopupOpen && !searchOpen && !isFullscreenPlayer;
 
   const openFullscreenPlayer = useCallback(() => {
     setFullscreenPlayerOpen(true);
-  }, []);
+  }, [setFullscreenPlayerOpen]);
 
   const closeFullscreenPlayer = useCallback(() => {
     setFullscreenPlayerOpen(false);
-  }, []);
+  }, [setFullscreenPlayerOpen]);
 
   const handleCloseFullscreen = useCallback(() => {
     if (fullscreenPlayerOpen) {
@@ -256,7 +280,12 @@ export default function AppFrame({ children }: AppFrameProps) {
     } else if (isFullscreenRoute) {
       navigate("/", { replace: true });
     }
-  }, [fullscreenPlayerOpen, isFullscreenRoute, navigate]);
+  }, [
+    fullscreenPlayerOpen,
+    isFullscreenRoute,
+    navigate,
+    setFullscreenPlayerOpen,
+  ]);
 
   useEffect(() => {
     if (isFullscreenPlayer && !hasCurrentTrack) {
@@ -270,6 +299,9 @@ export default function AppFrame({ children }: AppFrameProps) {
   const isBackNavigableRoute =
     pathname === "/artist" ||
     pathname === "/library/playlist" ||
+    pathname === "/library/local" ||
+    pathname === "/library/cached" ||
+    pathname === "/library/saved" ||
     pathname === "/collection";
   const handleEscapeFallback = useCallback(() => {
     if (queuePopupOpen || searchOpen || isFullscreenPlayer) return false;
@@ -524,7 +556,9 @@ export default function AppFrame({ children }: AppFrameProps) {
         target instanceof Element &&
         (target.closest("[data-dialog-container]") ||
           target.closest("[data-dialog-backdrop]") ||
-          target.closest("[data-dropdown-menu]"))
+          target.closest("[data-dropdown-menu]") ||
+          // a toast action (e.g. Undo after removing a queue track) must not close the open drawer
+          target.closest("[data-toast]"))
       ) {
         return;
       }
@@ -563,7 +597,7 @@ export default function AppFrame({ children }: AppFrameProps) {
     return () => {
       document.removeEventListener("mousedown", onGlobalPointerDown, true);
     };
-  }, [searchOpen, queuePopupOpen, handleQueuePopupToggle]);
+  }, [searchOpen, queuePopupOpen, handleQueuePopupToggle, closeSearch]);
 
   const handleSearchToggle = useCallback(() => {
     toggleSearch();
@@ -634,7 +668,13 @@ export default function AppFrame({ children }: AppFrameProps) {
           coverUrl: it.coverUrl,
           itemData: it,
         });
-        navigate(`/collection?type=playlist&id=${encodeURIComponent(it.id)}`);
+        navigate(collectionPath("playlist", it.id), {
+          state: collectionPreviewState({
+            coverUrl: it.coverUrl,
+            title: it.name || it.title,
+            subtitle: it.author || it.owner,
+          }),
+        });
       } else if (
         it._type === "album" ||
         it.totalTracks !== undefined ||
@@ -649,7 +689,13 @@ export default function AppFrame({ children }: AppFrameProps) {
           coverUrl: it.coverUrl,
           itemData: it,
         });
-        navigate(`/collection?type=album&id=${encodeURIComponent(it.id)}`);
+        navigate(collectionPath("album", it.id), {
+          state: collectionPreviewState({
+            coverUrl: it.coverUrl,
+            title: it.name || it.title,
+            subtitle: it.artists || it.artist,
+          }),
+        });
       }
     },
     [activeFilter, closeSearch, navigate, addHistoryItem, t],
@@ -690,15 +736,15 @@ export default function AppFrame({ children }: AppFrameProps) {
   const hasCustomBg = useHasCustomBackground();
   const hasPageBackdrop = useHasPageBackdrop();
   const classicSurfaces = useClassicSurfaces();
+  const glassBlur = useGlassBlur();
 
   return (
     <div
       ref={appFrameRef}
-      className={`relative flex flex-col h-full w-full overflow-hidden p-1.5 gap-1.5 ${
-        hasCustomBg ? "bg-black" : "bg-bg-canvas"
-      } ${
-        isEdgeToEdge ? "rounded-none" : "rounded-[12px]"
-      }`}
+      className={`app-shell-enter relative flex flex-col h-full w-full overflow-hidden p-1.5 gap-1.5 ${
+        hasCustomBg || isFullscreenPlayer ? "bg-black" : "bg-bg-canvas"
+      } ${isEdgeToEdge ? "rounded-none" : "rounded-[12px]"}`}
+      style={isEdgeToEdge ? undefined : { clipPath: "inset(0 round 12px)" }}
       onScroll={(e) => {
         if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
         if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
@@ -727,7 +773,11 @@ export default function AppFrame({ children }: AppFrameProps) {
             />
           )}
         </div>
-      ) : classicSurfaces ? null : (
+      ) : classicSurfaces ? (
+        isDark ? (
+          <AmbientTopGlow />
+        ) : null
+      ) : (
         <DynamicBlurBackground isDark={isDark} />
       )}
 
@@ -749,7 +799,12 @@ export default function AppFrame({ children }: AppFrameProps) {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 min-h-0 flex flex-row w-full gap-1.5 overflow-hidden relative z-10">
+      <div
+        className={cn(
+          "flex-1 min-h-0 flex flex-row w-full gap-1.5 overflow-hidden relative z-10",
+          fullscreenPlayerOpen && fullscreenEffectsReady && "invisible",
+        )}
+      >
         <aside
           ref={sidebarRef}
           className="w-[58px] mt-[56px] shrink-0 z-[45] relative flex flex-col"
@@ -778,9 +833,9 @@ export default function AppFrame({ children }: AppFrameProps) {
                   : "overflow-y-auto"
               }`}
             >
-              <PageTransition>
-                {isFullscreenRoute ? null : children}
-              </PageTransition>
+              <div className="h-full w-full">
+                {isFullscreenRoute ? shellChildrenRef.current : children}
+              </div>
             </div>
 
             <AnimatePresence>
@@ -809,9 +864,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                     className="pointer-events-auto absolute top-(--page-inset-top) bottom-(--floating-inset-bottom) right-0 z-[50]"
                     style={{ width: RIGHT_DRAWER_WIDTH }}
                   >
-                    <RightDrawer
-                      onClose={closeRightPanel}
-                    />
+                    <RightDrawer onClose={closeRightPanel} />
                   </motion.aside>
                 )}
               </AnimatePresence>
@@ -848,7 +901,9 @@ export default function AppFrame({ children }: AppFrameProps) {
             onAnimationComplete={() =>
               setFullscreenEffectsReady(fullscreenPlayerOpen)
             }
-            className="dark absolute inset-0 z-[70] overflow-hidden bg-black will-change-transform"
+            className={`dark absolute inset-0 z-[70] overflow-hidden rounded-[inherit] bg-black ${
+              fullscreenEffectsReady ? "" : "will-change-transform"
+            }`}
           >
             <FullscreenPlayer
               onClose={closeFullscreenPlayer}
@@ -858,9 +913,11 @@ export default function AppFrame({ children }: AppFrameProps) {
         ) : isFullscreenRoute ? (
           <div
             data-theme="dark"
-            className="dark absolute inset-0 z-[70] overflow-hidden bg-black"
+            className="dark absolute inset-0 z-[70] overflow-hidden rounded-[inherit] bg-black"
           >
-            {children}
+            <FullscreenRouteContext.Provider value>
+              {children}
+            </FullscreenRouteContext.Provider>
           </div>
         ) : null}
       </AnimatePresence>
@@ -925,7 +982,6 @@ export default function AppFrame({ children }: AppFrameProps) {
                 }}
                 className="w-full flex-1 bg-transparent border-none outline-none text-text-primary text-[16px] placeholder:text-text-tertiary font-[400] tracking-tight"
                 style={{
-                  fontFamily: "var(--font-inter), sans-serif",
                   lineHeight: "1.2",
                 }}
               />
@@ -986,7 +1042,6 @@ export default function AppFrame({ children }: AppFrameProps) {
                             }
                           `}
                           style={{
-                            fontFamily: "var(--font-inter), sans-serif",
                             lineHeight: "1.2",
                           }}
                         >
@@ -1021,20 +1076,10 @@ export default function AppFrame({ children }: AppFrameProps) {
                           transition={{ duration: 0.08 }}
                           className="flex h-full flex-col items-center justify-center gap-[6px] px-[20px] text-center"
                         >
-                          <p
-                            className="m-0 text-[14px] text-text-primary font-medium"
-                            style={{
-                              fontFamily: "var(--font-inter), sans-serif",
-                            }}
-                          >
+                          <p className="m-0 text-[14px] text-text-primary font-medium">
                             {t("common.no_results")}
                           </p>
-                          <p
-                            className="m-0 text-[12px] text-text-tertiary"
-                            style={{
-                              fontFamily: "var(--font-inter), sans-serif",
-                            }}
-                          >
+                          <p className="m-0 text-[12px] text-text-tertiary">
                             {t("common.try_another_search")}
                           </p>
                         </motion.div>
@@ -1093,33 +1138,15 @@ export default function AppFrame({ children }: AppFrameProps) {
         )}
       </AnimatePresence>
 
-      <AddToPlaylistModal />
-      <AddToLibraryModal />
-      <RemoveFromPlaylistModal />
-      <RemoveFromLibraryModal />
-      <ImportLikesModal />
-      <CreatePlaylistModal />
-      <ImportReviewModal />
-      <SettingsModal />
-      <ChangelogModal />
-      <AnnouncementPopup />
-      <UpdateModal />
-      <YoutubeSignInNotice />
-      <UpdateToastBridge />
-      <AnimatePresence>
-        {isFullscreenPlayer && (
-          <motion.div
-            key="fullscreen-window-controls"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute top-[6px] right-[6px] z-[80] pointer-events-auto select-none"
-          >
-            <WindowControls isFullscreen embedded />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AppOverlays />
+      {isFullscreenPlayer && (
+        <div
+          data-theme="dark"
+          className="dark absolute top-1.5 right-1.5 z-[80]"
+        >
+          <WindowControlsNotch tone="glass" blur={glassBlur} />
+        </div>
+      )}
     </div>
   );
 }

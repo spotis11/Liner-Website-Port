@@ -7,10 +7,11 @@ import { AppImage } from "@/features/covers";
 import { signOutYoutube } from "@/shared/youtube";
 import { useYoutubeAccount } from "../hooks/useYoutubeAccount";
 import { useYoutubeSignInStore } from "../store/youtubeSignInStore";
+import YoutubeAccountSwitcher from "./YoutubeAccountSwitcher";
 
 export default function YoutubeAccountCard() {
   const { t } = useTranslation();
-  const { signedIn, account, loading } = useYoutubeAccount();
+  const { signedIn, account, accounts, loading } = useYoutubeAccount();
   const showSignIn = useYoutubeSignInStore((state) => state.show);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -36,6 +37,11 @@ export default function YoutubeAccountCard() {
       }
       placeholderIcon={<YoutubeFill size={24} />}
       title={title}
+      titleAccessory={
+        signedIn && accounts.length > 1 ? (
+          <YoutubeAccountSwitcher accounts={accounts} />
+        ) : undefined
+      }
       subtitle={subtitle}
       loading={loading}
       action={

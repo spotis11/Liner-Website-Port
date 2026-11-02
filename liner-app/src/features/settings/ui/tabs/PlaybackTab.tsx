@@ -55,7 +55,6 @@ export function PlaybackTab({ searchQuery }: { searchQuery?: string }) {
 
   return (
     <SettingSection>
-
       <SettingRow
         title={t("settings.hover_preview.title")}
         description={t("settings.hover_preview.description")}

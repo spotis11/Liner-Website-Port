@@ -6,7 +6,6 @@ import {
   ipcMain,
   shell,
   screen,
-  dialog,
   session,
   nativeImage,
   powerSaveBlocker,
@@ -57,11 +56,13 @@ import { detectCompositor } from "./compositor/index.js";
 import { BundleManager } from "./bundle-manager.js";
 import { createBundleErrorStamp } from "./bundle-stamp.js";
 import { createSleepBlocker } from "./sleep-blocker.js";
-import { withOpenCors } from "./cors.js";
+import { needsOpenCors, withOpenCors } from "./cors.js";
 import { createShutdown } from "./shutdown.js";
 import {
+  clampResizeToArea,
   computeDragBounds,
   isInTopSnapZone,
+  minimumSizeFor,
   restoreUnderCursor,
 } from "./window-drag.js";
 import {
@@ -71,6 +72,18 @@ import {
 } from "./snap-native.js";
 import { DiscordRpcManager } from "./discord.js";
 import { PoTokenService } from "./youtube/potoken.js";
+import { setupLocalTracks } from "./local-tracks/ipc.js";
+import {
+  createSavedTrackLibrary,
+  setupSavedTracks,
+} from "./saved-tracks/ipc.js";
+import { setupNetProbe } from "./netprobe/ipc.js";
+import {
+  installNetSimulation,
+  simulatedResponseStatus,
+} from "./netsim/install.js";
+import { registerLocalTrackScheme } from "./local-tracks/protocol.js";
+import { attachZoomControls } from "./zoom.js";
 import {
   YOUTUBE_REQUEST_URLS,
   youtubeOriginFor,
@@ -95,6 +108,7 @@ app.commandLine.appendSwitch("disable-http2");
 if (detectCompositor() !== "none") {
   app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
 }
+registerLocalTrackScheme();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -277,6 +291,54 @@ function createWindow() {
   mainWindow.on("leave-full-screen", onMaximizeStateChanged);
   // transparent windows "maximize" by filling the work area, so catch it on resize too
   mainWindow.on("resize", syncResizable);
+
+  const fitMinimumToDisplay = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const area = screen.getDisplayMatching(mainWindow.getBounds()).workArea;
+    const min = minimumSizeFor(
+      { width: MIN_WINDOW_WIDTH, height: MIN_WINDOW_HEIGHT },
+      area,
+    );
+    const [width, height] = mainWindow.getMinimumSize();
+    if (width !== min.width || height !== min.height) {
+      mainWindow.setMinimumSize(min.width, min.height);
+    }
+  };
+
+  const keepInsideWorkArea = () => {
+    if (
+      !mainWindow ||
+      mainWindow.isDestroyed() ||
+      mainWindow.isMaximized() ||
+      mainWindow.isFullScreen()
+    ) {
+      return;
+    }
+    fitMinimumToDisplay();
+    const bounds = mainWindow.getBounds();
+    const area = screen.getDisplayMatching(bounds).workArea;
+    const next = clampResizeToArea(bounds, area);
+    if (
+      next.x !== bounds.x ||
+      next.y !== bounds.y ||
+      next.width !== bounds.width ||
+      next.height !== bounds.height
+    ) {
+      mainWindow.setBounds(next);
+    }
+  };
+
+  mainWindow.on("resized", keepInsideWorkArea);
+  mainWindow.on("moved", fitMinimumToDisplay);
+  screen.on("display-metrics-changed", fitMinimumToDisplay);
+  screen.on("display-added", fitMinimumToDisplay);
+  screen.on("display-removed", fitMinimumToDisplay);
+  mainWindow.once("closed", () => {
+    screen.off("display-metrics-changed", fitMinimumToDisplay);
+    screen.off("display-added", fitMinimumToDisplay);
+    screen.off("display-removed", fitMinimumToDisplay);
+  });
+  keepInsideWorkArea();
   mainWindow.on("minimize", () => {
     broadcastWindowState();
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -316,12 +378,14 @@ function createWindow() {
   mainWindow.webContents.on("console-message", (_event, level, message) => {
     // clean devtools format directives for terminal readability
     const cleanMsg = message.replace(/%c/g, "").trim();
-    try {
-      fs.appendFileSync(
-        path.join(process.cwd(), "renderer.log"),
-        `[${level}] ${cleanMsg}\n`,
-      );
-    } catch {}
+    if (!app.isPackaged) {
+      try {
+        fs.appendFileSync(
+          path.join(process.cwd(), "renderer.log"),
+          `[${level}] ${cleanMsg}\n`,
+        );
+      } catch {}
+    }
     if (level >= 3) {
       console.error(`\x1b[41;37m renderer error \x1b[0m ${cleanMsg}`);
     } else if (level === 2) {
@@ -363,6 +427,7 @@ function createWindow() {
       }
     }
   });
+  attachZoomControls(mainWindow, MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
@@ -467,6 +532,11 @@ if (!gotTheLock) {
     } else {
       app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME);
     }
+    const savedTracks = createSavedTrackLibrary();
+    setupLocalTracks(savedTracks);
+    setupSavedTracks(savedTracks);
+    installNetSimulation(session.defaultSession);
+    setupNetProbe();
     touchBarManager = new TouchBarManager(
       path.join(__dirname, "preload.cjs"),
       RENDERER_DIST,
@@ -779,8 +849,22 @@ if (!gotTheLock) {
       },
     );
 
+    // other hosts keep their own cors headers. dev builds also talk to a
+    // local api (see .env.example)
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-      callback(withOpenCors(details.responseHeaders, details.method));
+      const cors = needsOpenCors(details.url, !app.isPackaged)
+        ? withOpenCors(details.responseHeaders, details.method)
+        : {};
+      const statusLine = simulatedResponseStatus(details.url, details.method);
+      callback(
+        statusLine
+          ? {
+              responseHeaders: details.responseHeaders,
+              ...cors,
+              statusLine,
+            }
+          : cors,
+      );
     });
 
     let lastSavedExportPath: string | null = null;

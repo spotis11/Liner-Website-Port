@@ -13,6 +13,12 @@ vi.mock("lottie-web", () => ({
   default: { loadAnimation: vi.fn(() => ({ destroy: vi.fn() })) },
   loadAnimation: vi.fn(() => ({ destroy: vi.fn() })),
 }));
+// upstream's StorageTab imports the light build under a different specifier —
+// stub it too or jsdom's null canvas crashes at import time
+vi.mock("lottie-web/build/player/lottie_light", () => ({
+  default: { loadAnimation: vi.fn(() => ({ destroy: vi.fn() })) },
+  loadAnimation: vi.fn(() => ({ destroy: vi.fn() })),
+}));
 
 vi.mock("../../lib/userFinderApi", () => ({
   findUser: (...args: unknown[]) => mockFindUser(...args),

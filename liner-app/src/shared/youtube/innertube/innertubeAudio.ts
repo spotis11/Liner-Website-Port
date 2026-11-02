@@ -12,6 +12,7 @@ import {
   isBotCheckRefusal,
   isStreamRefused,
 } from "./streamProbe";
+
 import type { ResolvedAudioStream } from "./innertubeAudioFormats";
 
 export type { ResolvedAudioStream } from "./innertubeAudioFormats";
@@ -138,6 +139,7 @@ export async function resolveDirectAudioStream(
       const message = error instanceof Error ? error.message : String(error);
       failures.push(`${profile.clientName}: ${message}`);
       recordPlaybackFailure("profile", `${profile.clientName}: ${message}`, videoId);
+
     }
   }
   if (profilesTried > 0 && profilesRefused === profilesTried)

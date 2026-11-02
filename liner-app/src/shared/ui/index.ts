@@ -12,6 +12,7 @@ export {
   type SelectOption,
 } from "./Select";
 export { default as MenuSelect, type MenuSelectProps } from "./MenuSelect";
+export { default as Notch, type NotchProps } from "./Notch";
 export { default as TextInput, type TextInputProps } from "./TextInput";
 export {
   default as ToggleSwitch,
@@ -65,6 +66,7 @@ export {
   default as EntityHero,
   HERO_TITLE_CLASS,
   HERO_SUBTITLE_CLASS,
+  HeroSubtitle,
   HERO_CHIP_CLASS,
   HERO_BUTTON_CLASS,
   HERO_GLASS_BUTTON_CLASS,
@@ -86,3 +88,4 @@ export {
   type DialogButtonProps,
 } from "./DialogActions";
 export { default as QrCode, type QrCodeProps } from "./QrCode";
+export { ISLAND_SURFACE } from "./islandSurface";

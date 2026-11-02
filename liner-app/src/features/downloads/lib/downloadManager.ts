@@ -146,12 +146,32 @@ class DownloadManager {
       this.queued.delete(next.id);
       const controller = new AbortController();
       this.active.set(next.id, controller);
-      void this.runOne(next, controller)
-        .catch(() => {})
-        .finally(() => {
-          this.active.delete(next.id);
-          this.pump();
-        });
+      const attempt = (retried: boolean) =>
+        this.runOne(next, controller)
+          .catch((error: unknown) => {
+            // batches download dozens of tracks back-to-back — transient
+            // hiccups (rate limits, dropped connections) are normal, so
+            // every track gets exactly one automatic retry before it is
+            // marked failed. Aborts are never retried.
+            const aborted =
+              controller.signal.aborted ||
+              (error as Error)?.name === "AbortError";
+            if (aborted || retried) throw error;
+            return new Promise<void>((resolve) =>
+              setTimeout(resolve, 1200),
+            ).then(() => {
+              useDownloadsStore
+                .getState()
+                .setStatus(next.id, { status: "queued" });
+              return this.runOne(next, controller);
+            });
+          })
+          .catch(() => {})
+          .finally(() => {
+            this.active.delete(next.id);
+            this.pump();
+          });
+      void attempt(false);
     }
   }
 

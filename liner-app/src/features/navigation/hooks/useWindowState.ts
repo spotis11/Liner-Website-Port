@@ -15,8 +15,18 @@ let activeWindowStateInstances = 0;
 // real fullscreen (requestFullscreen-style, no preventDefault) — the website
 // port relies on it because there is no Electron window to coordinate.
 const handlePreventF11 = (e: KeyboardEvent) => {
-  if (e.key === "F11" && typeof window !== "undefined" && window.linerElectron) {
-    e.preventDefault();
+  if (e.key !== "F11") return;
+  // Plain browsers: F11 falls through to the browser's own real fullscreen —
+  // the website port relies on it because there is no Electron window to
+  // coordinate (swallowing it would strand web users without any fullscreen).
+  if (!window.linerElectron) return;
+  // Electron: Chromium's own F11 binding fullscreens the window outside the
+  // state sync, so it stays swallowed on every platform. Linux gets the
+  // standard desktop behavior wired back through the window-controls IPC.
+  e.preventDefault();
+  if (e.repeat) return;
+  if (window.linerElectron.platform === "linux") {
+    void window.linerElectron.toggleFullScreen?.();
   }
 };
 

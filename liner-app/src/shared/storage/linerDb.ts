@@ -1,4 +1,4 @@
-import type { Track } from "@/shared/types";
+import type { Track, TrackArtist } from "@/shared/types";
 import type {
   LyricsCandidate,
   LyricsSyncLevel,
@@ -7,12 +7,15 @@ import type { LyricsProviderOption } from "@/features/lyrics/store/lyricsStore";
 import {
   shouldCacheLyricsCandidate,
   compareLyricsCandidates,
+  mergeLyricsProvider,
 } from "@/features/lyrics";
 
 export interface CachedTrackRecord {
   id: string;
   title: string;
   artists: string;
+  artistId?: string;
+  artistList?: TrackArtist[];
   albumTitle?: string;
   albumId?: string;
   coverUrl?: string;
@@ -30,6 +33,11 @@ export interface CachedAudioRecord {
   /** user-requested offline download — never evicted by the LRU cache limit */
   pinnedAt?: number;
 }
+
+export type CachedAudioEntry = Pick<
+  CachedAudioRecord,
+  "trackId" | "byteSize" | "savedAt" | "lastPlayedAt"
+>;
 
 export interface CachedLyricsRecord {
   trackId: string;
@@ -87,7 +95,7 @@ class LinerDb {
   private memLyrics = new Map<string, CachedLyricsRecord>();
   private memArtists = new Map<string, CachedArtistRecord>();
 
-  private handleDbError(err: unknown) {
+  private handleDbError() {
     this.dbPromise = null;
   }
 
@@ -211,8 +219,8 @@ class LinerDb {
             reject(err);
           }
         });
-      } catch (err) {
-        this.handleDbError(err);
+      } catch {
+        this.handleDbError();
         if (attempt === 0) {
           // retry once on fresh connection
           continue;
@@ -246,6 +254,8 @@ class LinerDb {
       id: track.id,
       title: track.title,
       artists: track.artists,
+      artistId: track.artistId,
+      artistList: track.artistList?.map(({ id, name }) => ({ id, name })),
       albumTitle: track.album?.title,
       albumId: track.album?.id,
       coverUrl: track.coverUrl,
@@ -397,7 +407,7 @@ class LinerDb {
     return memList;
   }
 
-  /** mark/unmark a cached audio blob as a user download (pinned, never evicted) */
+/** mark/unmark a cached audio blob as a user download (pinned, never evicted) */
   async setAudioPinned(trackId: string, pinned: boolean): Promise<void> {
     const record = await this.getAudio(trackId);
     if (!record) return;
@@ -442,6 +452,33 @@ class LinerDb {
     );
     memList.sort((a, b) => (b.pinnedAt ?? 0) - (a.pinnedAt ?? 0));
     return memList;
+  }
+
+  /** storage-usage listing (no blobs): trackId + sizes for the storage meter */
+  async listAudioEntries(): Promise<CachedAudioEntry[]> {
+    const result = await this.runTransaction("audio", "readonly", (store) => {
+      return new Promise<CachedAudioEntry[]>((resolve) => {
+        const entries: CachedAudioEntry[] = [];
+        const req = store.openCursor();
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (cursor) {
+            const record = cursor.value as CachedAudioRecord;
+            entries.push({
+              trackId: record.trackId,
+              byteSize: record.byteSize,
+              savedAt: record.savedAt,
+              lastPlayedAt: record.lastPlayedAt,
+            });
+            cursor.continue();
+          } else {
+            resolve(entries);
+          }
+        };
+        req.onerror = () => resolve([]);
+      });
+    });
+    return result ?? [];
   }
 
   async hasAudio(trackId: string): Promise<boolean> {
@@ -539,17 +576,11 @@ class LinerDb {
       ...record.providers,
     };
 
-    if (record.candidate && shouldCacheLyricsCandidate(record.candidate)) {
-      providers[record.candidate.provider.toLowerCase().trim()] =
-        record.candidate;
-    }
+    if (record.candidate) mergeLyricsProvider(providers, record.candidate);
 
     if (record.availableProviders) {
       for (const opt of record.availableProviders) {
-        if (opt.candidate && shouldCacheLyricsCandidate(opt.candidate)) {
-          providers[opt.candidate.provider.toLowerCase().trim()] =
-            opt.candidate;
-        }
+        if (opt.candidate) mergeLyricsProvider(providers, opt.candidate);
       }
     }
 

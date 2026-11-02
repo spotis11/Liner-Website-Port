@@ -1,11 +1,22 @@
 import type { ReactNode } from "react";
 import { cn } from "@/shared/lib";
+import ScrollableText from "./ScrollableText";
 
 export const HERO_TITLE_CLASS =
   "font-roboto-flex-heading m-0 text-[30px] leading-[1.15] text-text-primary line-clamp-1";
 
-export const HERO_SUBTITLE_CLASS =
-  "m-0 text-[18px] font-[400] leading-[1.3] text-text-secondary line-clamp-1";
+const HERO_SUBTITLE_TEXT =
+  "m-0 text-[18px] font-[400] leading-[1.3] text-text-secondary";
+
+export const HERO_SUBTITLE_CLASS = `${HERO_SUBTITLE_TEXT} line-clamp-1`;
+
+export interface HeroSubtitleProps {
+  text: string;
+}
+
+export function HeroSubtitle({ text }: HeroSubtitleProps) {
+  return <ScrollableText text={text} className={HERO_SUBTITLE_TEXT} />;
+}
 
 export const HERO_GLASS_CLASS = "bg-black/[0.05] dark:bg-white/[0.09]";
 
@@ -47,7 +58,6 @@ export function EntityHero({
   return (
     <section
       className="flex w-full min-w-0 items-start gap-[22px]"
-      style={{ fontFamily: "var(--font-inter), sans-serif" }}
       data-no-window-drag
     >
       <div
@@ -59,7 +69,12 @@ export function EntityHero({
         {cover}
       </div>
 
-      <div className={cn("flex min-w-0 flex-1 flex-col pt-[2px]", contentClassName)}>
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col pt-[2px]",
+          contentClassName,
+        )}
+      >
         <div className="min-w-0">{title}</div>
         {subtitle && <div className="mt-[4px] min-w-0">{subtitle}</div>}
         {meta && <div className="mt-[12px]">{meta}</div>}

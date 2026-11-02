@@ -1,9 +1,25 @@
-import { app, BrowserWindow, ipcMain, net, safeStorage, type IpcMainEvent, type IpcMainInvokeEvent } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  net,
+  safeStorage,
+  type IpcMainEvent,
+  type IpcMainInvokeEvent,
+} from "electron";
 import path from "node:path";
-import { AuthSessionStore } from "./auth-session-store.js";
+import {
+  AuthSessionStore,
+  type AuthSessionStoreDeps,
+  type SessionCipher,
+} from "./auth-session-store.js";
 import { signRequest, syncServerTime } from "./crypto.js";
 
-function signedRequestHeaders(method: string, path: string, body: string): Record<string, string> {
+function signedRequestHeaders(
+  method: string,
+  path: string,
+  body: string,
+): Record<string, string> {
   try {
     const signed = signRequest({ method, path, body });
     return {
@@ -12,7 +28,10 @@ function signedRequestHeaders(method: string, path: string, body: string): Recor
       "x-liner-nonce": signed.nonce,
     };
   } catch (err) {
-    console.error("\x1b[41;37m signer \x1b[0m auth refresh signing failed:", err);
+    console.error(
+      "\x1b[41;37m signer \x1b[0m auth refresh signing failed:",
+      err,
+    );
     return {};
   }
 }
@@ -34,20 +53,28 @@ function fromApp(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
 }
 
 export function registerAuthSessionIpc(): AuthSessionStore {
+  const cipher: SessionCipher = {
+    available: () => safeStorage.isEncryptionAvailable(),
+    encrypt: (plain) => safeStorage.encryptString(plain),
+    decrypt: (data) => safeStorage.decryptString(data),
+  };
+  const deps: AuthSessionStoreDeps = {
+    fetch: (url, init) => net.fetch(url, init),
+    syncClock: (dateHeader) => {
+      syncServerTime(dateHeader);
+    },
+    signHeaders: signedRequestHeaders,
+  };
   const store = new AuthSessionStore(
     path.join(app.getPath("userData"), "auth", "session.json"),
-    {
-      available: () => safeStorage.isEncryptionAvailable(),
-      encrypt: (plain) => safeStorage.encryptString(plain),
-      decrypt: (data) => safeStorage.decryptString(data),
-    },
-    {
-      fetch: (url, init) => net.fetch(url, init),
-      syncClock: (dateHeader) => {
-        syncServerTime(dateHeader);
-      },
-      signHeaders: signedRequestHeaders,
-    },
+    cipher,
+    deps,
+  );
+  // youtube account tokens reuse the encrypted file only; their refresh stays in the renderer
+  const youtubeStore = new AuthSessionStore(
+    path.join(app.getPath("userData"), "auth", "youtube-session.json"),
+    cipher,
+    deps,
   );
 
   store.onChange((session, origin) => {
@@ -70,13 +97,29 @@ export function registerAuthSessionIpc(): AuthSessionStore {
 
   ipcMain.handle(
     "auth:refresh",
-    (event, input: { apiBaseUrl?: unknown; refreshToken?: unknown } | undefined) => {
+    (
+      event,
+      input: { apiBaseUrl?: unknown; refreshToken?: unknown } | undefined,
+    ) => {
       if (!fromApp(event)) return { outcome: "no_session", session: null };
-      const apiBaseUrl = typeof input?.apiBaseUrl === "string" ? input.apiBaseUrl : "";
-      const refreshToken = typeof input?.refreshToken === "string" ? input.refreshToken : undefined;
+      const apiBaseUrl =
+        typeof input?.apiBaseUrl === "string" ? input.apiBaseUrl : "";
+      const refreshToken =
+        typeof input?.refreshToken === "string"
+          ? input.refreshToken
+          : undefined;
       return store.refresh(apiBaseUrl, refreshToken, event.sender.id);
     },
   );
+
+  ipcMain.on("youtube-auth:get-session", (event) => {
+    event.returnValue = fromApp(event) ? youtubeStore.get() : null;
+  });
+
+  ipcMain.handle("youtube-auth:set-session", (event, next: unknown) => {
+    if (!fromApp(event)) return null;
+    return youtubeStore.set(next);
+  });
 
   return store;
 }

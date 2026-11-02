@@ -15,3 +15,14 @@ export function toLocalTrackId(fileId: string): string {
 export function localFileId(trackId: string): string {
   return trackId.slice(LOCAL_TRACK_PREFIX.length);
 }
+
+// electron-facing url builders (upstream parity): the web port plays local
+// files straight from IndexedDB blob urls, but shared modules still import
+// these — keep them as plain string builders so imports resolve everywhere.
+export function localTrackAudioUrl(trackId: string): string {
+  return `liner-local://audio/${localFileId(trackId)}`;
+}
+
+export function localTrackCoverUrl(fileId: string): string {
+  return `liner-local://cover/${fileId}`;
+}

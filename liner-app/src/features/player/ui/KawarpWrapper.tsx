@@ -52,33 +52,19 @@ export function KawarpWrapper({ src, onLoad, onError }: KawarpWrapperProps) {
     if (!container || !canvas) return;
 
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
-    let surfaceWidth = 0;
-    let surfaceHeight = 0;
-
-    const surfaceSize = () => {
-      const rect = container.getBoundingClientRect();
-      return {
-        width: Math.round(Math.max(rect.width, window.screen?.width ?? 0)),
-        height: Math.round(Math.max(rect.height, window.screen?.height ?? 0)),
-      };
-    };
 
     const applySize = () => {
-      const { width, height } = surfaceSize();
-      if (width <= 0 || height <= 0) return;
-      if (width === surfaceWidth && height === surfaceHeight) return;
-      surfaceWidth = width;
-      surfaceHeight = height;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      canvas.width = Math.max(1, Math.round(width * KAWARP_RENDER_SCALE));
-      canvas.height = Math.max(1, Math.round(height * KAWARP_RENDER_SCALE));
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const width = Math.max(1, Math.round(rect.width * KAWARP_RENDER_SCALE));
+      const height = Math.max(1, Math.round(rect.height * KAWARP_RENDER_SCALE));
+      if (canvas.width === width && canvas.height === height) return;
+      canvas.width = width;
+      canvas.height = height;
       engineRef.current?.resize();
     };
 
     const scheduleSize = () => {
-      const { width, height } = surfaceSize();
-      if (width === surfaceWidth && height === surfaceHeight) return;
       if (settleTimer) clearTimeout(settleTimer);
       settleTimer = setTimeout(() => {
         settleTimer = null;
@@ -129,7 +115,7 @@ export function KawarpWrapper({ src, onLoad, onError }: KawarpWrapperProps) {
     >
       <canvas
         ref={canvasRef}
-        className={`absolute left-1/2 top-1/2 block max-w-none -translate-x-1/2 -translate-y-1/2 transition-opacity duration-500 ${
+        className={`absolute inset-0 block h-full w-full transition-opacity duration-500 ${
           loaded ? "opacity-100" : "opacity-0"
         }`}
       />

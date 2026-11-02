@@ -1,18 +1,36 @@
 import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
+import { useReducedMotion } from "framer-motion";
+import { Back2Line } from "@mingcute/react";
 import {
   usePlayerState,
+  usePlayerStore,
   playerEngine,
   isRadioContext,
   nextRepeatMode,
 } from "@/features/player";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
 import { useTranslation } from "@/languages";
-import { ReorderDropPlaceholder, FloatingDragCard } from "@/shared/ui";
+import {
+  ReorderDropPlaceholder,
+  FloatingDragCard,
+  showToast,
+} from "@/shared/ui";
 import { useListReorder } from "@/shared/hooks";
 import RightDrawerHeader from "./RightDrawerHeader";
 import { useBlockCustomizationStyle } from "@/features/settings/store/customizationStore";
 
 const QUEUE_ITEM_HEIGHT = 68;
+const REMOVE_FADE_MS = 180;
+const REMOVE_SHIFT_DELAY_MS = 90;
+const REMOVE_SHIFT_MS = 260;
+const REMOVE_MS = REMOVE_SHIFT_DELAY_MS + REMOVE_SHIFT_MS;
+const CALM_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+const RESTORE_FADE_DELAY_MS = REMOVE_SHIFT_MS - REMOVE_SHIFT_DELAY_MS;
+
+interface QueueRestore {
+  index: number;
+  phase: "start" | "run";
+}
 
 function getQueueScrollTarget(container: HTMLDivElement, currentIndex: number) {
   return Math.max(
@@ -49,12 +67,69 @@ const QueueList = memo(function QueueList({
     () => queue.slice(0, effectiveLimit),
     [queue, effectiveLimit],
   );
+  const rowKeys = useMemo(() => {
+    const seen = new Map<string, number>();
+    return visibleQueue.map((item) => {
+      const count = seen.get(item.id) ?? 0;
+      seen.set(item.id, count + 1);
+      return `${item.id}#${count}`;
+    });
+  }, [visibleQueue]);
 
   const queueContainerRef = useRef<HTMLDivElement>(null);
 
   const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
     playerEngine.reorderQueue(fromIndex, toIndex);
   }, []);
+
+  const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
+  const [removingIndex, setRemovingIndex] = useState<number | null>(null);
+  const [restoring, setRestoring] = useState<QueueRestore | null>(null);
+  const playRestore = useCallback(
+    (index: number) => {
+      if (reduceMotion) return;
+      setRestoring({ index, phase: "start" });
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setRestoring({ index, phase: "run" })),
+      );
+      window.setTimeout(() => setRestoring(null), REMOVE_MS + 60);
+    },
+    [reduceMotion],
+  );
+  // slide the row out to the left, then drop it once the animation is done
+  const handleRemove = useCallback(
+    (index: number, id: string) => {
+      setRemovingIndex(index);
+      window.setTimeout(
+        () => {
+          const track = usePlayerStore.getState().queue[index];
+          // the queue may have changed during the animation: only remove that same track
+          const undo =
+            track?.id === id ? playerEngine.removeFromQueue(index) : null;
+          if (track && undo) {
+            showToast(t("common.removed_from_queue"), "checkmark", {
+              description: track.artists
+                ? `${track.title} — ${track.artists}`
+                : track.title,
+              action: {
+                label: t("common.undo"),
+                icon: <Back2Line size={14} />,
+                onClick: () => {
+                  undo();
+                  const restored = usePlayerStore.getState().queue[index];
+                  if (restored?.id === id) playRestore(index);
+                },
+              },
+            });
+          }
+          setRemovingIndex(null);
+        },
+        reduceMotion ? 0 : REMOVE_MS,
+      );
+    },
+    [reduceMotion, t, playRestore],
+  );
 
   const {
     isDragging,
@@ -101,30 +176,65 @@ const QueueList = memo(function QueueList({
       {visibleQueue.map((item, index) => {
         const isCurrent = index === currentIndex;
         const isThisDragged = isDragging && index === dragIndex;
+        const isRemoving = removingIndex === index;
+        const restoringHere = restoring?.index === index;
+        const restoreBelow = restoring !== null && index > restoring.index;
+        const restoreStart = restoring?.phase === "start";
+        const hidden = isRemoving || (restoringHere && restoreStart);
 
         let shiftY = 0;
-        if (isDragging && dragIndex !== null && dropIndex !== null && index !== dragIndex) {
+        if (
+          isDragging &&
+          dragIndex !== null &&
+          dropIndex !== null &&
+          index !== dragIndex
+        ) {
           if (dragIndex < dropIndex) {
-            if (index > dragIndex && index <= dropIndex) shiftY = -QUEUE_ITEM_HEIGHT;
+            if (index > dragIndex && index <= dropIndex)
+              shiftY = -QUEUE_ITEM_HEIGHT;
           } else if (dragIndex > dropIndex) {
-            if (index >= dropIndex && index < dragIndex) shiftY = QUEUE_ITEM_HEIGHT;
+            if (index >= dropIndex && index < dragIndex)
+              shiftY = QUEUE_ITEM_HEIGHT;
           }
         }
+        if (removingIndex !== null && index > removingIndex)
+          shiftY = -QUEUE_ITEM_HEIGHT;
+        if (restoreBelow && restoreStart) shiftY = -QUEUE_ITEM_HEIGHT;
+
+        const fade = `transform ${REMOVE_FADE_MS}ms ${CALM_EASE}, opacity ${REMOVE_FADE_MS}ms ${CALM_EASE}, filter ${REMOVE_FADE_MS}ms ${CALM_EASE}`;
+        const restoreFade = `transform ${REMOVE_FADE_MS}ms ${CALM_EASE} ${RESTORE_FADE_DELAY_MS}ms, opacity ${REMOVE_FADE_MS}ms ${CALM_EASE} ${RESTORE_FADE_DELAY_MS}ms, filter ${REMOVE_FADE_MS}ms ${CALM_EASE} ${RESTORE_FADE_DELAY_MS}ms`;
+        let transition: string | undefined;
+        if (isDragging)
+          transition = "transform 180ms cubic-bezier(0.2, 0, 0, 1)";
+        else if (restoring)
+          transition = restoreStart
+            ? "none"
+            : restoringHere
+              ? restoreFade
+              : restoreBelow
+                ? `transform ${REMOVE_SHIFT_MS}ms ${CALM_EASE}`
+                : undefined;
+        else if (isRemoving) transition = fade;
+        else if (removingIndex !== null)
+          transition = `transform ${REMOVE_SHIFT_MS}ms ${CALM_EASE} ${REMOVE_SHIFT_DELAY_MS}ms`;
 
         return (
           <div
-            key={`${item.id}-${index}`}
+            key={rowKeys[index]}
             style={{
               position: "absolute",
               top: `${index * QUEUE_ITEM_HEIGHT}px`,
               left: 0,
               width: "100%",
               height: `${QUEUE_ITEM_HEIGHT}px`,
-              transform: shiftY ? `translateY(${shiftY}px)` : undefined,
-              transition: isDragging
-                ? "transform 180ms cubic-bezier(0.2, 0, 0, 1)"
-                : undefined,
-              opacity: isThisDragged ? 0 : 1,
+              transform: hidden
+                ? "translateX(-6px) scale(0.98)"
+                : shiftY
+                  ? `translateY(${shiftY}px)`
+                  : undefined,
+              filter: hidden ? "blur(4px)" : undefined,
+              transition,
+              opacity: isThisDragged || hidden ? 0 : 1,
               zIndex: 1,
             }}
             className="px-0 py-[2px]"
@@ -138,11 +248,18 @@ const QueueList = memo(function QueueList({
               explicit={item.explicit}
               durationMs={item.durationMs}
               coverUrl={
-                item.coverUrl ?? (item as { cover_url?: string }).cover_url ?? ""
+                item.coverUrl ??
+                (item as { cover_url?: string }).cover_url ??
+                ""
               }
               showReorderHandle
+              onRemoveFromQueue={
+                index <= currentIndex || removingIndex !== null
+                  ? undefined
+                  : () => handleRemove(index, item.id)
+              }
               onGrabStart={
-                !isDragging
+                !isDragging && removingIndex === null
                   ? (e) => handleCardGrab(index, item, e)
                   : undefined
               }
@@ -153,7 +270,8 @@ const QueueList = memo(function QueueList({
               }`}
               imageShape="square"
               onPlay={() => {
-                if (typeof window !== "undefined" && window.__linerWasDragging) return;
+                if (typeof window !== "undefined" && window.__linerWasDragging)
+                  return;
                 void playerEngine.playTrack(
                   item,
                   queue,
@@ -208,7 +326,12 @@ function RightDrawer({ onClose }: RightDrawerProps) {
   const queueScrollRef = useRef<HTMLDivElement>(null);
   const drawerStyle = useBlockCustomizationStyle("sidebar");
   const [queueLimit, setQueueLimit] = useState(() =>
-    Math.max(50, Math.ceil(((player.currentIndex >= 0 ? player.currentIndex : 0) + 30) / 50) * 50),
+    Math.max(
+      50,
+      Math.ceil(
+        ((player.currentIndex >= 0 ? player.currentIndex : 0) + 30) / 50,
+      ) * 50,
+    ),
   );
   const [isQueueScrolled, setIsQueueScrolled] = useState(false);
 
@@ -217,7 +340,10 @@ function RightDrawer({ onClose }: RightDrawerProps) {
       setQueueLimit((prev) =>
         Math.max(
           prev,
-          Math.min(player.queue.length, Math.ceil((player.currentIndex + 30) / 50) * 50),
+          Math.min(
+            player.queue.length,
+            Math.ceil((player.currentIndex + 30) / 50) * 50,
+          ),
         ),
       );
     }
@@ -225,7 +351,8 @@ function RightDrawer({ onClose }: RightDrawerProps) {
 
   const scrollQueueToCurrent = useCallback(() => {
     const container = queueScrollRef.current;
-    if (!container || player.currentIndex < 0 || player.queue.length === 0) return;
+    if (!container || player.currentIndex < 0 || player.queue.length === 0)
+      return;
     const targetY = getQueueScrollTarget(container, player.currentIndex);
     setIsQueueScrolled(targetY > 2);
     container.scrollTo({ top: targetY, behavior: "smooth" });
@@ -241,7 +368,9 @@ function RightDrawer({ onClose }: RightDrawerProps) {
     }
   }, []);
 
-  const prevQueueTrackIdRef = useRef<string | null>(player.currentTrack?.id ?? null);
+  const prevQueueTrackIdRef = useRef<string | null>(
+    player.currentTrack?.id ?? null,
+  );
 
   useEffect(() => {
     const currentId = player.currentTrack?.id ?? null;
@@ -265,7 +394,10 @@ function RightDrawer({ onClose }: RightDrawerProps) {
         onShuffleToggle={() => playerEngine.setShuffle(!player.shuffle)}
         onRepeatCycle={() =>
           playerEngine.setRepeat(
-            nextRepeatMode(player.repeat, isRadioContext(player.playbackContext)),
+            nextRepeatMode(
+              player.repeat,
+              isRadioContext(player.playbackContext),
+            ),
           )
         }
         onClear={() => playerEngine.clearQueue()}
@@ -296,9 +428,7 @@ function RightDrawer({ onClose }: RightDrawerProps) {
               target.scrollHeight - target.scrollTop <=
               target.clientHeight * 1.5
             ) {
-              setQueueLimit((prev) =>
-                Math.min(prev + 50, player.queue.length),
-              );
+              setQueueLimit((prev) => Math.min(prev + 50, player.queue.length));
             }
           }}
         >

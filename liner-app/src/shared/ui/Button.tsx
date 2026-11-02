@@ -1,8 +1,14 @@
 import { forwardRef } from "react";
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "ghost" | "secondary" | "outline" | "glass" | "glass-primary" | "glass-action";
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?:
+    | "primary"
+    | "ghost"
+    | "secondary"
+    | "outline"
+    | "glass"
+    | "glass-primary"
+    | "glass-action";
   size?: "default" | "sm" | "lg" | "icon";
 }
 
@@ -47,7 +53,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         variantClasses[variant]
       } ${sizeClasses[size]} ${className}`.trim()}
       style={{
-        fontFamily: "var(--font-inter), sans-serif",
         letterSpacing: "0",
         lineHeight: "normal",
       }}

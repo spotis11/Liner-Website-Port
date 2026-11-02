@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api, ApiError } from "@/shared/api";
+import { api, ApiError, HumanCheckCancelledError } from "@/shared/api";
 import {
   clearAuthSession,
   getAuthSession,
@@ -14,6 +14,7 @@ import { queryCache } from "@/shared/cache/queryCache";
 import { checkBan, ModerationError } from "@/features/moderation/lib/moderationApi";
 import { useBanStore } from "@/features/moderation/store/banStore";
 import { useWelcomeStore } from "@/features/welcome/store/welcomeStore";
+import { clearScreenCache } from "@/shared/cache/screenCache";
 
 export type AuthStatus = "initializing" | "authenticated" | "anonymous";
 export type AuthState = {
@@ -63,9 +64,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       const user = await Promise.race([getMePromise, timeoutPromise]);
       const current = getAuthSession();
       if (current) setAuthSession({ ...current, user: user ?? current.user });
-      set({ status: "authenticated", user: user ?? current?.user ?? stored.user });
+      set({
+        status: "authenticated",
+        user: user ?? current?.user ?? stored.user,
+      });
     } catch (err) {
-      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      if (
+        err instanceof ApiError &&
+        (err.status === 401 || err.status === 403)
+      ) {
         // Attempt refresh before clearing session in case access token expired between sessions
         const current = getAuthSession();
         if (current?.refreshToken) {
@@ -74,10 +81,12 @@ export const useAuthStore = create<AuthState>((set) => ({
             if (refreshed) {
               const retryUser = await api.getMe().catch(() => null);
               const active = getAuthSession();
-              if (active) setAuthSession({ ...active, user: retryUser ?? active.user });
+              if (active)
+                setAuthSession({ ...active, user: retryUser ?? active.user });
               set({
                 status: "authenticated",
-                user: retryUser ?? refreshed.user ?? current.user ?? stored.user,
+                user:
+                  retryUser ?? refreshed.user ?? current.user ?? stored.user,
               });
               return;
             }
@@ -145,11 +154,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       window.linerElectron?.closeOverlay?.();
       window.linerElectron?.sendOverlayAction?.({ type: "closeOverlay" });
     } catch {}
-    if (typeof window !== "undefined" && window.location.hash.includes("/player")) {
+    if (
+      typeof window !== "undefined" &&
+      window.location.hash.includes("/player")
+    ) {
       window.location.hash = "#/";
     }
     await clearAuthSession();
     queryCache.clear();
+    clearScreenCache();
     set({ status: "anonymous", user: null });
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("library:changed"));
@@ -203,6 +216,7 @@ useAuthStore.subscribe((state, previous) => {
 });
 
 export function getAuthErrorCode(error: unknown): string {
+  if (error instanceof HumanCheckCancelledError) return "human_check_cancelled";
   if (!(error instanceof ApiError)) return "server_unavailable";
   if (error.status === 0) return "server_unavailable";
   // 5xx and cloudflare 52x: the server is down, not the user's input or connection
@@ -212,6 +226,7 @@ export function getAuthErrorCode(error: unknown): string {
   if (error.code === "USERNAME_TAKEN") return "username_taken";
   if (error.code === "INVALID_USERNAME") return "invalid_username";
   if (error.code === "INVALID_INPUT") return "invalid_input";
+  if (error.code?.startsWith("TURNSTILE_")) return "human_check_failed";
   return "unknown_error";
 }
 

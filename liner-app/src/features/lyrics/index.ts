@@ -1,10 +1,10 @@
+export { braccatoThemeCss } from "./engine/braccatoTheme";
 export {
   parseRawLyrics,
   applyLyricsOffset,
   type ParsedLyrics,
   type WordData,
 } from "./engine/lyricsParser";
-export { braccatoThemeCss } from "./engine/braccatoTheme";
 export {
   useLyricsStore,
   hasSyncedLyricsSources,
@@ -12,7 +12,10 @@ export {
 } from "./store/lyricsStore";
 export {
   lyricsCache,
+  isLyricsCandidate,
   shouldCacheLyricsCandidate,
+  isProvisionalLyricsCandidate,
+  mergeLyricsProvider,
   compareLyricsCandidates,
   isBetterLyricsCandidate,
   isWordLevelSync,
@@ -24,7 +27,6 @@ export {
   type SyncedLine,
 } from "./hooks/useLyricsAnimator";
 export { LyricsProviderIsland } from "./ui/LyricsProviderIsland";
-
 // AI lyrics translation (Settings → AI Translate + fullscreen player toggle)
 export {
   AI_PROVIDERS,
@@ -43,3 +45,8 @@ export {
   type AiProviderId,
   type TranslationStatus,
 } from "./aiTranslate";
+export {
+  LyricsCanvasRenderer,
+  type LyricsClock,
+  type EdgesListener,
+} from "./canvas/lyricsCanvasRenderer";

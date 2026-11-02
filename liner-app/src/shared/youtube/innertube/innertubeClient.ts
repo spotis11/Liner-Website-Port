@@ -1,5 +1,12 @@
-import { getClientVisitorData, resetClientVisitorData } from "../session/visitorSession";
-import { getYoutubeAuthorization } from "../auth/youtubeAuthSession";
+import {
+  getClientVisitorData,
+  resetClientVisitorData,
+} from "../session/visitorSession";
+import {
+  getYoutubeAuthorization,
+  getYoutubePageId,
+} from "../auth/youtubeAuthSession";
+
 import { USER_AGENT_HEADER_OVERRIDE } from "./userAgentOverride";
 
 export type InnertubeEndpoint =
@@ -27,6 +34,8 @@ export const WEB_REMIX_PROFILE: InnertubeProfile = {
 export { USER_AGENT_HEADER_OVERRIDE };
 
 const SESSION_REJECTED = new Set([401, 403]);
+const INNERTUBE_TIMEOUT_MS = 12_000;
+
 
 export class InnertubeError extends Error {
   constructor(
@@ -57,6 +66,16 @@ function buildClientContext(
       ? { userAgent: profile.userAgent }
       : {}),
     ...profile.extraContext,
+  };
+}
+
+export function buildUserContext(
+  authorization: string | null,
+): Record<string, unknown> {
+  const pageId = authorization ? getYoutubePageId() : null;
+  return {
+    lockedSafetyMode: false,
+    ...(pageId ? { onBehalfOfUser: pageId } : {}),
   };
 }
 
@@ -96,7 +115,8 @@ export async function postInnertube(
       ...body,
       context: {
         client: buildClientContext(profile, visitorData),
-        user: { lockedSafetyMode: false },
+        user: buildUserContext(authorization),
+
       },
     };
     try {
@@ -104,7 +124,13 @@ export async function postInnertube(
         method: "POST",
         headers: buildHeaders(profile, visitorData, authorization),
         body: JSON.stringify(payload),
-        signal: options.signal,
+        signal: options.signal
+          ? AbortSignal.any([
+              options.signal,
+              AbortSignal.timeout(INNERTUBE_TIMEOUT_MS),
+            ])
+          : AbortSignal.timeout(INNERTUBE_TIMEOUT_MS),
+
       });
     } catch (error) {
       if (options.signal?.aborted) throw error;

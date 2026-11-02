@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import {
-  GithubFill,
   DiscordFill,
+  GithubFill,
+  World2Line,
+  TelegramFill,
 } from "@mingcute/react";
 import { useTranslation } from "@/languages";
 
@@ -19,6 +21,18 @@ export function AboutTabLinks() {
   const { t } = useTranslation();
 
   const links: AboutLink[] = [
+    {
+      id: "telegram",
+      url: "https://t.me/liner_app",
+      label: t("settings.about.telegram"),
+      icon: <TelegramFill size={17} />,
+    },
+    {
+      id: "discord",
+      url: "https://discord.gg/liner",
+      label: t("settings.about.discord"),
+      icon: <DiscordFill size={17} />,
+    },
     {
       id: "github",
       url: "https://github.com/goodbyeworld42-ai/Liner-Website-Port",

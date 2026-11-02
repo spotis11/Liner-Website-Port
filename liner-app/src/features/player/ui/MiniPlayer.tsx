@@ -2,14 +2,12 @@ import { memo } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Radio,
   Sidebar,
   SkipNext,
   SkipPrevious,
   MaximizeSquare3,
-  TrashBin2,
-  Bookmark,
   PlaybackSpeed,
+  Tuning2,
   VolumeCross,
   VolumeSmall,
   VolumeLoud,
@@ -30,8 +28,6 @@ import {
   openMiniPip,
 } from "../engine/miniPipController";
 import { isRadioContext, nextRepeatMode } from "../engine/radioMode";
-import Button from "@/shared/ui/Button";
-import SongCard from "./SongCard";
 import { useTranslation } from "@/languages";
 import {
   useIsTrackLiked,
@@ -43,14 +39,20 @@ import { useAddCurrentTrackToPlaylist } from "../hooks/useAddCurrentTrackToPlayl
 import { toVolumeGain, toVolumeLevel } from "../engine/volume";
 import { VolumeColumn } from "./VolumeColumn";
 import { SpeedPitchPicker } from "./SpeedPitchPicker";
+import { isEqActive } from "../engine/equalizer";
 import { TimelineSlider } from "./TimelineSlider";
 import { useTheme } from "next-themes";
-import { useCoverReady, CoverImage } from "@/features/covers";
+import { useCoverReady, CoverImage, loadCoverElement } from "@/features/covers";
 import {
   useBlockCustomizationStyle,
   useHasPageBackdrop,
 } from "@/features/settings/store/customizationStore";
-import { ArtistLink } from "@/features/artist";
+import { ArtistAvatar, ArtistLink } from "@/features/artist";
+import { isLocalTrackId } from "@/shared/media/local";
+import DropdownMenu from "@/shared/ui/DropdownMenu";
+import { useSongMenuItems } from "../hooks/useSongMenuItems";
+
+const PROGRESS_STEP_MS = 1000;
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   r /= 255;
@@ -240,39 +242,8 @@ function MiniPlayer({
   const [accentColorSolid, setAccentColorSolid] = useState(
     isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)",
   );
-  const [contextAccentColorSolid, setContextAccentColorSolid] = useState(
-    isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)",
-  );
 
   const coverUrl = player.currentTrack?.coverUrl || "";
-
-  useEffect(() => {
-    if (!player.playbackContextCover) {
-      return;
-    }
-    const img = new window.Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        if (!ctx) return;
-        canvas.width = 64;
-        canvas.height = 64;
-        ctx.drawImage(img, 0, 0, 64, 64);
-        const { accentColorSolid: acs } = extractColorsFromCanvas(
-          canvas,
-          isLight,
-        );
-        setContextAccentColorSolid(acs);
-      } catch {
-        setContextAccentColorSolid(
-          isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)",
-        );
-      }
-    };
-    img.src = player.playbackContextCover;
-  }, [player.playbackContextCover, isLight]);
 
   useEffect(() => {
     if (!coverUrl) {
@@ -282,9 +253,9 @@ function MiniPlayer({
       setAccentColorSolid(isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)");
       return;
     }
-    const img = new window.Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
+    let active = true;
+    void loadCoverElement(coverUrl).then((img) => {
+      if (!active || !img) return;
       try {
         const canvas = document.createElement("canvas");
         canvas.width = 64;
@@ -302,8 +273,10 @@ function MiniPlayer({
         );
         setAccentColorSolid(isLight ? "rgb(23, 23, 23)" : "rgb(255, 255, 255)");
       }
+    });
+    return () => {
+      active = false;
     };
-    img.src = coverUrl;
   }, [coverUrl, isLight]);
 
   const extractAccentColor = useCallback(
@@ -329,9 +302,9 @@ function MiniPlayer({
     [isLight],
   );
 
-  const [queueLimit, setQueueLimit] = useState(50);
-  const [volumeOpen, setVolumeOpen] = useState(false);
   const [equalizerOpen, setEqualizerOpen] = useState(false);
+  const [volumeOpen, setVolumeOpen] = useState(false);
+  const volumePinnedRef = useRef(false);
   const [volumePopupStyle, setVolumePopupStyle] = useState<React.CSSProperties>(
     { bottom: 52 },
   );
@@ -339,21 +312,25 @@ function MiniPlayer({
   const [speedPopupStyle, setSpeedPopupStyle] = useState<React.CSSProperties>(
     {},
   );
+  const [eqOpen, setEqOpen] = useState(false);
+  const [eqPopupStyle, setEqPopupStyle] = useState<React.CSSProperties>({});
   const miniPlayerRootRef = useRef<HTMLDivElement>(null);
-  const queuePopupRef = useRef<HTMLDivElement>(null);
   const volumePopupRef = useRef<HTMLDivElement>(null);
   const volumeToggleRef = useRef<HTMLButtonElement>(null);
   const speedPopupRef = useRef<HTMLDivElement>(null);
   const speedToggleRef = useRef<HTMLButtonElement>(null);
+  const eqPopupRef = useRef<HTMLDivElement>(null);
+  const eqToggleRef = useRef<HTMLButtonElement>(null);
   const volumeHoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
   const [isVolumeDragging, setIsVolumeDragging] = useState(false);
-  const lastNonZeroVolumeRef = useRef<number>(0.7);
 
   const currentTrack = player.currentTrack;
   const volumeLevel = toVolumeLevel(player.volume);
+  const isLocal = isLocalTrackId(currentTrack?.id);
   const isLiked = useIsTrackLiked(currentTrack?.id);
+  const eqActive = isEqActive(player.isEqEnabled, player.eqGains);
   const likeMutation = useLikeTrack();
   const unlikeMutation = useUnlikeTrack();
   const togglingRef = useRef(false);
@@ -383,58 +360,47 @@ function MiniPlayer({
       : 0;
 
   const isPlaying = player.status === "playing";
+  const secondProgress =
+    isPlaying && durationMs > 0
+      ? Math.min(
+          1,
+          (Math.floor(player.positionMs / PROGRESS_STEP_MS) + 1) *
+            (PROGRESS_STEP_MS / durationMs),
+        )
+      : progress;
   const isLoading = player.status === "loading";
   const trackTitle = player.currentTrack?.title ?? t("player.nothing_playing");
   const trackArtists = player.currentTrack?.artists ?? t("player.choose_track");
 
   const isCoverLoaded = useCoverReady(coverUrl);
 
-  const queueItems = useMemo(() => {
-    return player.queue.slice(0, queueLimit).map((item, index) => {
-      const isCurrent = index === player.currentIndex;
-      return (
-        <SongCard
-          key={`${item.id}-${index}`}
-          title={item.title}
-          artists={item.artists}
-          artistId={item.artistId}
-          artistList={item.artistList}
-          coverUrl={item.coverUrl || ""}
-          duration={
-            item.durationMs
-              ? `${Math.floor(item.durationMs / 60000)}:${Math.floor(
-                  (item.durationMs % 60000) / 1000,
-                )
-                  .toString()
-                  .padStart(2, "0")}`
-              : undefined
-          }
-          explicit={item.explicit}
-          onPlay={() => {
-            void playerEngine.playTrack(
-              item,
-              player.queue,
-              player.playbackContext,
-              player.playbackContextCover,
-              index,
-              true,
-            );
-          }}
-          className={`rounded-[12px] px-[8px] py-[10px] text-left transition-all duration-200 ${
-            isCurrent
-              ? "bg-black/[0.065] dark:bg-white/[0.08]"
-              : "bg-transparent hover:bg-black/[0.035] dark:hover:bg-white/[0.04]"
-          }`}
-        />
-      );
-    });
-  }, [
-    player.queue,
-    queueLimit,
-    player.currentIndex,
-    player.playbackContext,
-    player.playbackContextCover,
-  ]);
+  const songMenuItems = useSongMenuItems({
+    id: currentTrack?.id,
+    title: currentTrack?.title ?? "",
+    artists: currentTrack?.artists ?? "",
+    coverUrl: currentTrack?.coverUrl ?? "",
+    durationMs: currentTrack?.durationMs,
+  });
+  const trackMenuItems = useMemo(
+    () =>
+      songMenuItems.filter(
+        (item) => item.id !== "like-track" && item.id !== "unlike-track",
+      ),
+    [songMenuItems],
+  );
+  const [trackMenuPosition, setTrackMenuPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const handleTrackContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      if (!currentTrack || trackMenuItems.length === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setTrackMenuPosition({ x: event.clientX, y: event.clientY });
+    },
+    [currentTrack, trackMenuItems.length],
+  );
 
   // off -> all (loop the whole queue/playlist) -> one (loop the track) -> off
   const repeatIcon = useMemo(() => {
@@ -485,30 +451,20 @@ function MiniPlayer({
   }, []);
 
   const handleVolumeMouseEnter = useCallback(() => {
+    if (speedOpen || eqOpen) return;
     clearVolumeHoverTimer();
     updateVolumePopupPosition();
-    setSpeedOpen(false);
     setVolumeOpen(true);
-  }, [clearVolumeHoverTimer, updateVolumePopupPosition]);
+  }, [clearVolumeHoverTimer, updateVolumePopupPosition, speedOpen, eqOpen]);
 
   const handleVolumeMouseLeave = useCallback(() => {
     clearVolumeHoverTimer();
     // Keep open while user is actively dragging the slider
-    if (isVolumeDragging) return;
+    if (isVolumeDragging || volumePinnedRef.current) return;
     volumeHoverCloseTimerRef.current = setTimeout(() => {
       setVolumeOpen(false);
     }, 140);
   }, [clearVolumeHoverTimer, isVolumeDragging]);
-
-  const handleToggleMute = useCallback(() => {
-    if (volumeLevel > 0) {
-      lastNonZeroVolumeRef.current = volumeLevel;
-      playerEngine.setVolume(0);
-    } else {
-      const restore = lastNonZeroVolumeRef.current || 0.7;
-      playerEngine.setVolume(toVolumeGain(restore));
-    }
-  }, [volumeLevel]);
 
   const handleVolumeWheel = useCallback(
     (e: React.WheelEvent) => {
@@ -519,6 +475,7 @@ function MiniPlayer({
       playerEngine.setVolume(toVolumeGain(nextLevel));
       setVolumeOpen(true);
       clearVolumeHoverTimer();
+      if (volumePinnedRef.current) return;
       volumeHoverCloseTimerRef.current = setTimeout(() => {
         setVolumeOpen(false);
       }, 1200);
@@ -537,22 +494,26 @@ function MiniPlayer({
   }, [clearVolumeHoverTimer]);
 
   useEffect(() => {
-    if (!volumeOpen) return;
+    if (!volumeOpen) {
+      volumePinnedRef.current = false;
+      return;
+    }
     updateVolumePopupPosition();
   }, [volumeOpen, updateVolumePopupPosition]);
 
-  useEffect(() => {
-    if (!speedOpen) return;
-    const toggle = speedToggleRef.current;
+  // measured in the click handler, before the popup mounts: positioning it in an
+  // effect afterwards moved it on its first open, and framer flew the active
+  // preset / tab pills in from the unpositioned spot outside the card
+  const popupStyleFor = (toggle: HTMLElement | null): React.CSSProperties => {
     const root = miniPlayerRootRef.current;
-    if (!toggle || !root) return;
+    if (!toggle || !root) return {};
     const toggleRect = toggle.getBoundingClientRect();
     const rootRect = root.getBoundingClientRect();
     const popupW = 300;
     const btnW = toggleRect.width;
     const right = rootRect.right - toggleRect.right + (btnW - popupW) / 2;
-    setSpeedPopupStyle({ right: Math.max(8, right) });
-  }, [speedOpen]);
+    return { right: Math.max(8, right) };
+  };
 
   useEffect(() => {
     const onDocumentPointerDown = (event: MouseEvent) => {
@@ -577,6 +538,14 @@ function MiniPlayer({
           setSpeedOpen(false);
         }
       }
+
+      if (eqOpen) {
+        const clickedEqPopup = eqPopupRef.current?.contains(target);
+        const clickedEqToggle = eqToggleRef.current?.contains(target);
+        if (!clickedEqPopup && !clickedEqToggle) {
+          setEqOpen(false);
+        }
+      }
     };
 
     const onDocumentKeyDown = (event: KeyboardEvent) => {
@@ -592,6 +561,11 @@ function MiniPlayer({
           event.stopPropagation();
           setSpeedOpen(false);
         }
+        if (eqOpen) {
+          event.preventDefault();
+          event.stopPropagation();
+          setEqOpen(false);
+        }
       }
     };
 
@@ -601,10 +575,10 @@ function MiniPlayer({
       document.removeEventListener("mousedown", onDocumentPointerDown, true);
       document.removeEventListener("keydown", onDocumentKeyDown, true);
     };
-  }, [clearVolumeHoverTimer, speedOpen, volumeOpen]);
+  }, [clearVolumeHoverTimer, eqOpen, speedOpen, volumeOpen]);
 
   const [scrubRatio, setScrubRatio] = useState<number | null>(null);
-  const activeProgress = scrubRatio !== null ? scrubRatio : progress;
+  const activeProgress = scrubRatio !== null ? scrubRatio : secondProgress;
 
   return (
     <div
@@ -618,7 +592,7 @@ function MiniPlayer({
             ref={volumePopupRef}
             initial={{ opacity: 0, y: 8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.96 }}
+            exit={{ opacity: 0, y: 6, scale: 0.96, pointerEvents: "none" }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             className="absolute bottom-[52px] z-[99] w-[46px] rounded-[11px] p-[4px] bg-black/[0.05] backdrop-blur-2xl backdrop-saturate-150 dark:bg-white/[0.07] prevent-seek"
             style={volumePopupStyle}
@@ -626,8 +600,7 @@ function MiniPlayer({
             onMouseEnter={clearVolumeHoverTimer}
             onMouseLeave={handleVolumeMouseLeave}
           >
-            {/* Seamless invisible hit zone bridging popup and toggle button */}
-            <div className="absolute -inset-x-3 -bottom-[22px] top-0 pointer-events-auto" />
+            <div className="absolute inset-x-0 -bottom-[8px] top-0 pointer-events-auto" />
 
             <VolumeColumn onDraggingChange={handleVolumeDraggingChange} />
           </motion.div>
@@ -652,6 +625,38 @@ function MiniPlayer({
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {eqOpen && (
+          <motion.div
+            key="eq-popup"
+            ref={eqPopupRef}
+            initial={{ opacity: 0, y: 10, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.985 }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute bottom-[74px] z-[92] w-[300px] rounded-[14px] p-[16px] bg-black/[0.05] backdrop-blur-2xl backdrop-saturate-150 dark:bg-white/[0.07] prevent-seek"
+            style={eqPopupStyle}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-[10px]">
+              <p className="m-0 text-[13px] font-[500] text-text-primary">
+                {t("player.equalizer")}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setEqOpen(false);
+                  setEqualizerOpen(true);
+                }}
+                className="flex cursor-pointer items-center justify-center rounded-[9px] border-0 bg-black/[0.06] px-[12px] py-[8px] text-[13px] font-[500] text-text-primary transition-colors hover:bg-black/[0.1] dark:bg-white/[0.08] dark:hover:bg-white/[0.14]"
+              >
+                {t("player.equalizer_hint") || t("player.equalizer")}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div
         className={`relative h-[64px] w-full overflow-hidden cursor-pointer ${
           usesRoundedStyle
@@ -659,7 +664,7 @@ function MiniPlayer({
             : embedded
               ? `rounded-[12px] ${
                   hasPageBackdrop
-                    ? "bg-bg-glass backdrop-blur-[48px] backdrop-saturate-50"
+                    ? "bg-bg-glass dark:bg-black/20 backdrop-blur-[48px] backdrop-saturate-150"
                     : "bg-bg-primary"
                 }`
               : "rounded-3xl border-[0.5px] border-border-tertiary bg-bg-primary"
@@ -707,15 +712,16 @@ function MiniPlayer({
       >
         {usesBackgroundProgress && (
           <div
-            className="absolute inset-y-0 left-0 z-0 pointer-events-none"
+            className="absolute inset-0 z-0 pointer-events-none origin-left"
             style={{
               backgroundColor: accentColor,
-              width: `${activeProgress * 100}%`,
-              willChange: "width",
+              transform: `scaleX(${activeProgress})`,
               transition:
                 scrubRatio !== null
                   ? "none"
-                  : "width 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+                  : isPlaying
+                    ? `transform ${PROGRESS_STEP_MS}ms linear`
+                    : "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}
           />
         )}
@@ -759,7 +765,23 @@ function MiniPlayer({
               : "grid-cols-[286px_minmax(0,1fr)]"
           } ${!usesRoundedStyle && !embedded ? "pb-[4px]" : ""}`}
         >
-          <div className="flex h-full items-center gap-[16px] px-[18px] pt-[1px] pointer-events-none cursor-default">
+          <div
+            className="flex h-full items-center gap-[16px] px-[18px] pt-[1px] pointer-events-none cursor-default"
+            onContextMenu={handleTrackContextMenu}
+          >
+            {trackMenuPosition && (
+              <div className="absolute h-0 w-0 pointer-events-auto">
+                <DropdownMenu
+                  trigger={<span />}
+                  items={trackMenuItems}
+                  open
+                  onOpenChange={(open) => {
+                    if (!open) setTrackMenuPosition(null);
+                  }}
+                  position={trackMenuPosition}
+                />
+              </div>
+            )}
             <div
               role="button"
               tabIndex={0}
@@ -788,7 +810,6 @@ function MiniPlayer({
               <p
                 className="m-0 truncate text-[16px] font-[400] text-text-primary flex items-center gap-[6px] pointer-events-none"
                 style={{
-                  fontFamily: "var(--font-inter), sans-serif",
                   lineHeight: "18px",
                   letterSpacing: "0",
                 }}
@@ -813,50 +834,48 @@ function MiniPlayer({
               <p
                 className="m-0 mt-[4px] flex min-w-0 items-center gap-[5px] text-[13px] font-[300] text-text-tertiary pointer-events-none"
                 style={{
-                  fontFamily: "var(--font-inter), sans-serif",
                   lineHeight: "15px",
                 }}
               >
                 {player.currentTrack?.explicit && (
-                  <span className="inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-[3.5px] bg-black/[0.1] dark:bg-white/[0.14] text-[8px] font-[600] leading-none text-text-secondary">
+                  <span className="inline-flex h-[14px] w-[14px] shrink-0 -translate-y-px items-center justify-center rounded-[3.5px] bg-black/[0.1] dark:bg-white/[0.14] text-[8px] font-[600] leading-none text-text-secondary">
                     <span className="translate-y-[0.5px] [text-box:trim-both_cap_alphabetic]">
                       E
                     </span>
                   </span>
                 )}
+                {!isLocal && (
+                  <ArtistAvatar
+                    artistId={player.currentTrack?.artistId}
+                    artistList={player.currentTrack?.artistList}
+                    size={15}
+                  />
+                )}
                 <ArtistLink
                   name={trackArtists}
                   artistId={player.currentTrack?.artistId}
                   artistList={player.currentTrack?.artistList}
+                  plain={isLocal}
                   className="text-text-tertiary pointer-events-auto"
                 />
               </p>
             </div>
-            <button
-              type="button"
-              aria-label={isLiked ? "Unlike" : "Like"}
-              className={`${iconButtonClass} shrink-0 transition-colors duration-150 pointer-events-auto prevent-seek ${
-                isLiked
-                  ? "text-accent-primary"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={handleLikeToggle}
-              style={{ cursor: "pointer" }}
-            >
-              {isLiked ? <HeartFill size={20} /> : <HeartLine size={20} />}
-            </button>
-            <button
-              type="button"
-              aria-label={t("common.add_to_playlist")}
-              title={t("common.add_to_playlist")}
-              className={`${iconButtonClass} shrink-0 transition-colors duration-150 pointer-events-auto prevent-seek text-text-secondary hover:text-text-primary`}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={addCurrentTrackToPlaylist}
-              style={{ cursor: "pointer" }}
-            >
-              <AddLine size={20} />
-            </button>
+            {!isLocal && (
+              <button
+                type="button"
+                aria-label={isLiked ? "Unlike" : "Like"}
+                className={`${iconButtonClass} shrink-0 transition-colors duration-150 pointer-events-auto prevent-seek ${
+                  isLiked
+                    ? "text-accent-primary"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={handleLikeToggle}
+                style={{ cursor: "pointer" }}
+              >
+                {isLiked ? <HeartFill size={20} /> : <HeartLine size={20} />}
+              </button>
+            )}
           </div>
 
           <div
@@ -909,6 +928,35 @@ function MiniPlayer({
                 {repeatIcon}
               </button>
               <button
+                ref={eqToggleRef}
+                type="button"
+                aria-label={t("player.equalizer")}
+                title={t("player.equalizer")}
+                className={`${iconButtonClass} ${
+                  eqOpen || eqActive ? "bg-white/[0.09] text-white" : ""
+                }`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => {
+                  setVolumeOpen(false);
+                  setSpeedOpen(false);
+                  onQueueOpenChange?.(false);
+                  if (!eqOpen)
+                    setEqPopupStyle(popupStyleFor(eqToggleRef.current));
+                  setEqOpen((prev) => !prev);
+                }}
+                style={{ cursor: "pointer" }}
+              >
+                <motion.div
+                  animate={{
+                    scale: eqOpen ? 1.08 : 1,
+                  }}
+                  transition={{ type: "spring", stiffness: 350, damping: 22 }}
+                  className="flex items-center justify-center"
+                >
+                  <Tuning2 size={18} weight={eqActive ? "Bold" : "Outline"} />
+                </motion.div>
+              </button>
+              <button
                 ref={speedToggleRef}
                 type="button"
                 aria-label="Speed and Pitch"
@@ -917,13 +965,17 @@ function MiniPlayer({
                   speedOpen ||
                   Math.abs((player.playbackRate ?? 1) - 1) > 0.001 ||
                   Math.abs(player.pitchSemitones ?? 0) > 0.001
-                    ? "bg-white/[0.09] text-white"
+                    ? activeToggleClass
                     : ""
                 }`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => {
+                  clearVolumeHoverTimer();
                   setVolumeOpen(false);
+                  setEqOpen(false);
                   onQueueOpenChange?.(false);
+                  if (!speedOpen)
+                    setSpeedPopupStyle(popupStyleFor(speedToggleRef.current));
                   setSpeedOpen((prev) => !prev);
                 }}
                 style={{ cursor: "pointer" }}
@@ -977,9 +1029,16 @@ function MiniPlayer({
                 onWheel={handleVolumeWheel}
                 onClick={(e) => {
                   e.stopPropagation();
+                  clearVolumeHoverTimer();
+                  if (volumeOpen && volumePinnedRef.current) {
+                    setVolumeOpen(false);
+                    return;
+                  }
+                  volumePinnedRef.current = true;
+                  updateVolumePopupPosition();
                   setSpeedOpen(false);
+                  setEqOpen(false);
                   onQueueOpenChange?.(false);
-                  handleToggleMute();
                   setVolumeOpen(true);
                 }}
                 style={{ cursor: "pointer" }}
@@ -1000,6 +1059,7 @@ function MiniPlayer({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => {
                   setSpeedOpen(false);
+                  setEqOpen(false);
                   setVolumeOpen(false);
                   onFullscreenOpen?.();
                 }}
@@ -1034,8 +1094,8 @@ function MiniPlayer({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => {
                   setSpeedOpen(false);
+                  setEqOpen(false);
                   setVolumeOpen(false);
-                  setQueueLimit(50);
                   onQueueToggle?.();
                 }}
                 style={{ cursor: "pointer" }}

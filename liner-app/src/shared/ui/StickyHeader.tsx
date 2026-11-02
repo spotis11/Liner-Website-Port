@@ -55,13 +55,14 @@ export function StickyHeader({
               data-no-tooltip="true"
               data-no-window-drag
               className={`group inline-flex h-[32px] shrink-0 items-center gap-[6px] rounded-md px-[10px] active:scale-[0.94] transition-all cursor-pointer select-none pointer-events-auto text-[13px] font-[500] border-0 !border-none bg-bg-panel/85 backdrop-blur-xl text-text-primary hover:bg-bg-panel`}
-              style={{ fontFamily: "var(--font-inter), sans-serif" }}
             >
               <ArrowLeftLine
                 size={16}
                 className="transition-transform duration-150 group-hover:-translate-x-0.5"
               />
-              <span className="relative -left-[1.5px] top-[1px]">{t("common.back")}</span>
+              <span className="relative -left-[1.5px] top-[1px]">
+                {t("common.back")}
+              </span>
             </button>
           )}
 
@@ -77,12 +78,7 @@ export function StickyHeader({
               {thumbnail}
 
               {title && (
-                <span
-                  className="text-[13px] font-[600] tracking-[-0.01em] text-text-primary truncate"
-                  style={{
-                    fontFamily: "var(--font-inter), sans-serif",
-                  }}
-                >
+                <span className="text-[13px] font-[600] tracking-[-0.01em] text-text-primary truncate">
                   {title}
                 </span>
               )}
@@ -91,7 +87,10 @@ export function StickyHeader({
         </div>
 
         {rightContent && (
-          <div className="flex items-center gap-[8px] pointer-events-auto" data-no-window-drag>
+          <div
+            className="flex items-center gap-[8px] pointer-events-auto"
+            data-no-window-drag
+          >
             {rightContent}
           </div>
         )}
@@ -101,6 +100,3 @@ export function StickyHeader({
 }
 
 export default StickyHeader;
-
-
-

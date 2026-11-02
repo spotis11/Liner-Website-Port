@@ -19,6 +19,29 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.12.0",
+    date: "2026-10-31",
+    title: "Core updated to Liner v0.2.11 — and your liked songs are all here",
+    entries: [
+      {
+        type: "changed",
+        text: "The whole app core was updated to upstream Liner v0.2.11 (633 files): the redesigned home/library shell with keep-alive page transitions and history navigation island, the new offline-aware router, upgraded YouTube/innertube plumbing with request timeouts, the stricter audio-format check before caching, capped in-memory caches, the improved fullscreen visuals (ambient glow, glass blur options), a complete French translation and a brand-new Bahasa Indonesia locale — every web-port feature (downloads, download-all, AI translate, equalizer, local music, moderation, changelog) was re-integrated on top and the full 1,177-test suite passes.",
+      },
+      {
+        type: "fixed",
+        text: "Liked Songs showing only part of your library: liked tracks whose snapshot the server could not hydrate came back with an empty id, and all of those blank rows shared one React key — so React collapsed them into a single row and most of your songs simply vanished from the list. The loader now skips unhydrated entries, dedupes by id, and retries a flaky page once before giving up, so all 74 (or 740) of your songs show up.",
+      },
+      {
+        type: "fixed",
+        text: "Batch downloads now retry every track once automatically when a download hiccups (rate limits, dropped connections) before marking it failed — large Download-all batches finish cleanly instead of leaving scattered red rows.",
+      },
+      {
+        type: "fixed",
+        text: "F11 in the browser fullscreens the website again (the desktop-only handling no longer swallows it on the web), and the sidebar's Settings entry is back where it was.",
+      },
+    ],
+  },
+  {
     version: "1.11.0",
     date: "2026-10-31",
     title: "Download all — a whole collection in one tap",

@@ -178,14 +178,9 @@ export default function DropdownMenu({
                     ? "text-red-400 hover:bg-red-500/10 hover:text-red-400"
                     : "text-text-primary hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
                 } ${
-                  item.active
-                    ? "bg-black/[0.05] dark:bg-white/[0.08]"
-                    : ""
+                  item.active ? "bg-black/[0.05] dark:bg-white/[0.08]" : ""
                 } disabled:pointer-events-none disabled:opacity-40`}
                 aria-current={item.active ? "true" : undefined}
-                style={{
-                  fontFamily: "var(--font-inter), sans-serif",
-                }}
               >
                 {item.icon && (
                   <span
