@@ -2,14 +2,12 @@
 
 **The website port of Liner — the modern music streaming player with syllable-synced lyrics and reactive dynamic visuals, running entirely in your browser.**
 
-[![Website](https://img.shields.io/badge/website-live-7a4dff?style=flat-square&labelColor=0d0d10)](https://goodbyeworld42-ai.github.io/Liner-Website-Port/) [![Platforms](https://img.shields.io/badge/platforms-any%20modern%20browser-2ec4b6?style=flat-square&labelColor=0d0d10)](#getting-started) [![Engine](https://img.shields.io/badge/engine-React%2019%20·%20Vite%20·%20Next.js-4d71ff?style=flat-square&labelColor=0d0d10)](#architecture) [![API](https://img.shields.io/badge/backend-official%20Liner%20API-3ddc97?style=flat-square&labelColor=0d0d10)](https://tryliner.fun) [![Upstream](https://img.shields.io/badge/upstream-tryliner%2Fdesktop-7a4dff?style=flat-square&labelColor=0d0d10)](https://github.com/tryliner/desktop) [![License](https://img.shields.io/badge/license-source--available-534dff?style=flat-square&labelColor=0d0d10)](./LICENSE)
+[![Website](https://img.shields.io/badge/website-live-7a4dff?style=flat-square&labelColor=0d0d10)](https://liner-music.space-z.ai/) [![Platforms](https://img.shields.io/badge/platforms-any%20modern%20browser-2ec4b6?style=flat-square&labelColor=0d0d10)](#getting-started) [![Engine](https://img.shields.io/badge/engine-React%2019%20·%20Vite%20·%20Next.js-4d71ff?style=flat-square&labelColor=0d0d10)](#architecture) [![API](https://img.shields.io/badge/backend-official%20Liner%20API-3ddc97?style=flat-square&labelColor=0d0d10)](https://tryliner.fun) [![Upstream](https://img.shields.io/badge/upstream-tryliner%2Fdesktop-7a4dff?style=flat-square&labelColor=0d0d10)](https://github.com/tryliner/desktop) [![License](https://img.shields.io/badge/license-source--available-534dff?style=flat-square&labelColor=0d0d10)](./LICENSE)
 <div align="center">
 
 <img src="./docs/screenshots/01-album.png" alt="Liner Web — album view with the player bar and blurred artwork background" width="100%" />
 
 ### [▶ Open the live port — liner-music.space-z.ai](https://liner-music.space-z.ai/#/)
-
-### [▶ Visit the website — goodbyeworld42-ai.github.io/Liner-Website-Port](https://goodbyeworld42-ai.github.io/Liner-Website-Port/)
 
 [About](#about) • [Screenshots](#screenshots) • [Features](#features) • [Architecture](#architecture) • [Getting Started](#getting-started) • [Building](#building) • [Docs](#docs) • [License](#license)
 
@@ -121,7 +119,7 @@ Liner-Website-Port/
 ### Setup
 
 ```bash
-git clone https://github.com/goodbyeworld42-ai/Liner-Website-Port.git
+git clone https://gitlab.com/seekfromohio/Liner-Website-Port.git
 cd Liner-Website-Port
 
 # the Next.js shell
