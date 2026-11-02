@@ -12,15 +12,20 @@
 import { NextRequest } from "next/server";
 import { YT_UPSTREAM_WWW } from "@/lib/liner-proxy";
 import { OPTIONS, proxyInnertube } from "@/lib/innertube-proxy";
+import { maintenanceGate } from "@/lib/maintenance";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   return proxyInnertube(request, YT_UPSTREAM_WWW, "/api/yt/www/");
 }
 
 export async function GET(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   return proxyInnertube(request, YT_UPSTREAM_WWW, "/api/yt/www/");
 }
 

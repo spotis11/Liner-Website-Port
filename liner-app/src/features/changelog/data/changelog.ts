@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.12.2",
+    date: "2026-11-02",
+    title: "Maintenance mode — take the whole site down with one switch",
+    entries: [
+      {
+        type: "added",
+        text: "Maintenance mode. From the Moderation tab the site owner can now put the entire website behind a forced maintenance wall: a branded full-screen page (Liner logo, \"Currently on Maintenance!\", the possible reasons and a \"come back later\" note) that replaces the whole app — sign-in included — survives normal AND hard refreshes, and cannot be bypassed. Playback data APIs answer 503 while it is on, so nobody can listen even by skipping the UI. The wall re-checks every 30 seconds and lets everyone back in the moment maintenance is switched off; music already downloaded keeps playing locally once the wall is gone.",
+      },
+    ],
+  },
+  {
     version: "1.12.1",
     date: "2026-11-02",
     title: "Honest connection errors — you're online, the upstream isn't",

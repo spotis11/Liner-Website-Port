@@ -17,6 +17,11 @@ import {
   type BanType,
 } from "@/features/moderation/lib/moderationApi";
 import { isWebsiteAdmin } from "@/features/announcements";
+import {
+  fetchMaintenanceStatus,
+  setMaintenanceRemote,
+  MaintenanceError,
+} from "@/features/maintenance";
 
 const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
 
@@ -26,6 +31,8 @@ const SEARCH_KEYS = [
   "settings.moderation.section_title",
   "settings.moderation.ban_title",
   "settings.moderation.unban_title",
+  "settings.maintenance.section_title",
+  "settings.maintenance.section_subtitle",
 ];
 
 type DurationChoice = (typeof BAN_DURATION_PRESETS)[number]["value"];
@@ -52,6 +59,12 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
   const [reason, setReason] = useState("");
 
   const [unbanUsername, setUnbanUsername] = useState("");
+
+  // maintenance switch state
+  const [maintOn, setMaintOn] = useState(false);
+  const [maintBusy, setMaintBusy] = useState(false);
+  const [maintLoaded, setMaintLoaded] = useState(false);
+  const [maintReasons, setMaintReasons] = useState("");
 
   const isAdmin = isWebsiteAdmin(user?.username);
 
@@ -85,6 +98,54 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
   useEffect(() => {
     if (isAdmin) void refresh();
   }, [isAdmin, refresh]);
+
+  // keep the maintenance switch in sync with the backend
+  const refreshMaintenance = useCallback(async () => {
+    try {
+      const status = await fetchMaintenanceStatus();
+      setMaintOn(status.enabled);
+      if (!maintLoaded && status.reasons.length > 0) {
+        setMaintReasons(status.reasons.join("\n"));
+      }
+      setMaintLoaded(true);
+    } catch {
+      setMaintLoaded(true);
+    }
+  }, [maintLoaded]);
+
+  useEffect(() => {
+    if (isAdmin) void refreshMaintenance();
+  }, [isAdmin, refreshMaintenance]);
+
+  const handleMaintenanceToggle = async () => {
+    setMaintBusy(true);
+    try {
+      const accessToken = await getValidAccessToken().catch(() => null);
+      const reasons = maintReasons
+        .split("\n")
+        .map((r) => r.trim())
+        .filter((r) => r.length > 0);
+      const next = await setMaintenanceRemote(
+        !maintOn,
+        reasons.length > 0 ? reasons : undefined,
+        accessToken,
+      );
+      setMaintOn(next.enabled);
+      if (next.reasons.length > 0) setMaintReasons(next.reasons.join("\n"));
+      toast(
+        t(next.enabled ? "settings.maintenance.started_toast" : "settings.maintenance.stopped_toast"),
+        "success",
+      );
+    } catch (err) {
+      if (err instanceof MaintenanceError && (err.code === "unauthorized" || err.code === "forbidden")) {
+        toast(t("settings.moderation.error_unauthorized"), "error");
+      } else {
+        toast(t("settings.maintenance.error"), "error");
+      }
+    } finally {
+      setMaintBusy(false);
+    }
+  };
 
   if (!isAdmin || !isMatch) return null;
 
@@ -369,6 +430,69 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
             <span className="text-[12px] text-text-tertiary" style={font}>
               {t("settings.moderation.unban_hint")}
             </span>
+          </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection label={t("settings.maintenance.section_title")}>
+        <div className="flex flex-col gap-[12px] rounded-[12px] bg-black/[0.04] px-[16px] py-[16px] dark:bg-white/[0.08]">
+          <p className="m-0 text-[13px] leading-[1.5] text-text-secondary" style={font}>
+            {t("settings.maintenance.section_subtitle")}
+          </p>
+
+          <div className="flex items-center justify-between gap-[10px]">
+            <span
+              className="text-[13px] font-[600]"
+              style={{
+                ...font,
+                color: maintOn ? "var(--color-danger, #ff5a5f)" : undefined,
+              }}
+            >
+              {maintOn
+                ? t("settings.maintenance.status_on")
+                : t("settings.maintenance.status_off")}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void refreshMaintenance()}
+            >
+              {t("settings.maintenance.refresh")}
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-[6px]">
+            <label
+              htmlFor="maintenance-reasons"
+              className="text-text-primary text-[13px] font-[500] leading-snug"
+              style={font}
+            >
+              {t("settings.maintenance.reasons_label")}
+            </label>
+            <textarea
+              id="maintenance-reasons"
+              value={maintReasons}
+              rows={4}
+              placeholder={t("settings.maintenance.reasons_placeholder")}
+              onChange={(e) => setMaintReasons(e.target.value)}
+              className="w-full resize-none rounded-md border border-border-primary bg-bg-primary px-[12px] py-[9px] text-[13px] text-text-primary outline-none placeholder:text-text-tertiary transition-[border-color] duration-150 focus:border-border-alpha-33"
+              style={{ fontFamily: "var(--font-inter), sans-serif" }}
+            />
+          </div>
+
+          <div>
+            <Button
+              size="sm"
+              variant={maintOn ? "outline" : "primary"}
+              disabled={maintBusy}
+              onClick={() => void handleMaintenanceToggle()}
+            >
+              {maintBusy
+                ? t("settings.maintenance.apply_busy")
+                : maintOn
+                  ? t("settings.maintenance.stop")
+                  : t("settings.maintenance.start")}
+            </Button>
           </div>
         </div>
       </SettingSection>

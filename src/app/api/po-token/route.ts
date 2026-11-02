@@ -16,6 +16,7 @@ import { JSDOM } from "jsdom";
 import { BotGuardClient } from "bgutils-js/botguard";
 import { WebPoMinter } from "bgutils-js/webpo";
 import { buildURL, GOOG_API_KEY } from "bgutils-js/utils";
+import { maintenanceGate } from "@/lib/maintenance";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -248,6 +249,8 @@ async function getMinter(visitorData?: string): Promise<MinterEntry> {
 }
 
 export async function GET(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   const videoId = request.nextUrl.searchParams.get("videoId") ?? "";
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
     return Response.json(

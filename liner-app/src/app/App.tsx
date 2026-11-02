@@ -12,6 +12,7 @@ import { useAppIconSync } from "@/features/player";
 import { I18nProvider } from "@/languages";
 import { AuthLock } from "@/features/auth";
 import { BanGate } from "@/features/moderation";
+import { MaintenanceGate } from "@/features/maintenance";
 import { WelcomeGate } from "@/features/welcome";
 import { CoverSwRegistrar } from "@/features/covers";
 import { usePresenceSync } from "@/shared/presence";
@@ -97,6 +98,7 @@ export default function App() {
                   <EnvironmentWarning />
                   <ConnectionIssueModal />
                   <BanGate />
+                  <MaintenanceGate />
                   <WelcomeGate />
                   <AuthLock>
                     <AppRoutes />

@@ -26,6 +26,7 @@ import {
   forwardableHeaders,
   passthroughResponseHeaders,
 } from "@/lib/liner-proxy";
+import { maintenanceGate } from "@/lib/maintenance";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -52,6 +53,8 @@ function decodeTarget(request: NextRequest): URL | null {
 }
 
 export async function POST(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   const target = decodeTarget(request);
   if (!target || !isAllowedSabrTarget(target)) {
     return Response.json({ error: "Disallowed SABR target" }, { status: 400 });

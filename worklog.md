@@ -1111,3 +1111,10 @@ Task: "on liner, it says network error. check everything" — diagnose + honest 
 - Fix: probe.ts probes same-origin /api/health on web (ConnectionProbe.port); classify returns server_unreachable when port backend answers but upstream doesn't (5xx still server_error first); modal shows accurate "Liner's servers aren't responding / Your internet works... VPN often helps" copy (en desc extended).
 - Tests: 4 new classify cases; full suite 1181/1181 green; bundle App-B2IFmkhD.js deployed to public/liner + standalone, :3000 200.
 - User workarounds: VPN to unblocked region restores everything instantly; report/upvote to upstream (tryliner/desktop discussions) to whitelist region.
+
+Task: "make a thing like this (Currently on Maintenance!)" — forced maintenance wall (v1.12.2)
+- Server: src/lib/maintenance.ts (SystemKey "web_maintenance_v1", 3s cache, 503 gate); /api/maintenance GET (always-200 public probe) + POST (owner-gated via authenticateAdmin, same as moderation); 21 playback/data routes gated (music/*, media, yt/*, sc/*, fetch, likes, playlists, history, po-token, tv-session, ai-translate) — OPTIONS + moderation/announcements/health/maintenance stay open so the owner can always turn it back off.
+- SPA: features/maintenance (store with localStorage mirror liner_web_maintenance_v1 — sync hydration, fail-closed on probe failure; gate = boot + 30s + visibilitychange probe, pauses playerRuntime on raise; MaintenanceScreen = banned-wall design language, amber, HammerLine, logo + "Currently on Maintenance!" + reasons bullets + "come back later"). Mounted in App.tsx next to BanGate.
+- Owner UI: ModerationTab gains a Maintenance section (status, reasons textarea, start/stop). en.json: maintenance.* + settings.maintenance.* (other locales fall back to en).
+- Tests: 10 new (store persistence/fail-closed, api client). Full suite 1191/1191 green. NOTE: pre-existing nondeterministic vitest unhandled-error flake in navigation/ui/WindowControls.test.tsx (reproducible with changes stashed) — 1..4 "window is not defined" uncaught exceptions, tests still pass; fix separately.
+- E2E verified on :3000 (see below). Bundle App-B6N53Nwv.js.

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { maintenanceGate } from "@/lib/maintenance";
 
 interface IncomingTrack {
   id: string
@@ -12,6 +13,8 @@ interface IncomingTrack {
 }
 
 export async function GET() {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   const history = await db.playHistory.findMany({
     orderBy: { playedAt: "desc" },
     take: 40,
@@ -28,6 +31,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   const body = await req.json().catch(() => null)
   const t: IncomingTrack | null = body?.track ?? null
   if (!t?.id || !t.title) {
@@ -60,6 +65,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE() {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   await db.playHistory.deleteMany({})
   return NextResponse.json({ ok: true })
 }

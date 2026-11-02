@@ -13,6 +13,7 @@ import { NextRequest } from "next/server";
 import { JSDOM } from "jsdom";
 import { BotGuardClient } from "bgutils-js/botguard";
 import { WebPoMinter } from "bgutils-js/webpo";
+import { maintenanceGate } from "@/lib/maintenance";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -250,6 +251,8 @@ async function getSession(): Promise<TvSession> {
 }
 
 export async function GET(_request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   try {
     const session = await getSession();
     return Response.json(session, {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { maintenanceGate } from "@/lib/maintenance";
 
 interface IncomingTrack {
   id: string
@@ -12,12 +13,16 @@ interface IncomingTrack {
 }
 
 export async function GET() {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   const likes = await db.likedTrack.findMany({ orderBy: { createdAt: "desc" } })
   return NextResponse.json({ likes })
 }
 
 /** Toggle like state for a track; returns the resulting state. */
 export async function POST(req: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   const body = await req.json().catch(() => null)
   const t: IncomingTrack | null = body?.track ?? null
   if (!t?.id || !t.title) {

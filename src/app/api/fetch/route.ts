@@ -8,6 +8,7 @@
 
 import { NextRequest } from "next/server";
 import { isAllowedFetchHost, forwardableHeaders, passthroughResponseHeaders } from "@/lib/liner-proxy";
+import { maintenanceGate } from "@/lib/maintenance";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -119,25 +120,37 @@ async function proxy(request: NextRequest): Promise<Response> {
 }
 
 export async function GET(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   return proxy(request);
 }
 
 export async function POST(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   return proxy(request);
 }
 
 export async function PUT(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   return proxy(request);
 }
 
 export async function PATCH(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   return proxy(request);
 }
 
 export async function DELETE(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   return proxy(request);
 }
 
 export async function HEAD(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   return proxy(request);
 }

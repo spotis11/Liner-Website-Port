@@ -12,6 +12,7 @@
 import { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
 import ZAI from "z-ai-web-dev-sdk";
+import { maintenanceGate } from "@/lib/maintenance";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -70,6 +71,8 @@ function extractJsonArray(raw: string): string[] | null {
 }
 
 export async function POST(request: NextRequest) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   let body: { lines?: unknown; targetLang?: unknown };
   try {
     body = await request.json();

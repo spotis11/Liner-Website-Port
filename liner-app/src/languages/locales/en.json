@@ -557,6 +557,13 @@
     "waiting_verification": "Waiting for Telegram verification...",
     "welcome_back": "Welcome back"
   },
+  "maintenance": {
+    "title": "Currently on Maintenance!",
+    "body": "Liner is having problems right now. Possible reasons:",
+    "footer": "Please come back later.",
+    "retry_note": "This page checks every 30 seconds and lets you back in the moment maintenance ends. Nothing you do in the meantime can get past it — not even a hard refresh.",
+    "stamp": "MAINTENANCE"
+  },
   "moderation": {
     "banned": {
       "title_account": "Account banned",
@@ -1516,6 +1523,21 @@
         "description": "Show playlists from your YouTube account in the library next to Liner playlists.",
         "title": "Sync library"
       }
+    },
+    "maintenance": {
+      "section_title": "Maintenance mode",
+      "section_subtitle": "Take the whole website offline behind a maintenance wall nobody can bypass — sign-in and playback included, across normal and hard refreshes. Use it while you fix something; flip it off to let everyone back in.",
+      "status_on": "Maintenance is ON right now — the whole site shows the wall.",
+      "status_off": "Maintenance is off — the site is open.",
+      "reasons_label": "Reasons shown on the wall (one per line, optional)",
+      "reasons_placeholder": "Sign-in is temporarily unavailable\nMusic playback is temporarily disabled\nWe're upgrading our servers",
+      "start": "Start maintenance",
+      "stop": "End maintenance",
+      "apply_busy": "Applying...",
+      "started_toast": "Maintenance mode is ON — every visitor now sees the wall.",
+      "stopped_toast": "Maintenance ended — the site is open again.",
+      "error": "Could not update maintenance mode. Try again.",
+      "refresh": "Refresh status"
     }
   },
   "toast": {

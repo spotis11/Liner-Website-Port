@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { resolveItunesPreview } from "@/lib/itunes"
+import { maintenanceGate } from "@/lib/maintenance";
 
 export const dynamic = "force-dynamic"
 
@@ -25,6 +26,8 @@ async function resolveUpstream(idParam: string): Promise<string | null> {
  * Ids are namespaced as `<source>:<id>`.
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
   const { id } = await ctx.params
   const upstream = await resolveUpstream(decodeURIComponent(id))
   if (!upstream) return new Response("Bad track id", { status: 400 })
