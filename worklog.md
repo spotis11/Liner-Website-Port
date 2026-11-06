@@ -1168,3 +1168,14 @@ Task: "the api is still broken?" — RESOLVED: relinked deploy landed, site full
 - Owner relinked the deploy source (GitLab) on the generation page; the deployment landed and live is healthy again.
 - Live matrix: / 200, /login 200, /library 200, /liner/index.html 200, /api/health {"ok":true}, /api/maintenance {"enabled":false} (wall stays off), /api/media 400 "Disallowed media host" (proxy alive + validating), /api/music/trending 200 with real track data (music pipeline serving).
 - Upstream api.tryliner.fun from this egress: /health now 200 (was 403 — block loosened/changed); /v1/auth/login OPTIONS preflight still 403 from this datacenter IP; / root still 403. Browser-direct login (POST) depends on the user's own network, which is known-good (Windows app works).
+
+Task: "fix ts" (browser CORS errors on api.tryliner.fun/v1/*) - root cause is upstream Cloudflare, NOT TS-fixable (v1.12.2)
+- Console: SPA browser-direct calls to api.tryliner.fun/v1/* (auth/refresh, me, explore/popular, tracks/lyrics, presence/heartbeat, me/history, me/library/tracks, me/recommendations/daily-mixes, explore/most-saved, me/playlists) all fail CORS preflight - Cloudflare 403 with no Access-Control-Allow-Origin.
+- Architecture confirmed: liner-app/src/shared/lib/webProxy.ts deliberately keeps Liner API GET/POST browser-direct (upstream CORS used to allow them); only PATCH/PUT/DELETE route through /api/fetch. Server /api/fetch proxy EXISTS and works (api.tryliner.fun in FETCH_HOSTS allowlist, route at src/app/api/fetch/route.ts).
+- TESTED the obvious TS fix (route all Liner calls through same-origin /api/fetch proxy) against the DEPLOYED server:
+  - server -> api.tryliner.fun/health = 200 {"status":"ok"}
+  - server -> api.tryliner.fun/v1/explore/popular = Cloudflare "Attention Required!" 403 HTML
+  - server -> api.tryliner.fun/v1/me = Cloudflare "Attention Required!" 403 HTML
+- Conclusion: Cloudflare blocks /v1/* (the data API) for our server's egress (Node/undici TLS fingerprint), while allowing /health. So routing all SPA Liner calls through the same-origin proxy would NOT make the app work - the proxy returns Cloudflare 403 challenge pages instead of CORS errors. The Windows app works because Electron uses Chromium's networking (browser TLS fingerprint) on the user's residential IP, which Cloudflare's bot management accepts.
+- NOT TS-fixable. Real fixes are upstream/infra only: (a) Liner adds liner-music.space-z.ai to CORS allowlist AND disables/whitelists the Cloudflare bot challenge on /v1/* for our server egress; or (b) run the proxy through a browser-TLS impersonator (curl-impersonate / headless-browser fetch); or (c) user uses a VPN. None are code changes in this repo.
+- No files modified (investigation only); tree clean.
