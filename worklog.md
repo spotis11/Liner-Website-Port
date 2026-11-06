@@ -1163,3 +1163,8 @@ Task: "check" — publish attempt #5, still platform-side dead (v1.12.2)
 - Sandbox recycle side effects handled: ~494 files flipped mode bits (100644->100755), 0 content changes (git diff --stat verified); set core.fileMode false. .next/standalone wiped by recycle; rebuilt fresh: full pass, [prune] 28 items / 73.1 MB, artifact 89MB + server.js. db/custom.db content intact (enabled:false).
 - Complete publish #5 + 4 min poll: live unchanged at platform 500 on every route. Total: 1 landed publish broke live + 4 failed republishes, workspace provably clean/buildable every time.
 - Status: awaiting owner relink of deploy source to https://gitlab.com/seekfromohio/Liner-Website-Port on the generation page. No sandbox-side action can unblock this.
+
+Task: "the api is still broken?" — RESOLVED: relinked deploy landed, site fully back (v1.12.2)
+- Owner relinked the deploy source (GitLab) on the generation page; the deployment landed and live is healthy again.
+- Live matrix: / 200, /login 200, /library 200, /liner/index.html 200, /api/health {"ok":true}, /api/maintenance {"enabled":false} (wall stays off), /api/media 400 "Disallowed media host" (proxy alive + validating), /api/music/trending 200 with real track data (music pipeline serving).
+- Upstream api.tryliner.fun from this egress: /health now 200 (was 403 — block loosened/changed); /v1/auth/login OPTIONS preflight still 403 from this datacenter IP; / root still 403. Browser-direct login (POST) depends on the user's own network, which is known-good (Windows app works).
