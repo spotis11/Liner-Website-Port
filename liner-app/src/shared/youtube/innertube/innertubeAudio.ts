@@ -18,7 +18,9 @@ import type { ResolvedAudioStream } from "./innertubeAudioFormats";
 export type { ResolvedAudioStream } from "./innertubeAudioFormats";
 
 export {
+  ANDROID_MUSIC_PROFILE,
   ANDROID_VR_PROFILE,
+  IOS_PROFILE,
   PLAYBACK_PROFILES,
   TV_PROFILE,
   VISIONOS_PROFILE,

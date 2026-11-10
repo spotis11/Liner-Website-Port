@@ -18,6 +18,7 @@ vi.mock("../session/visitorSession", () => ({
 }));
 
 import {
+  PLAYBACK_PROFILES,
   resetPlaybackProfilePreference,
   resolveDirectAudioStream,
   STREAMS_REFUSED_MESSAGE,
@@ -214,6 +215,60 @@ describe("resolveDirectAudioStream", () => {
       JSON.parse(String(playerCalls(fetchSpy)[0][1]?.body)).context.client
         .clientName,
     ).toBe("VISIONOS");
+  });
+
+  it("keeps the Riff clients last in the playback profile chain", () => {
+    expect(PLAYBACK_PROFILES.map((profile) => profile.clientName)).toEqual([
+      "TVHTML5",
+      "VISIONOS",
+      "ANDROID_VR",
+      "IOS",
+      "ANDROID_MUSIC",
+    ]);
+  });
+
+  it("falls back to the Riff IOS profile with plain urls when every device profile is refused", async () => {
+    const fetchSpy = mockPlayerApi([
+      playerResponse([], "UNPLAYABLE"), // TVHTML5
+      playerResponse([], "UNPLAYABLE"), // VISIONOS
+      playerResponse([], "UNPLAYABLE"), // ANDROID_VR
+      playerResponse([
+        // IOS hands out plain `url` formats — no signatureCipher, no SABR
+        { itag: 251, url: opus.url, mimeType: opus.mimeType, bitrate: 137_000 },
+        { itag: 140, url: aac.url, mimeType: aac.mimeType, bitrate: 131_000 },
+      ]),
+    ]);
+
+    const stream = await resolveDirectAudioStream("dQw4w9WgXcQ");
+
+    expect(stream).toMatchObject({
+      itag: 251,
+      codec: "opus",
+      mimeType: "audio/webm",
+      url: opus.url,
+    });
+    expect(webPlayer.decipher).not.toHaveBeenCalled();
+
+    const calls = playerCalls(fetchSpy);
+    expect(calls).toHaveLength(4);
+    const [iosUrl, iosInit] = calls[3];
+    expect(iosUrl).toBe(
+      "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+    );
+    const headers = (iosInit?.headers ?? {}) as Record<string, string>;
+    expect(headers["x-youtube-client-name"]).toBe("5");
+    expect(headers["x-liner-user-agent"]).toContain("com.google.ios.youtube");
+    const body = JSON.parse(String(iosInit?.body));
+    expect(body.context.client).toMatchObject({
+      clientName: "IOS",
+      clientVersion: "20.10.4",
+      osName: "iOS",
+      osVersion: "18.3.2.22D60",
+      deviceMake: "Apple",
+      deviceModel: "iPhone16,2",
+      visitorData: "CgtVISITOR123",
+    });
+    expect(body.playbackContext).toBeUndefined();
   });
 
   it("reports every profile failure when nothing is playable", async () => {
