@@ -2,6 +2,7 @@ import type {
   LyricsCandidate,
   LyricsSyncLevel,
 } from "@/shared/contracts/lyrics";
+import { parseRawLyrics } from "../engine/lyricsParser";
 import type { LyricsProviderOption } from "./lyricsStore";
 
 export interface CachedLyricsItem {
@@ -33,10 +34,33 @@ export function isLyricsCandidate(value: unknown): value is LyricsCandidate {
   return typeof lyrics?.content === "string" && lyrics.content.length > 0;
 }
 
+// a candidate is only worth keeping when it parses into real, readable lines —
+// provider bodies that are just LRC id tags or markup would render as garbage
+const LRC_ID_TAG = /^\[[a-z#]+:[^\]]*\]$/i;
+const usableLyricsByCandidate = new WeakMap<LyricsCandidate, boolean>();
+
+function parsesIntoReadableLines(content: string, format?: string): boolean {
+  const { braccatoLyrics } = parseRawLyrics(content, format);
+  return braccatoLyrics.some((line) => {
+    const text = (line.words ?? "").trim();
+    return text.length > 0 && !LRC_ID_TAG.test(text);
+  });
+}
+
+export function hasUsableLyrics(candidate?: LyricsCandidate | null): boolean {
+  const content = candidate?.lyrics?.content;
+  if (typeof content !== "string" || !content.trim()) return false;
+  const known = usableLyricsByCandidate.get(candidate!);
+  if (known !== undefined) return known;
+  const usable = parsesIntoReadableLines(content, candidate!.lyrics.format);
+  usableLyricsByCandidate.set(candidate!, usable);
+  return usable;
+}
+
 export function shouldCacheLyricsCandidate(
   candidate?: LyricsCandidate | null,
 ): boolean {
-  return Boolean(candidate?.lyrics?.content);
+  return hasUsableLyrics(candidate);
 }
 
 export function isProvisionalLyricsCandidate(

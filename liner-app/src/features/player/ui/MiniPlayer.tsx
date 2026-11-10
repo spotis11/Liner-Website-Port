@@ -52,6 +52,10 @@ import DropdownMenu from "@/shared/ui/DropdownMenu";
 import { useSongMenuItems } from "../hooks/useSongMenuItems";
 
 const PROGRESS_STEP_MS = 1000;
+// anything other than the regular one-step tick (a new track, a seek, a
+// repeat) is a jump: it eases out quickly instead of crawling linearly (upstream eefcc4e)
+const PROGRESS_JUMP_TRANSITION =
+  "transform 380ms cubic-bezier(0.22, 1, 0.36, 1)";
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   r /= 255;
@@ -368,6 +372,15 @@ function MiniPlayer({
       : progress;
   const isLoading = player.status === "loading";
   const trackTitle = player.currentTrack?.title ?? t("player.nothing_playing");
+
+  const [shownProgress, setShownProgress] = useState(secondProgress);
+  const [progressJumped, setProgressJumped] = useState(false);
+  if (secondProgress !== shownProgress) {
+    const delta = secondProgress - shownProgress;
+    const step = durationMs > 0 ? PROGRESS_STEP_MS / durationMs : 0;
+    setProgressJumped(delta < 0 || delta > step * 1.5);
+    setShownProgress(secondProgress);
+  }
   const trackArtists = player.currentTrack?.artists ?? t("player.choose_track");
 
   const isCoverLoaded = useCoverReady(coverUrl);
@@ -703,9 +716,9 @@ function MiniPlayer({
               transition:
                 scrubRatio !== null
                   ? "none"
-                  : isPlaying
+                  : isPlaying && !progressJumped
                     ? `transform ${PROGRESS_STEP_MS}ms linear`
-                    : "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+                    : PROGRESS_JUMP_TRANSITION,
             }}
           />
         )}

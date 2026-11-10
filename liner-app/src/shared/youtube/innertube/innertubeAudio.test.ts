@@ -290,6 +290,19 @@ describe("resolveDirectAudioStream", () => {
     );
   });
 
+  it("says the network is refused when googlevideo cannot be reached for any profile", async () => {
+    // upstream 3698672: a dead network counts as a refused network, not an
+    // unavailable track — the probe's network error must surface as refusal
+    const fetchSpy = mockPlayerApi([playerResponse([opus, aac])]);
+    fetchSpy.mockImplementation(async (input: FetchInput) => {
+      if (isStreamProbe(input)) throw new TypeError("Failed to fetch");
+      return playerResponse([opus, aac]).clone();
+    });
+    await expect(resolveDirectAudioStream("dQw4w9WgXcQ")).rejects.toThrow(
+      new RegExp(`^${STREAMS_REFUSED_MESSAGE}.*unreachable: Failed to fetch`),
+    );
+  });
+
   it("plays the WEB_REMIX stream with its po token when googlevideo accepts it past the first megabyte", async () => {
     const webUrl =
       "https://rr1.googlevideo.com/videoplayback?itag=251&c=WEB_REMIX&pot=token";

@@ -13,7 +13,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { PlayerUiElements } from "./PlayerUiElements";
 import SoundWave, { useSoundWaveEnabled } from "./SoundWave";
-import { DownLine } from "@mingcute/react";
+import { DownLine, Music2Fill } from "@mingcute/react";
 import { preloadCoverArt, useCoverSrc } from "@/features/covers";
 import "@braccato/core/element";
 import "@braccato/core/styles/variables.css";
@@ -391,7 +391,10 @@ export function FullscreenPlayer({
 
   // lyrics pane toggle (top-left "Lyrics" pill, like the desktop app)
   const [lyricsVisible, setLyricsVisible] = useState(readStoredLyricsVisible);
+  // every press fires one expanding ring on the pill (see the pulse span below)
+  const [lyricsPulse, setLyricsPulse] = useState(0);
   const toggleLyrics = useCallback(() => {
+    setLyricsPulse((n) => n + 1);
     setLyricsVisible((v) => {
       const next = !v;
       try {
@@ -414,7 +417,10 @@ export function FullscreenPlayer({
     currentTrackId && currentLyricsTrackId === currentTrackId,
   );
   const hasLyrics = isMatchingTrack && braccatoLyrics.length > 0;
-  const showProviderIsland = hasLyrics && availableProviders.length > 0;
+  // the switcher stays visible even when the active provider has no text, as
+  // long as another provider could (upstream dc89c5a)
+  const showProviderIsland =
+    isMatchingTrack && availableProviders.length > (hasLyrics ? 0 : 1);
   const isInstrumental =
     isMatchingTrack &&
     !lyricsLoading &&
@@ -609,24 +615,60 @@ export function FullscreenPlayer({
         <DownLine size={18} />
       </button>
 
-      {/* lyrics pane toggle — like the desktop app's top-left "Lyrics" pill */}
-      <button
+      {/* lyrics pane toggle — like the desktop app's top-left "Lyrics" pill.
+          Pressing it springs the pill, fires one expanding ring, and the music
+          glyph slides in while the pane choreographs across (LYRICS_TOGGLE_TRANSITION). */}
+      <motion.button
         type="button"
         aria-pressed={lyricsVisible}
         aria-label={t("player.lyrics")}
         title={t("player.lyrics")}
         onClick={toggleLyrics}
         data-no-window-drag
-        className={`absolute top-[6px] left-[46px] z-30 inline-flex h-[32px] items-center rounded-lg border-none px-[12px] backdrop-blur-xl active:scale-[0.94] transition-all duration-300 cursor-pointer select-none pointer-events-auto ${
+        whileTap={{ scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 500, damping: 26 }}
+        className={`absolute top-[6px] left-[46px] z-30 inline-flex h-[32px] items-center rounded-lg border-none px-[12px] backdrop-blur-xl cursor-pointer select-none pointer-events-auto overflow-hidden transition-colors duration-300 ${
           lyricsVisible
             ? "bg-white/15 text-white hover:bg-white/25"
             : "bg-black/50 text-white/70 hover:text-white hover:bg-white/10"
         }`}
       >
-        <span className="text-[13px] font-[600] leading-none tracking-wide">
-          {t("player.lyrics")}
-        </span>
-      </button>
+        {lyricsPulse > 0 && (
+          <motion.span
+            key={lyricsPulse}
+            initial={{ opacity: 0.5, scale: 0.55 }}
+            animate={{ opacity: 0, scale: 2.1 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            className="pointer-events-none absolute inset-0 rounded-lg bg-white"
+            aria-hidden
+          />
+        )}
+        <motion.span
+          className="relative inline-flex items-center text-[13px] font-[600] leading-none tracking-wide"
+          animate={{ scale: lyricsVisible ? 1 : 0.97 }}
+          transition={{ type: "spring", stiffness: 350, damping: 22 }}
+        >
+          <AnimatePresence initial={false} mode="popLayout">
+            {lyricsVisible && (
+              <motion.span
+                key="lyrics-pill-icon"
+                initial={{ opacity: 0, width: 0, scale: 0.4 }}
+                animate={{ opacity: 1, width: 16, scale: 1 }}
+                exit={{ opacity: 0, width: 0, scale: 0.4 }}
+                transition={{
+                  duration: 0.28,
+                  ease: [0.32, 0.72, 0, 1],
+                }}
+                className="inline-flex items-center justify-center overflow-hidden"
+                aria-hidden
+              >
+                <Music2Fill size={14} />
+              </motion.span>
+            )}
+          </AnimatePresence>
+          <span className="relative">{t("player.lyrics")}</span>
+        </motion.span>
+      </motion.button>
     </div>
   );
 }
