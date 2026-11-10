@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { api, toClientTrack, mediaUrl } from "@/shared/api";
 import { queryCache } from "@/shared/cache/queryCache";
+import { innertubeCatalog } from "@/shared/youtube/innertube/innertubeCatalog";
 import type { Track } from "@/shared/types";
 import type { CollectionPageData } from "@/features/collection/hooks/useCollection";
 import { loadWithRetry, useSessionOwner } from "./sessionAwareLoad";
+import { loadInnertubeHomeItems } from "./useInnertubeHome";
 import { freshFor, useCachedResource } from "@/shared/cache/useCachedResource";
 
 export interface DailyMix {
@@ -117,6 +119,46 @@ const DAILY_MIXES_POLICY = {
   sessionOnly: true,
 };
 
+// Fallback "mixes" for visitors the site backend can't build recommendations
+// for (no likes yet): the playlist shelves of YouTube Music's home feed, with
+// their real track lists fetched through the innertube catalog. Ids are
+// YouTube playlist browse ids (VL…), which the collection page already
+// resolves through the same innertube layer.
+const FALLBACK_MIX_LIMIT = 4;
+
+async function loadInnertubeMixes(): Promise<DailyMix[]> {
+  const feed = await loadInnertubeHomeItems();
+  const candidates = feed.playlists.slice(0, FALLBACK_MIX_LIMIT);
+  const mixes = await Promise.all(
+    candidates.map(async (playlist): Promise<DailyMix | null> => {
+      const details = await innertubeCatalog
+        .getPlaylist(playlist.id)
+        .catch(() => null);
+      const tracks = (details?.tracks ?? [])
+        .map((track) => toClientTrack(track))
+        .filter((track) => track.id);
+      if (tracks.length === 0) return null;
+      return {
+        id: playlist.id,
+        title: playlist.title,
+        description:
+          playlist.subtitle ||
+          playlist.artists.map((artist) => artist.name).join(", ") ||
+          "YouTube Music",
+        clusterArtists: getDailyMixArtists(undefined, tracks, 4),
+        coverUrl:
+          playlist.coverUrl ??
+          details?.cover?.url ??
+          tracks[0]?.coverUrl ??
+          undefined,
+        trackCount: details?.trackCount ?? tracks.length,
+        tracks,
+      };
+    }),
+  );
+  return mixes.filter((mix): mix is DailyMix => mix !== null);
+}
+
 export function useDailyMixes() {
   const owner = useSessionOwner();
   const { data, isLoading } = useCachedResource(
@@ -125,7 +167,12 @@ export function useDailyMixes() {
       loadWithRetry(
         () => api.getDailyMixes(),
         () => true,
-      ).then((res) => toDailyMixes(res.items)),
+      )
+        .then((res) => toDailyMixes(res.items))
+        .catch(() => [] as DailyMix[])
+        .then((mixes) =>
+          mixes.length > 0 ? mixes : loadInnertubeMixes(),
+        ),
     DAILY_MIXES_POLICY,
   );
 

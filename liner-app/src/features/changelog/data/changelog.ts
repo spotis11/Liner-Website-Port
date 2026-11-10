@@ -45,6 +45,10 @@ export const CHANGELOG: ChangelogRelease[] = [
       },
       {
         type: "fixed",
+        text: "The home screen loads for everyone now. Our own /v1 backend only knows about this site's accounts, so a fresh visitor's home feed was all empty and just said \"couldn't load your home feed\". The empty sections now fall back to YouTube Music's own home screen (the same innertube API the desktop client Riff uses, through the site's same-origin proxy): Quick picks become \"Listening right now\" and \"Most listened of all time\", the New releases shelf becomes Top Albums, playlist carousels become Most saved, and four of them become playable Your Mixes — covers, artists and full track lists included. If YouTube's anonymous feed rotates without a track shelf, the charts playlist is fetched so the track sections always have content.",
+      },
+      {
+        type: "fixed",
         text: "Playback hardening ported from upstream: a googlevideo host that simply cannot be reached now counts as a refused network (so you get the honest \"YouTube refused every audio stream from this network\" message instead of a dead-track error), signed-in TV failures are carried into the fallback error so nothing is silently swallowed, and the desktop build's CORS handling keeps credentialed headers only for Liner hosts so googlevideo SABR streams keep working.",
       },
     ],

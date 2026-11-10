@@ -1,6 +1,7 @@
 import { api, toClientTrack } from "@/shared/api";
 import type { Track } from "@/shared/types";
 import { freshFor, useCachedResource } from "@/shared/cache/useCachedResource";
+import { loadInnertubeHomeItems } from "./useInnertubeHome";
 
 export type PopularTrackItem = Track;
 
@@ -42,14 +43,31 @@ const POPULAR_POLICY = { isFresh: freshFor(10 * 60_000) };
 function usePopularTracks(range: "7d" | "all", limit: number) {
   const { data, isLoading } = useCachedResource(
     `home:popular-tracks:${range}:${limit}`,
+    // empty site backend (fresh visitor) -> YouTube Music home feed Quick picks
     () =>
-      api.getPopularTracks(range, limit).then((res) =>
-        (res.items || []).map((entry): PopularItem => ({
-          type: "track",
-          item: toClientTrack(entry.track),
-          playCount: entry.playCount,
-        })),
-      ),
+      api
+        .getPopularTracks(range, limit)
+        .then((res) =>
+          (res.items || []).map((entry): PopularItem => ({
+            type: "track",
+            item: toClientTrack(entry.track),
+            playCount: entry.playCount,
+          })),
+        )
+        .catch(() => [] as PopularItem[])
+        .then((items) =>
+          items.length > 0
+            ? items
+            : loadInnertubeHomeItems().then((feed) =>
+                feed.quickPicks
+                  .slice(0, limit)
+                  .map((track): PopularItem => ({
+                    type: "track",
+                    item: toClientTrack(track),
+                    playCount: 0,
+                  })),
+              ),
+        ),
     POPULAR_POLICY,
   );
   return { data: data ?? EMPTY_ITEMS, isLoading };

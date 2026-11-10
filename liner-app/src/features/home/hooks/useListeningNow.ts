@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { api, toClientTrack } from "@/shared/api";
 import type { Track } from "@/shared/types";
 import { freshFor, useCachedResource } from "@/shared/cache/useCachedResource";
+import { loadInnertubeHomeItems } from "./useInnertubeHome";
 
 const LISTENING_NOW_LIMIT = 10;
 const LISTENING_NOW_POLICY = {
@@ -23,11 +24,24 @@ function rankOf(id: string): number {
 export function useListeningNow() {
   const { data, isLoading } = useCachedResource(
     "home:listening-now",
+    // the site backend only knows this site's own accounts — for a fresh
+    // visitor it is empty, so fall back to YouTube Music's home feed
+    // ("Quick picks") fetched through the innertube layer
     () =>
       api
         .getPopularTracks("12h", LISTENING_NOW_LIMIT)
         .then((response) =>
           (response.items ?? []).map((entry) => toClientTrack(entry.track)),
+        )
+        .catch(() => [])
+        .then((tracks) =>
+          tracks.length > 0
+            ? tracks
+            : loadInnertubeHomeItems().then((feed) =>
+                feed.quickPicks
+                  .slice(0, LISTENING_NOW_LIMIT)
+                  .map((track) => toClientTrack(track)),
+              ),
         ),
     LISTENING_NOW_POLICY,
   );
