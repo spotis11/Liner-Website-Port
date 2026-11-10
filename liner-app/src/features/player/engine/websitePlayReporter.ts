@@ -10,6 +10,7 @@
 // of) this. Failures are swallowed; the endpoint is same-origin and cheap.
 
 import { log } from "@/shared/utils/logger";
+import { isLocalTrackId } from "@/shared/media/local";
 import type { Track } from "@/shared/types/track";
 
 interface ReportPayload {
@@ -48,7 +49,7 @@ export function reportWebsitePlay(track: Track): void {
     if (typeof fetch !== "function") return;
     if (!track?.id || !track.title) return;
     // local files never leave the device — do not report them
-    if (track.localFileId) return;
+    if (isLocalTrackId(track.id)) return;
     const payload: ReportPayload = {
       track: {
         id: track.id,

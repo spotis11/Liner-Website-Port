@@ -24,7 +24,9 @@ import {
 } from "./playbackStream";
 import { findYoutubeStandIn } from "./youtubeStandIn";
 import { findExactSongVersion } from "./exactSongVersion";
-import { localMusicDb } from "@/features/local-music/lib/localMusicDb";
+import { isLocalTrackId, localTrackAudioUrl } from "@/shared/media/local";
+import { savedAudioUrl, savedTrackRecord } from "@/shared/media/saved";
+import { appAllowsAccountPlayback } from "./accountPlayback";
 import {
   recordPlaybackFailure,
   recordPlaybackSuccess,
@@ -89,21 +91,35 @@ async function resolveYoutubeAudio(
   signal?: AbortSignal,
   trackTitle?: string,
 ): Promise<PlaybackStream> {
-  if (isYoutubeSignedIn() && prefersAccountPlayback()) {
+  // ported from upstream b6ca34f: a signed-in TV stream that fails is remembered
+  // so the direct-innertube error can carry the real cause with it
+  let accountFailure: string | null = null;
+  if (
+    isYoutubeSignedIn() &&
+    prefersAccountPlayback() &&
+    (await appAllowsAccountPlayback())
+  ) {
     try {
       const stream = await resolveTvAudio(videoId, progressive, signal);
-      log("cyan", "playback", `playing youtube tv audio for ${videoId}`);
+      log("cyan", "playback", `resolved youtube tv audio for ${videoId}`);
       recordPlaybackSuccess("played", "youtube tv audio", trackTitle ?? videoId);
       return stream;
     } catch (error) {
       if (isAbortError(error, signal)) throw error;
+      accountFailure = error instanceof Error ? error.message : String(error);
       log("yellow", "playback", `youtube tv playback failed: ${String(error)}`);
       recordPlaybackFailure("tv", error, trackTitle ?? videoId);
     }
   }
-  const stream = await resolveDirectAudioStream(videoId, { signal });
-  recordPlaybackSuccess("played", "innertube direct", trackTitle ?? videoId);
-  return fromInnertubeStream(stream);
+  try {
+    const stream = await resolveDirectAudioStream(videoId, { signal });
+    recordPlaybackSuccess("played", "innertube direct", trackTitle ?? videoId);
+    return fromInnertubeStream(stream);
+  } catch (error) {
+    if (accountFailure && error instanceof Error)
+      error.message = `${error.message} Signed-in TV: ${accountFailure}`;
+    throw error;
+  }
 }
 
 async function resolveYoutubeStandIn(
@@ -179,27 +195,29 @@ export async function resolvePlaybackStream(
   signal?: AbortSignal,
   options: ResolveStreamOptions = {},
 ): Promise<PlaybackStream> {
-  // local library files never touch the network — serve the stored blob
-  if (track.localFileId) {
-    const record = await localMusicDb.getFile(track.localFileId);
-    if (record?.blob) {
-      recordPlaybackSuccess("played", "local file", track.title);
-      return {
-        blob: record.blob,
-        expiresAtMs: null,
-        mimeType: record.type || "audio/mpeg",
-        codec: record.type || "local",
-        bitrate: 0,
-      };
-    }
-    recordPlaybackFailure(
-      "unresolved",
-      new Error("local file missing from IndexedDB"),
-      track.title,
-    );
-    throw new Error(
-      `"${track.title}" is no longer in your local library — rescan your folders.`,
-    );
+  // local library files never touch the network — served by the desktop's
+  // privileged scheme (upstream parity); on the web build these ids never occur
+  if (isLocalTrackId(track.id)) {
+    recordPlaybackSuccess("played", "local file", track.title);
+    return {
+      url: localTrackAudioUrl(track.id),
+      source: "local",
+      expiresAtMs: null,
+      mimeType: "",
+      codec: "local",
+      bitrate: 0,
+    };
+  }
+  // saved-offline likes are served from their own on-disk library
+  const saved = savedTrackRecord(track.id);
+  if (saved) {
+    return {
+      url: savedAudioUrl(saved),
+      expiresAtMs: null,
+      mimeType: saved.mimeType,
+      codec: "local",
+      bitrate: 0,
+    };
   }
 
   // bound every stage inside resolvePlaybackStreamInner; abort the in-flight

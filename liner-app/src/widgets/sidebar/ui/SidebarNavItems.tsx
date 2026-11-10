@@ -47,7 +47,7 @@ export function SidebarNavItems({
   return (
     <>
       {sidebarNavItems
-        .filter((item) => !offline || item.id === "library" || item.id === "downloads")
+        .filter((item) => !offline || item.id === "library")
         .map((item) => {
           const active = isItemActive(item.id, item.href);
           const Icon = item.Icon;

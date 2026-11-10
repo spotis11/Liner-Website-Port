@@ -16,8 +16,6 @@ import {
   Shuffle,
 } from "@solar-icons/react";
 import { HeartFill, HeartLine, AddLine, MiniplayerLine } from "@mingcute/react";
-import { SliderHorizontal } from "@solar-icons/react";
-import { EqualizerModal } from "@/features/equalizer";
 
 import { PlayerMorphIcon, ICON_PLAY, ICON_PAUSE } from "./morphPlayerIcons";
 
@@ -40,6 +38,7 @@ import { toVolumeGain, toVolumeLevel } from "../engine/volume";
 import { VolumeColumn } from "./VolumeColumn";
 import { SpeedPitchPicker } from "./SpeedPitchPicker";
 import { isEqActive } from "../engine/equalizer";
+import { EqualizerPicker } from "./EqualizerPicker";
 import { TimelineSlider } from "./TimelineSlider";
 import { useTheme } from "next-themes";
 import { useCoverReady, CoverImage, loadCoverElement } from "@/features/covers";
@@ -302,7 +301,6 @@ function MiniPlayer({
     [isLight],
   );
 
-  const [equalizerOpen, setEqualizerOpen] = useState(false);
   const [volumeOpen, setVolumeOpen] = useState(false);
   const volumePinnedRef = useRef(false);
   const [volumePopupStyle, setVolumePopupStyle] = useState<React.CSSProperties>(
@@ -638,21 +636,7 @@ function MiniPlayer({
             style={eqPopupStyle}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            <div className="flex flex-col gap-[10px]">
-              <p className="m-0 text-[13px] font-[500] text-text-primary">
-                {t("player.equalizer")}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setEqOpen(false);
-                  setEqualizerOpen(true);
-                }}
-                className="flex cursor-pointer items-center justify-center rounded-[9px] border-0 bg-black/[0.06] px-[12px] py-[8px] text-[13px] font-[500] text-text-primary transition-colors hover:bg-black/[0.1] dark:bg-white/[0.08] dark:hover:bg-white/[0.14]"
-              >
-                {t("player.equalizer_hint") || t("player.equalizer")}
-              </button>
-            </div>
+            <EqualizerPicker />
           </motion.div>
         )}
       </AnimatePresence>
@@ -999,24 +983,6 @@ function MiniPlayer({
                 </motion.div>
               </button>
               <button
-                type="button"
-                aria-label={t("player.equalizer.title")}
-                title={t("player.equalizer.title")}
-                className={`${iconButtonClass} ${
-                  equalizerOpen ? "bg-bg-toolbox-active text-text-primary" : ""
-                }`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => {
-                  setSpeedOpen(false);
-                  setVolumeOpen(false);
-                  onQueueOpenChange?.(false);
-                  setEqualizerOpen(true);
-                }}
-                style={{ cursor: "pointer" }}
-              >
-                <SliderHorizontal size={18} weight="Outline" />
-              </button>
-              <button
                 ref={volumeToggleRef}
                 type="button"
                 aria-label="Volume"
@@ -1173,8 +1139,6 @@ function MiniPlayer({
           </div>
         </div>
       </div>
-
-      <EqualizerModal open={equalizerOpen} onOpenChange={setEqualizerOpen} />
     </div>
   );
 }

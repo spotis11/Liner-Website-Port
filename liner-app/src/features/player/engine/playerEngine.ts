@@ -6,6 +6,8 @@ import {
   type PlayerState,
 } from "../store/playerStore";
 import { playerRuntime } from "./playerRuntime";
+import { isLocalTrackId } from "@/shared/media/local";
+import { EQ_MAX_CUSTOM_PRESETS, EQ_PRESET_NAME_MAX } from "./equalizer";
 import { isRadioContext, shouldRefillRadio } from "./radioMode";
 import { pitchShifter } from "./pitchShifter";
 import {
@@ -228,8 +230,8 @@ class PlaybackTelemetryTracker {
 
     if (this.playedDurationMs >= 3000 || this.completed) {
       const snap = this.activeTrack;
-      // local tracks live in the user's IndexedDB — nothing to report upstream
-      if (snap?.localFileId) {
+      // local tracks live on the user's device — nothing to report upstream
+      if (snap && isLocalTrackId(snap.id)) {
         this.activeTrackId = null;
         this.activeTrack = null;
         this.playbackSessionId = "";
@@ -833,6 +835,38 @@ class PlayerEngine {
   public setReverbLevel(level: number): void {
     pitchShifter.resumeContext();
     usePlayerStore.getState().setReverbLevel(level);
+  }
+
+  public setIsEqEnabled(enabled: boolean): void {
+    pitchShifter.resumeContext();
+    usePlayerStore.getState().setIsEqEnabled(enabled);
+  }
+
+  public setEqGains(gains: number[]): void {
+    pitchShifter.resumeContext();
+    usePlayerStore.getState().setEqGains(gains);
+  }
+
+  // saves the current curve under a name; same name overwrites, the list is capped
+  public saveEqPreset(name: string): void {
+    const store = usePlayerStore.getState();
+    const trimmed = name.trim().slice(0, EQ_PRESET_NAME_MAX);
+    if (!trimmed) return;
+    const others = store.eqCustomPresets.filter(
+      (preset) => preset.name.toLowerCase() !== trimmed.toLowerCase(),
+    );
+    if (others.length >= EQ_MAX_CUSTOM_PRESETS) return;
+    store.setEqCustomPresets([
+      ...others,
+      { id: crypto.randomUUID(), name: trimmed, gains: [...store.eqGains] },
+    ]);
+  }
+
+  public deleteEqPreset(id: string): void {
+    const store = usePlayerStore.getState();
+    store.setEqCustomPresets(
+      store.eqCustomPresets.filter((preset) => preset.id !== id),
+    );
   }
 
   public resetSpeedAndPitch(): void {

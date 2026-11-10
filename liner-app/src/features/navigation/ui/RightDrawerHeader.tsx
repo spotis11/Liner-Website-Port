@@ -5,8 +5,6 @@ import { useTranslation } from "@/languages";
 import { Tooltip } from "@/shared/ui";
 import { cn } from "@/shared/lib";
 import type { RepeatMode } from "@/features/player";
-import type { DownloadMeta } from "@/features/downloads";
-import { DownloadAllButton } from "@/features/downloads";
 
 export interface RightDrawerHeaderProps {
   trackCount: number;
@@ -17,8 +15,6 @@ export interface RightDrawerHeaderProps {
   onRepeatCycle: () => void;
   onClear: () => void;
   onClose?: () => void;
-  /** queue contents for the one-tap "download all" action */
-  downloadTracks?: DownloadMeta[];
 }
 
 interface QueueActionProps {
@@ -66,7 +62,6 @@ export function RightDrawerHeader({
   onRepeatCycle,
   onClear,
   onClose,
-  downloadTracks,
 }: RightDrawerHeaderProps) {
   const { t } = useTranslation();
   const RepeatIcon = repeat === "one" ? RepeatOne : Repeat;
@@ -98,9 +93,6 @@ export function RightDrawerHeader({
       </div>
 
       <div className="flex h-[40px] shrink-0 items-center gap-[2px] rounded-[10px] bg-white/[0.1] p-[4px]">
-        {downloadTracks && downloadTracks.length > 0 && (
-          <DownloadAllButton variant="icon" tracks={downloadTracks} />
-        )}
         <QueueAction
           label={shuffle ? t("player.shuffle_on") : t("player.shuffle_off")}
           active={shuffle}

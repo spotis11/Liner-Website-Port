@@ -6,11 +6,9 @@ import { linerDb, audioCache } from "@/shared/storage";
 import { isStandaloneAudioFile } from "@/shared/storage/audioFormat";
 import type { Track } from "@/shared/types";
 import { pitchShifter } from "./pitchShifter";
-import {
-  ensureEqualizerApplied,
-  initEqualizerEngine,
-  isEqActive,
-} from "@/features/equalizer";
+import { FLAT_EQ, isEqActive } from "./equalizer";
+import { isLocalTrackId } from "@/shared/media/local";
+import { isSavedTrack } from "@/shared/media/saved";
 import { resolvePlaybackStream, type PlaybackStream } from "./streamResolver";
 import { markLinerStreamFailed } from "@/shared/media/liner/linerPlayback";
 import { recordPlaybackFailure } from "@/shared/diagnostics/playbackDiagnostics";
@@ -106,8 +104,6 @@ export class PlayerRuntime {
     }
     this.audio = audio;
     this.setupAudioListeners(this.audio);
-    // pushes persisted EQ state into the graph and keeps it in sync
-    initEqualizerEngine();
 
     const initialVolume = usePlayerStore.getState().volume;
     this.audio.volume = initialVolume;
@@ -129,7 +125,9 @@ export class PlayerRuntime {
         state.isPitchLinked !== prevState.isPitchLinked ||
         state.pitchSemitones !== prevState.pitchSemitones ||
         state.isReverbEnabled !== prevState.isReverbEnabled ||
-        state.reverbLevel !== prevState.reverbLevel
+        state.reverbLevel !== prevState.reverbLevel ||
+        state.isEqEnabled !== prevState.isEqEnabled ||
+        state.eqGains !== prevState.eqGains
       ) {
         const rate = state.playbackRate ?? 1;
         const preservesPitch = !state.isPitchLinked;
@@ -532,10 +530,12 @@ export class PlayerRuntime {
       const pitchSemitones = store.pitchSemitones ?? 0;
       const isReverbEnabled = store.isReverbEnabled ?? false;
       const reverbLevel = store.reverbLevel ?? 0.35;
+      const isEqEnabled = store.isEqEnabled ?? false;
+      const eqGains = store.eqGains ?? FLAT_EQ;
       const needsEffects =
         isReverbEnabled ||
-        (!isPitchLinked && Math.abs(pitchSemitones) >= 0.05) ||
-        isEqActive();
+        isEqActive(isEqEnabled, eqGains) ||
+        (!isPitchLinked && Math.abs(pitchSemitones) >= 0.05);
       if (!needsEffects && !pitchShifter.isAttached()) return;
       pitchShifter.attach(this.audio);
       pitchShifter.update({
@@ -543,9 +543,9 @@ export class PlayerRuntime {
         isPitchLinked,
         isReverbEnabled,
         reverbLevel,
+        isEqEnabled,
+        eqGains,
       });
-      // re-assert EQ after (re)attach so a fresh graph serves the saved curve
-      ensureEqualizerApplied();
     } catch (err) {
       console.error("[PlayerRuntime] applyPlaybackRateAndPitch error:", err);
     }
@@ -703,7 +703,7 @@ export class PlayerRuntime {
 
   public async preloadTrack(track: Track): Promise<void> {
     if (this.currentTrackId === track.id) return;
-    if (track.localFileId) return; // local blobs are already "cached"
+    if (isLocalTrackId(track.id) || isSavedTrack(track.id)) return;
     if (this.preloadingTrackId === track.id) return;
 
     const cached = await linerDb.getAudio(track.id);
@@ -831,7 +831,10 @@ export class PlayerRuntime {
     this.pauseForTransition();
 
     try {
-      const cachedAudio = bypassCache ? null : await linerDb.getAudio(track.id);
+      const cachedAudio =
+        bypassCache || isSavedTrack(track.id)
+          ? null
+          : await linerDb.getAudio(track.id);
       if (epoch !== this.loadEpoch || controller.signal.aborted) {
         return;
       }
@@ -1235,7 +1238,7 @@ export class PlayerRuntime {
     stream: PlaybackStream,
     signal: AbortSignal,
   ) {
-    if (track.localFileId) return; // never duplicate the user's own files
+    if (isLocalTrackId(track.id) || isSavedTrack(track.id)) return;
     if (track.durationMs && track.durationMs > 20 * 60 * 1000) return;
     const generation = audioCache.currentGeneration();
     void (async () => {

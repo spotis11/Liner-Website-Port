@@ -334,7 +334,6 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     handleLike,
     handleShare,
     playlistsData,
-    buildDownloadItem,
     t,
   ]);
 
