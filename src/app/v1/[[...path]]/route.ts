@@ -1,0 +1,293 @@
+import { NextRequest, NextResponse } from "next/server";
+import { maintenanceGate } from "@/lib/maintenance";
+import { verifyAccessToken } from "@/lib/websiteAuth";
+import { db } from "@/lib/db";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/**
+ * Same-origin backend for the Liner SPA's remaining upstream-shaped endpoints
+ * (`/v1/...`). The SPA never talks to api.tryliner.fun from the browser any
+ * more — its api base is same-origin — so nothing can be CORS-blocked:
+ * same-origin requests have no preflight and no Access-Control rules.
+ *
+ * Endpoint map:
+ *  - /v1/me/recommendations/daily-mixes  built from the signed-in account's
+ *                                          liked tracks (artist clusters)
+ *  - /v1/explore/popular                 community popular = most-liked tracks
+ *                                          across the site's accounts
+ *  - /v1/me/history, /v1/me/library/...  clean empty collections for now
+ *  - /v1/tracks/:id/lyrics, /v1/me/lyrics/search
+ *                                        clean 404 (the client falls over to
+ *                                        its own lyrics providers)
+ *  - /v1/presence/heartbeat              accepted, client keeps its interval
+ *  - everything else                     forwarded server-side to
+ *                                          api.tryliner.fun (no preflight, no
+ *                                          cookies, no website tokens leave
+ *                                          the server); upstream failures
+ *                                          surface as plain JSON statuses the
+ *                                          client already handles.
+ */
+
+const UPSTREAM = "https://api.tryliner.fun";
+const FORWARD_TIMEOUT_MS = 6_000;
+
+const STRIP_AUTH = new Set(["authorization", "cookie", "host"]);
+
+function forwardableHeaders(req: NextRequest): Headers {
+  const headers = new Headers();
+  req.headers.forEach((value, name) => {
+    if (!STRIP_AUTH.has(name.toLowerCase())) headers.set(name, value);
+  });
+  return headers;
+}
+
+async function forward(req: NextRequest, path: string): Promise<Response> {
+  const url = `${UPSTREAM}${path}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(url, {
+      method: req.method,
+      headers: forwardableHeaders(req),
+      body: ["GET", "HEAD"].includes(req.method) ? undefined : req.body,
+      signal: controller.signal,
+      // never forward upstream cookies to the browser
+      redirect: "manual",
+    });
+    const body = await upstream.arrayBuffer();
+    const contentType = upstream.headers.get("content-type");
+    // upstream 403s come back as a Cloudflare HTML challenge — hand the
+    // client a clean JSON error instead so it degrades gracefully
+    if (contentType?.includes("text/html")) {
+      return NextResponse.json(
+        { error: "Upstream unavailable.", code: "UPSTREAM_BLOCKED" },
+        { status: upstream.status === 403 ? 503 : upstream.status },
+      );
+    }
+    const res = new NextResponse(body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+    });
+    if (contentType) res.headers.set("content-type", contentType);
+    return res;
+  } catch {
+    return NextResponse.json(
+      { error: "Upstream unreachable.", code: "UPSTREAM_UNREACHABLE" },
+      { status: 503 },
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function accountIdOf(req: NextRequest): Promise<string | null> {
+  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const identity = await verifyAccessToken(bearer);
+  return identity?.accountId ?? null;
+}
+
+interface LikedSnapshot {
+  trackId: string;
+  artist: string;
+  snapshot: string | null;
+  likedAt: Date;
+}
+
+async function likedTracksOf(accountId: string | null): Promise<LikedSnapshot[]> {
+  if (!accountId) return [];
+  const rows = await db.accountTrack.findMany({
+    where: { accountId },
+    orderBy: { likedAt: "desc" },
+    take: 500,
+    select: { trackId: true, artist: true, snapshot: true, likedAt: true },
+  });
+  return rows;
+}
+
+/**
+ * GET /v1/me/recommendations/daily-mixes — daily mixes built from the
+ * account's liked tracks, clustered by primary artist (up to 4 mixes).
+ */
+async function dailyMixes(req: NextRequest): Promise<NextResponse> {
+  const accountId = await accountIdOf(req);
+  const liked = await likedTracksOf(accountId);
+  const clusters = new Map<string, LikedSnapshot[]>();
+  for (const row of liked) {
+    const artist = (row.artist || "Unknown artist").trim() || "Unknown artist";
+    const list = clusters.get(artist) ?? [];
+    list.push(row);
+    clusters.set(artist, list);
+  }
+  const ordered = [...clusters.entries()].sort(
+    (a, b) => b[1].length - a[1].length,
+  );
+  const mixes = ordered.slice(0, 4).map(([artist, rows], index) => {
+    const tracks = rows
+      .slice(0, 10)
+      .map((row) => (row.snapshot ? JSON.parse(row.snapshot) : null))
+      .filter(Boolean);
+    return {
+      id: `daily-mix-${index + 1}`,
+      title: `Daily Mix ${index + 1}`,
+      description: `Made for you — more like ${artist}`,
+      clusterArtists: [artist],
+      trackCount: tracks.length,
+      tracks,
+    };
+  });
+  return NextResponse.json({
+    items: mixes,
+    generatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * GET /v1/explore/popular — community popular: tracks most liked across all
+ * accounts on this site (real, playable catalog tracks).
+ */
+async function popularTracks(window: string): Promise<NextResponse> {
+  const rows = await db.accountTrack.groupBy({
+    by: ["trackId"],
+    _count: { trackId: true },
+    orderBy: { _count: { trackId: "desc" } },
+    take: 40,
+  });
+  if (rows.length === 0) {
+    return NextResponse.json({
+      window,
+      generatedAt: new Date().toISOString(),
+      items: [],
+    });
+  }
+  const ids = rows.map((row) => row.trackId);
+  const liked = await db.accountTrack.findMany({
+    where: { trackId: { in: ids } },
+    orderBy: { likedAt: "desc" },
+  });
+  const byId = new Map<string, string | null>();
+  for (const row of liked) {
+    if (!byId.has(row.trackId)) byId.set(row.trackId, row.snapshot);
+  }
+  const items = rows
+    .map((row, index) => {
+      const snapshot = byId.get(row.trackId);
+      const track = snapshot ? JSON.parse(snapshot) : null;
+      if (!track) return null;
+      const likeCount = row._count.trackId;
+      return {
+        rank: index + 1,
+        track,
+        playCount: likeCount,
+        uniqueListeners: likeCount,
+        score: likeCount,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 20);
+  return NextResponse.json({
+    window,
+    generatedAt: new Date().toISOString(),
+    items,
+  });
+}
+
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
+  const { path } = await ctx.params;
+  const route = path.join("/");
+  const url = new URL(req.url);
+
+  if (route === "me/recommendations/daily-mixes") return dailyMixes(req);
+  if (route === "me/history") {
+    return NextResponse.json({ items: [], nextCursor: null });
+  }
+  if (route.startsWith("me/library/")) {
+    return NextResponse.json({ items: [] });
+  }
+  if (route === "me/lyrics/search") {
+    // the client catches this 404 and moves on to its remaining providers
+    return NextResponse.json({ status: "not_found" }, { status: 404 });
+  }
+  if (route.startsWith("tracks/") && route.endsWith("/lyrics")) {
+    return NextResponse.json({ status: "not_found" }, { status: 404 });
+  }
+  if (route === "explore/popular") {
+    const raw = url.searchParams.get("window") ?? "all";
+    const window = ["12h", "24h", "7d", "30d", "all"].includes(raw)
+      ? raw
+      : "all";
+    return popularTracks(window);
+  }
+  if (route === "explore/popular/albums") {
+    return NextResponse.json({
+      window: url.searchParams.get("window") ?? "7d",
+      items: [],
+    });
+  }
+  if (route === "explore/most-saved") {
+    return NextResponse.json({
+      type: url.searchParams.get("type") ?? "all",
+      items: [],
+    });
+  }
+  if (route === "health") {
+    return NextResponse.json({ status: "ok", upstream: false });
+  }
+  return forward(req, `/${route}${url.search}`);
+}
+
+export async function POST(
+  req: NextRequest,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
+  const { path } = await ctx.params;
+  const route = path.join("/");
+  if (route === "me/playback/events") {
+    // accepted but not persisted yet (upstream-shaped ack, no error)
+    return new NextResponse(null, { status: 204 });
+  }
+  if (route === "presence/heartbeat") {
+    // same-origin presence: keep the client on its default cadence
+    return new NextResponse(null, {
+      status: 204,
+      headers: { "x-liner-heartbeat-interval": "60" },
+    });
+  }
+  return forward(req, `/${route}${new URL(req.url).search}`);
+}
+
+export async function PUT(
+  req: NextRequest,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
+  const { path } = await ctx.params;
+  const route = path.join("/");
+  if (route.startsWith("me/library/")) {
+    return new NextResponse(null, { status: 204 });
+  }
+  return forward(req, `/${route}${new URL(req.url).search}`);
+}
+
+export async function DELETE(
+  req: NextRequest,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
+  const gate = await maintenanceGate();
+  if (gate) return gate;
+  const { path } = await ctx.params;
+  const route = path.join("/");
+  if (route.startsWith("me/library/")) {
+    return new NextResponse(null, { status: 204 });
+  }
+  return forward(req, `/${route}${new URL(req.url).search}`);
+}

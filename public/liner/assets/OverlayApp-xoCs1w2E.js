@@ -1,1 +1,0 @@
-import{n as e}from"./index-D6TRI_BF.js";import{A as t,H as n,It as r,t as i}from"./OverlayPlayer-BFs1L53w.js";/* empty css                */var a=e();function o(){return n()?(0,a.jsxs)(r,{attribute:`data-theme`,defaultTheme:`dark`,enableSystem:!1,forcedTheme:`dark`,children:[(0,a.jsx)(t,{}),(0,a.jsx)(i,{})]}):(window.linerElectron?.closeOverlay?.(),null)}export{o as default};

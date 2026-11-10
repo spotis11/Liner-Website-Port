@@ -625,7 +625,7 @@ export function FullscreenPlayer({
         title={t("player.lyrics")}
         onClick={toggleLyrics}
         data-no-window-drag
-        className={`group absolute top-[6px] left-[46px] z-30 inline-flex h-[32px] items-center rounded-lg border-none px-[12px] backdrop-blur-xl cursor-pointer select-none pointer-events-auto overflow-hidden transition-[background-color,color,transform] duration-300 active:scale-[0.9] ${
+        className={`group absolute top-[6px] left-[46px] z-30 inline-flex h-[32px] items-center rounded-lg border-none px-[12px] backdrop-blur-xl cursor-pointer select-none pointer-events-auto overflow-hidden transition-[background-color,color,transform,scale] duration-200 ease-out active:scale-[0.9] ${
           lyricsVisible
             ? "bg-white/15 text-white hover:bg-white/25"
             : "bg-black/50 text-white/70 hover:text-white hover:bg-white/10"

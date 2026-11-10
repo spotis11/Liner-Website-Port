@@ -40,6 +40,10 @@ export const CHANGELOG: ChangelogRelease[] = [
         text: "The fullscreen player is synced with the newest upstream Liner: plain-text TTML lyrics now render as untimed lines instead of a blank pane, lyrics providers that return garbage (LRC headers, markup) are filtered out and the switcher auto-falls over to a provider that actually has text, the provider island stays available when the active provider has no text, and the mini player's progress bar eases through seeks and track changes instead of crawling for a second. The lyrics pill itself got a proper press animation — a springy tap, one expanding ring, and the music glyph sliding in as the pane choreographs across.",
       },
       {
+        type: "changed",
+        text: "No more CORS, ever. The app stopped talking to Liner's upstream API from the browser entirely: every remaining upstream-shaped request (home feed, explore, presence, history, saved collections, lyrics lookup) now goes to this website's own /v1 backend, same-origin and preflight-free, so nothing can be blocked by the upstream bot-wall any more. Daily mixes are built from your own liked tracks, and the popular list on Home and in the Library is now the site's most-liked tracks, straight from our database.",
+      },
+      {
         type: "fixed",
         text: "Playback hardening ported from upstream: a googlevideo host that simply cannot be reached now counts as a refused network (so you get the honest \"YouTube refused every audio stream from this network\" message instead of a dead-track error), signed-in TV failures are carried into the fallback error so nothing is silently swallowed, and the desktop build's CORS handling keeps credentialed headers only for Liner hosts so googlevideo SABR streams keep working.",
       },
