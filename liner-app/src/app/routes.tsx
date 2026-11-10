@@ -12,8 +12,6 @@ import ArtistPage from "@/features/artist/ui/ArtistPage";
 import CollectionPage from "@/features/collection/ui/CollectionPage";
 import LoginPage from "@/features/auth/ui/LoginPage";
 import PlayerPage from "@/features/player/ui/FullscreenPlayer";
-import LocalMusicPage from "@/features/local-music/ui/LocalMusicPage";
-import DownloadsPage from "@/features/downloads/ui/DownloadsPage";
 import { FullscreenRouteContext } from "@/features/navigation/fullscreenRouteContext";
 import KeepAlivePage from "./KeepAlivePage";
 import { useOfflineModeStore } from "@/features/connectivity";
@@ -43,9 +41,6 @@ const OFFLINE_PATHS = new Set([
   "/library/local",
   "/library/cached",
   "/library/saved",
-  // website-port pages that work with zero network
-  "/local",
-  "/downloads",
   PLAYER_PATH,
 ]);
 
@@ -84,9 +79,6 @@ export function AppRoutes() {
             <Route path="/library/saved" element={<SavedLikesPage />} />
             <Route path="/artist" element={<ArtistPage />} />
             <Route path="/collection" element={<CollectionPage />} />
-            {/* website-port pages */}
-            <Route path="/local" element={<LocalMusicPage />} />
-            <Route path="/downloads" element={<DownloadsPage />} />
             <Route path="/settings" element={<Navigate to="/" replace />} />
             <Route path={PLAYER_PATH} element={null} />
             <Route path="*" element={<Navigate to="/" replace />} />

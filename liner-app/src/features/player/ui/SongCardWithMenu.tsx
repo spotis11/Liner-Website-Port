@@ -4,7 +4,6 @@ import { useSongMenuItems } from "../hooks/useSongMenuItems";
 import { playerEngine } from "../engine/playerEngine";
 import type { PlayableTrack } from "../engine/playbackStream";
 import { usePlayerStore } from "../store/playerStore";
-import { TrackDownloadButton } from "@/features/downloads";
 import {
   useLikeTrack,
   useUnlikeTrack,
@@ -220,22 +219,7 @@ function SongCardWithMenu({
       icon={icon}
       showReorderHandle={showReorderHandle}
       onGrabStart={onGrabStart}
-      trailingAction={
-        <>
-          {id && !compact && (
-            <TrackDownloadButton
-              track={{
-                id,
-                title,
-                artists,
-                coverUrl,
-                durationMs: resolvedDurationMs,
-              }}
-            />
-          )}
-          {trailingAction}
-        </>
-      }
+      trailingAction={trailingAction}
       previewTrack={previewTrack}
       liked={likedEntry}
       onToggleLike={id ? handleToggleLike : undefined}
