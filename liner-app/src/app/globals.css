@@ -76,6 +76,13 @@
 
   --btn-primary-bg: #18181b;
   --btn-primary-text: #ffffff;
+
+  /* design tokens, see upstream docs/DESIGN.md */
+  --fill-subtle: rgba(0, 0, 0, 0.03);
+  --fill: rgba(0, 0, 0, 0.05);
+  --fill-hover: rgba(0, 0, 0, 0.08);
+  --fill-strong: rgba(0, 0, 0, 0.1);
+  --surface-glass: rgba(245, 245, 247, 0.92);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -101,6 +108,13 @@
       0.08
     ); /* #FFFFFF14 mapping approximated to rgba */
     --border-white-alpha-33: rgba(255, 255, 255, 0.2); /* #FFFFFF33 */
+
+    /* design tokens, see upstream docs/DESIGN.md */
+    --fill-subtle: rgba(255, 255, 255, 0.04);
+    --fill: rgba(255, 255, 255, 0.07);
+    --fill-hover: rgba(255, 255, 255, 0.1);
+    --fill-strong: rgba(255, 255, 255, 0.14);
+    --surface-glass: rgba(22, 22, 24, 0.9);
 
     --text-primary: #ffffff;
     --text-secondary: rgba(255, 255, 255, 0.7);
@@ -148,6 +162,13 @@
 
   --btn-primary-bg: #d9d9dd;
   --btn-primary-text: #000000;
+
+  /* design tokens, see upstream docs/DESIGN.md */
+  --fill-subtle: rgba(255, 255, 255, 0.04);
+  --fill: rgba(255, 255, 255, 0.07);
+  --fill-hover: rgba(255, 255, 255, 0.1);
+  --fill-strong: rgba(255, 255, 255, 0.14);
+  --surface-glass: rgba(22, 22, 24, 0.9);
 }
 
 @theme inline {
@@ -193,6 +214,23 @@
   --radius-3xl: var(--radius-3xl);
   --radius-4xl: var(--radius-4xl);
   --radius-5xl: var(--radius-5xl);
+
+  /* legacy steps still in use; new code takes control / item / panel */
+  --radius-control: 8px;
+  --radius-item: 12px;
+  --radius-panel: 20px;
+
+  --text-caption: 12px;
+  --text-body: 13px;
+  --text-label: 14px;
+  --text-title: 15px;
+  --text-heading: 18px;
+
+  --color-fill-subtle: var(--fill-subtle);
+  --color-fill: var(--fill);
+  --color-fill-hover: var(--fill-hover);
+  --color-fill-strong: var(--fill-strong);
+  --color-surface-glass: var(--surface-glass);
 
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);

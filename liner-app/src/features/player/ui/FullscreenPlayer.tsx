@@ -1,355 +1,31 @@
-import { useCallback, useEffect, createElement, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { shouldReleaseTopPin, startsPinnedToTop } from "./lyricsTopPin";
 import { usePlayerState } from "../hooks/usePlayerState";
-import { playerEngine } from "../engine/playerEngine";
+import { useGlassBlur, useKawarpEnabled } from "../store/visualModeStore";
+import { cn } from "@/shared/lib";
+import { Notch } from "@/shared/ui";
+import { FullscreenTopNotch } from "./FullscreenTopNotch";
+import { LyricsNotchStatus } from "./LyricsNotchStatus";
+import { FullscreenFrameGlass } from "./FullscreenFrameGlass";
 import {
   useLyricsStore,
   LyricsProviderIsland,
-  braccatoThemeCss,
-  useLyricsAiTranslation,
   AiTranslateButton,
+  useCanvasTranslatedLyrics,
 } from "@/features/lyrics";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlayerUiElements } from "./PlayerUiElements";
-import SoundWave, { useSoundWaveEnabled } from "./SoundWave";
-import { DownLine, Music2Fill } from "@mingcute/react";
+import { DownLine } from "@mingcute/react";
 import { preloadCoverArt, useCoverSrc } from "@/features/covers";
-import "@braccato/core/element";
-import "@braccato/core/styles/variables.css";
-import "@braccato/core/styles/lyrics.css";
-import "@braccato/core/styles/instrumental.css";
-// app-owned karaoke glow for injected AI translation lines — must come AFTER
-// braccato's lyrics.css so the overrides cascade (see aiTranslateGlow.css)
-import "@/features/lyrics/ui/aiTranslateGlow.css";
 import KawarpWrapper from "./KawarpWrapper";
+import SoundWave, { useSoundWaveEnabled } from "./SoundWave";
 import { useTranslation } from "@/languages";
+import { useSettledLyricsLayout } from "../hooks/useSettledLyricsLayout";
+import { CanvasLyricsView } from "./CanvasLyricsView";
+import AmbientLayer from "./AmbientLayer";
+import { BetaVisualsWarning } from "./BetaVisualsWarning";
 
-const BRACCATO_TAG = "braccato-lyrics";
 const KAWARP_FADE_IN_MS = 600;
-const LYRICS_VISIBLE_STORAGE_KEY = "liner.fullscreen.lyricsVisible";
-/** smooth expo-ish curve shared by the lyrics show/hide choreography */
-const LYRICS_TOGGLE_TRANSITION = {
-  duration: 0.5,
-  ease: [0.32, 0.72, 0, 1] as const,
-};
-
-/**
- * Persisted lyrics-panel visibility for the fullscreen player. The Liner
- * desktop app remembers whether you closed the lyrics pane; we do the same.
- */
-function readStoredLyricsVisible(): boolean {
-  try {
-    return localStorage.getItem(LYRICS_VISIBLE_STORAGE_KEY) !== "0";
-  } catch {
-    return true;
-  }
-}
-
-interface BraccatoLyricsViewProps {
-  lyrics: any[];
-}
-
-function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
-  const player = usePlayerState();
-  const elementRef = useRef<any>(null);
-  const getElement = useCallback(() => elementRef.current as HTMLElement | null, []);
-  // AI translate: fetches (or reuses cached) translations for the current
-  // track and injects them under each rendered line via braccato's public
-  // injectTranslation API.
-  useLyricsAiTranslation(getElement);
-  const latestLyricsRef = useRef(lyrics);
-  const freeScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastWheelTimeRef = useRef(0);
-  const isInFreeSearchRef = useRef(false);
-  const waitingForAudioAfterClickRef = useRef(false);
-  const pinnedToTopRef = useRef(startsPinnedToTop(player.status, player.positionMs));
-
-  const scrollToActiveLine = useCallback(
-    (behavior: ScrollBehavior = "smooth") => {
-      const el = elementRef.current;
-      if (!el) return false;
-
-      const activeEls = (el as HTMLElement).querySelectorAll<HTMLElement>(
-        ".blyrics--active",
-      );
-      if (activeEls.length === 0) return false;
-      const activeEl = activeEls[activeEls.length - 1];
-
-      const containerRect = el.getBoundingClientRect();
-      const elRect = activeEl.getBoundingClientRect();
-      if (containerRect.height === 0 || elRect.height === 0) return false;
-
-      const offset = elRect.top - containerRect.top + el.scrollTop;
-      const targetScrollTop =
-        offset - containerRect.height / 2 + elRect.height / 2;
-
-      if (behavior === "auto") {
-        el.scrollTop = Math.max(0, targetScrollTop);
-      } else {
-        el.scrollTo({
-          top: Math.max(0, targetScrollTop),
-          behavior,
-        });
-      }
-      return true;
-    },
-    [],
-  );
-
-  const returnToFollowingMode = useCallback(() => {
-    if (freeScrollTimerRef.current) {
-      clearTimeout(freeScrollTimerRef.current);
-      freeScrollTimerRef.current = null;
-    }
-    isInFreeSearchRef.current = false;
-    lastWheelTimeRef.current = 0;
-
-    const el = elementRef.current;
-    if (!el) return;
-
-    if (el.renderer) {
-      el.renderer.resumeAutoscroll?.();
-      const engine = (el.renderer as any)?.engine;
-      if (engine) {
-        engine.scrollResumeTime = 0;
-        engine.nextScrollAllowedTime = 0;
-        engine.queuedScroll = true;
-      }
-    }
-
-    scrollToActiveLine("smooth");
-  }, [scrollToActiveLine]);
-
-  const returnToFollowingModeRef = useRef(returnToFollowingMode);
-  returnToFollowingModeRef.current = returnToFollowingMode;
-
-  const handleUserInteraction = useCallback(() => {
-    pinnedToTopRef.current = false;
-    lastWheelTimeRef.current = Date.now();
-    isInFreeSearchRef.current = true;
-
-    const el = elementRef.current;
-    if (el?.renderer) {
-      el.renderer.noteUserScroll?.();
-      el.renderer.noteUserScroll?.();
-      el.renderer.noteUserScroll?.();
-    }
-
-    if (freeScrollTimerRef.current) {
-      clearTimeout(freeScrollTimerRef.current);
-      freeScrollTimerRef.current = null;
-    }
-
-    freeScrollTimerRef.current = setTimeout(() => {
-      const elapsed = Date.now() - lastWheelTimeRef.current;
-      if (elapsed < 5900) return;
-
-      returnToFollowingMode();
-    }, 6000);
-  }, [returnToFollowingMode]);
-
-  const handleUserInteractionRef = useRef(handleUserInteraction);
-  handleUserInteractionRef.current = handleUserInteraction;
-
-  const setElement = useCallback(
-    (el: any) => {
-      elementRef.current = el;
-      if (!el) return;
-      el.theme = braccatoThemeCss;
-      el.lyrics = latestLyricsRef.current;
-      el.source = "#liner-audio";
-
-      const handleBraccatoLineClick = (e: Event) => {
-        const isAudioLoading = playerEngine.getSnapshot().status === "loading";
-        if (isAudioLoading) {
-          waitingForAudioAfterClickRef.current = true;
-          isInFreeSearchRef.current = true;
-          if (freeScrollTimerRef.current) {
-            clearTimeout(freeScrollTimerRef.current);
-            freeScrollTimerRef.current = null;
-          }
-          if (el.renderer) {
-            el.renderer.noteUserScroll?.();
-            el.renderer.noteUserScroll?.();
-            el.renderer.noteUserScroll?.();
-          }
-        } else {
-          returnToFollowingModeRef.current();
-        }
-
-        const detail = (e as CustomEvent).detail as
-          { timeS?: number; time?: number } | undefined;
-        const timeMs =
-          detail?.timeS !== undefined
-            ? Math.round(detail.timeS * 1000)
-            : detail?.time !== undefined
-              ? detail.time > 1000
-                ? Math.round(detail.time)
-                : Math.round(detail.time * 1000)
-              : null;
-        if (timeMs !== null) {
-          playerEngine.seek(timeMs, true);
-        }
-      };
-
-      const onUserScroll = () => {
-        handleUserInteractionRef.current();
-      };
-
-      const onLyricsLoaded = () => {
-        if (waitingForAudioAfterClickRef.current) return;
-        requestAnimationFrame(() => {
-          if (!waitingForAudioAfterClickRef.current) {
-            scrollToActiveLine("auto");
-          }
-        });
-      };
-
-      let syncRafId: number;
-      let lastReportedIndex = -1;
-
-      const checkActiveLine = () => {
-        const audioEl = document.getElementById(
-          "liner-audio",
-        ) as HTMLAudioElement | null;
-        if (audioEl && !Number.isNaN(audioEl.currentTime)) {
-          const currentMs = audioEl.currentTime * 1000;
-          const lines = useLyricsStore.getState().syncedLines;
-          let idx = -1;
-          for (let i = 0; i < lines.length; i++) {
-            const prevEnd =
-              i > 0 && lines[i - 1].words && lines[i - 1].words!.length > 0
-                ? lines[i - 1].words![lines[i - 1].words!.length - 1].endMs
-                : i > 0
-                  ? lines[i - 1].timeMs
-                  : 0;
-            const targetEarlyMs = Math.max(prevEnd, lines[i].timeMs - 600);
-            if (targetEarlyMs <= currentMs) {
-              idx = i;
-            } else {
-              break;
-            }
-          }
-          if (idx !== lastReportedIndex) {
-            lastReportedIndex = idx;
-            useLyricsStore.getState().setActiveLineIndex(idx >= 0 ? idx : null);
-          }
-        }
-        syncRafId = requestAnimationFrame(checkActiveLine);
-      };
-
-      syncRafId = requestAnimationFrame(checkActiveLine);
-
-      el.addEventListener("braccato:lyrics-loaded", onLyricsLoaded);
-      el.addEventListener("braccato:line-click", handleBraccatoLineClick);
-      el.addEventListener("wheel", onUserScroll, {
-        passive: true,
-        capture: true,
-      });
-      el.addEventListener("touchmove", onUserScroll, {
-        passive: true,
-        capture: true,
-      });
-
-      return () => {
-        cancelAnimationFrame(syncRafId);
-        useLyricsStore.getState().setActiveLineIndex(null);
-        el.removeEventListener("braccato:lyrics-loaded", onLyricsLoaded);
-        el.removeEventListener("braccato:line-click", handleBraccatoLineClick);
-        el.removeEventListener("wheel", onUserScroll, { capture: true });
-        el.removeEventListener("touchmove", onUserScroll, { capture: true });
-        if (freeScrollTimerRef.current) {
-          clearTimeout(freeScrollTimerRef.current);
-          freeScrollTimerRef.current = null;
-        }
-        elementRef.current = null;
-      };
-    },
-    [scrollToActiveLine],
-  );
-
-  useEffect(() => {
-    latestLyricsRef.current = lyrics;
-    const element = elementRef.current;
-    if (element) element.lyrics = lyrics;
-  }, [lyrics]);
-
-  useEffect(() => {
-    if (
-      (player.status === "playing" || player.status === "paused") &&
-      waitingForAudioAfterClickRef.current
-    ) {
-      waitingForAudioAfterClickRef.current = false;
-      returnToFollowingMode();
-    }
-  }, [player.status, returnToFollowingMode]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let attempts = 0;
-
-    const checkAndScroll = () => {
-      if (cancelled || waitingForAudioAfterClickRef.current || pinnedToTopRef.current) return;
-      attempts++;
-      const success = scrollToActiveLine("auto");
-      if (!success && attempts < 30) {
-        requestAnimationFrame(checkAndScroll);
-      }
-    };
-
-    const rafId = requestAnimationFrame(checkAndScroll);
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(rafId);
-    };
-  }, [lyrics, scrollToActiveLine]);
-
-  useEffect(() => {
-    if (!pinnedToTopRef.current) return;
-    const startedAt = performance.now();
-    let rafId = 0;
-    const holdTop = () => {
-      const el = elementRef.current as HTMLElement & { renderer?: { noteUserScroll?: () => void; resumeAutoscroll?: () => void } };
-      if (!pinnedToTopRef.current) return;
-      const audio = document.getElementById("liner-audio") as HTMLAudioElement | null;
-      const release = shouldReleaseTopPin({
-        status: playerEngine.getSnapshot().status,
-        audioPaused: !audio || audio.paused,
-        audioTimeMs: (audio?.currentTime ?? 0) * 1000,
-        pinnedForMs: performance.now() - startedAt,
-      });
-      if (release) {
-        pinnedToTopRef.current = false;
-        el?.renderer?.resumeAutoscroll?.();
-        return;
-      }
-      if (el) {
-        el.renderer?.noteUserScroll?.();
-        if (el.scrollTop !== 0) el.scrollTop = 0;
-      }
-      rafId = requestAnimationFrame(holdTop);
-    };
-    rafId = requestAnimationFrame(holdTop);
-    return () => cancelAnimationFrame(rafId);
-  }, []);
-
-  return (
-    <div className="relative flex flex-col flex-1 w-full h-full min-h-0">
-      {createElement(BRACCATO_TAG, {
-        ref: setElement,
-        source: "#liner-audio",
-        className: "block flex-1 w-full h-full px-6",
-        style: {
-          overflowY: "auto",
-          overflowX: "hidden",
-          position: "relative",
-          scrollbarWidth: "none",
-        },
-      })}
-    </div>
-  );
-}
 
 export interface FullscreenPlayerProps {
   effectsReady?: boolean;
@@ -362,63 +38,57 @@ export function FullscreenPlayer({
 }: FullscreenPlayerProps) {
   const { t } = useTranslation();
   const player = usePlayerState();
-  const coverUrl = player.currentTrack?.coverUrl;
+  const currentTrack = player.currentTrack;
+  const nextCoverUrl = player.queue[player.currentIndex + 1]?.coverUrl;
+  const coverUrl = currentTrack?.coverUrl;
   const kawarpSrc = useCoverSrc(coverUrl);
 
   useEffect(() => {
-    if (!player.currentTrack) {
+    if (!currentTrack) {
       onClose();
     }
-  }, [player.currentTrack, onClose]);
+  }, [currentTrack, onClose]);
 
   const {
     braccatoLyrics,
     lyricsLoading,
     lyricsError,
     plainLyrics,
+    instrumental,
     availableProviders,
     currentLyricsTrackId,
   } = useLyricsStore();
+
+  // AI translations merged into the line models — the canvas draws them as
+  // per-line subtitles, the same way upstream renders native translations
+  const lyrics = useCanvasTranslatedLyrics();
 
   const onError = useCallback((err: Error) => {
     console.error("kawarp load error:", err);
   }, []);
 
+  const kawarpEnabled = useKawarpEnabled();
+  const glassBlur = useGlassBlur();
   const [kawarpShown, setKawarpShown] = useState(false);
+  const [kawarpWasEnabled, setKawarpWasEnabled] = useState(kawarpEnabled);
+  if (kawarpWasEnabled !== kawarpEnabled) {
+    setKawarpWasEnabled(kawarpEnabled);
+    setKawarpShown(false);
+  }
   const onKawarpLoad = useCallback(() => {
     setTimeout(() => setKawarpShown(true), KAWARP_FADE_IN_MS);
   }, []);
 
-  // lyrics pane toggle (top-left "Lyrics" pill, like the desktop app)
-  const [lyricsVisible, setLyricsVisible] = useState(readStoredLyricsVisible);
-  // every press fires one expanding ring on the pill (see the pulse span below)
-  const [lyricsPulse, setLyricsPulse] = useState(0);
-  const toggleLyrics = useCallback(() => {
-    setLyricsPulse((n) => n + 1);
-    setLyricsVisible((v) => {
-      const next = !v;
-      try {
-        localStorage.setItem(LYRICS_VISIBLE_STORAGE_KEY, next ? "1" : "0");
-      } catch {
-        // storage unavailable — the toggle still works for this session
-      }
-      return next;
-    });
-  }, []);
-
-  const nextCoverUrl = player.queue[player.currentIndex + 1]?.coverUrl;
   useEffect(() => {
     void preloadCoverArt(coverUrl);
     void preloadCoverArt(nextCoverUrl);
   }, [coverUrl, nextCoverUrl]);
 
-  const currentTrackId = player.currentTrack?.id;
+  const currentTrackId = currentTrack?.id;
   const isMatchingTrack = Boolean(
     currentTrackId && currentLyricsTrackId === currentTrackId,
   );
   const hasLyrics = isMatchingTrack && braccatoLyrics.length > 0;
-  // the switcher stays visible even when the active provider has no text, as
-  // long as another provider could (upstream dc89c5a)
   const showProviderIsland =
     isMatchingTrack && availableProviders.length > (hasLyrics ? 0 : 1);
   const isInstrumental =
@@ -426,9 +96,17 @@ export function FullscreenPlayer({
     !lyricsLoading &&
     !hasLyrics &&
     !lyricsError &&
-    plainLyrics === "[INSTRUMENTAL]";
+    (instrumental || plainLyrics === "[INSTRUMENTAL]");
+  const isLyricsLoading = !hasLyrics && lyricsLoading;
+  const isLyricsMissing = isMatchingTrack && !hasLyrics && !lyricsLoading;
+  const isCompactLayout = useSettledLyricsLayout({
+    isMatchingTrack,
+    lyricsLoading,
+    hasLyrics,
+  });
 
   // live sound wave — Web Audio analyser tap on the master output bus
+  // (only when enabled in Settings > Playback)
   const soundWaveEnabled = useSoundWaveEnabled();
 
   return (
@@ -442,21 +120,33 @@ export function FullscreenPlayer({
           className="absolute inset-0"
           style={{ backgroundColor: "var(--color-bg-primary)" }}
         />
-        {kawarpSrc && !kawarpShown && (
-          <div
-            className="absolute inset-0 bg-cover bg-center filter blur-3xl scale-110 opacity-70 pointer-events-none"
-            style={{ backgroundImage: `url(${kawarpSrc})` }}
+        {(kawarpSrc || coverUrl) && (!kawarpShown || !kawarpEnabled) && (
+          <img
+            src={kawarpSrc || coverUrl}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+            style={{
+              filter: "blur(64px) saturate(1.3)",
+              transform: "scale(1.3)",
+            }}
           />
         )}
-        {effectsReady ? (
-          <KawarpWrapper src={kawarpSrc} onLoad={onKawarpLoad} onError={onError} />
+        {effectsReady && kawarpEnabled ? (
+          <KawarpWrapper
+            src={kawarpSrc}
+            onLoad={onKawarpLoad}
+            onError={onError}
+          />
         ) : null}
+        <AmbientLayer trackId={currentTrackId} />
       </div>
 
       <div className="absolute inset-0 z-[1] bg-black/40" />
 
-      {/* sound wave visualizer — bottom strip behind the player UI, synced to
-          the real audio graph (only when enabled in Settings > Playback) */}
+      {/* live sound wave visualizer — bottom strip behind the player UI,
+          synced to the real audio graph (fork: Settings > Playback toggle) */}
       {soundWaveEnabled ? (
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-[38vh]"
@@ -471,44 +161,22 @@ export function FullscreenPlayer({
         </div>
       ) : null}
 
-      <div className="absolute inset-0 z-10 flex">
-        {/* left: player UI — glides from half-width to centered when the
-            lyrics pane is hidden */}
-        <motion.div
-          initial={false}
-          animate={{ width: lyricsVisible ? "50%" : "100%" }}
-          transition={LYRICS_TOGGLE_TRANSITION}
-          className="flex flex-col items-center justify-center gap-5 overflow-hidden"
-        >
-          <PlayerUiElements onClose={onClose} />
-        </motion.div>
+      <FullscreenFrameGlass />
 
-        {/* right: lyrics pane — collapses to zero width (slide + fade) while
-            the left column expands; fixed-width inner keeps text un-squished */}
-        <motion.div
-          initial={false}
-          animate={{
-            width: lyricsVisible ? "50%" : "0%",
-            opacity: lyricsVisible ? 1 : 0,
-            x: lyricsVisible ? 0 : 48,
-          }}
-          transition={LYRICS_TOGGLE_TRANSITION}
-          className="h-full min-h-0 flex flex-col relative overflow-hidden"
-        >
-          <div className="w-[50vw] h-full min-h-0 pl-2 pr-6 flex flex-col relative shrink-0">
-          {showProviderIsland && (
-            <div className="absolute top-[6px] left-1/2 -translate-x-1/2 z-30 pointer-events-none flex justify-center">
-              <LyricsProviderIsland />
-            </div>
+      <div className="absolute inset-1.5 z-10 flex">
+        <div className="flex-1 flex flex-col items-center justify-center gap-5">
+          <PlayerUiElements
+            onClose={onClose}
+            layout={isCompactLayout ? "horizontal" : "vertical"}
+          />
+        </div>
+
+        <div
+          className={cn(
+            "h-full min-h-0 flex flex-col relative overflow-hidden",
+            isCompactLayout ? "grow-0 basis-0 px-0" : "grow basis-0 pl-2 pr-6",
           )}
-
-          {/* AI translate toggle — always available when lyrics are shown */}
-          {hasLyrics && (
-            <div className="absolute top-[6px] right-[26px] z-30 flex justify-end">
-              <AiTranslateButton />
-            </div>
-          )}
-
+        >
           <div
             className="flex-1 min-h-0 relative w-full h-full"
             style={{
@@ -525,148 +193,48 @@ export function FullscreenPlayer({
                   transition={{ duration: 0.22, ease: "easeInOut" }}
                   className="absolute inset-0 flex flex-col"
                 >
-                  <BraccatoLyricsView lyrics={braccatoLyrics} />
+                  <CanvasLyricsView lyrics={lyrics} />
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
-
-          <AnimatePresence mode="wait">
-            {!hasLyrics && lyricsLoading ? (
-              <motion.div
-                key="skeleton"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="absolute inset-0 flex flex-col items-center justify-center"
-              >
-                <div className="flex flex-col gap-5 w-full max-w-[500px]">
-                  {[80, 65, 45, 70, 55, 85, 60, 50, 75, 40, 65, 55].map(
-                    (w, i) => (
-                      <div
-                        key={i}
-                        className="h-5 rounded animate-pulse bg-border-alpha-14"
-                        style={{ width: `${w}%` }}
-                      />
-                    ),
-                  )}
-                </div>
-              </motion.div>
-            ) : !hasLyrics && isInstrumental ? (
-              <motion.div
-                key="instrumental"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="absolute inset-0 flex items-center justify-center text-text-tertiary text-lg"
-              >
-                <span>{t("player.instrumental")}</span>
-              </motion.div>
-            ) : !hasLyrics ? (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="absolute inset-0 flex items-center justify-center text-text-tertiary"
-              >
-                <div className="flex flex-col items-center justify-center gap-3 opacity-80">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="opacity-40"
-                  >
-                    <path d="M9 18V5l12-2v13"></path>
-                    <circle cx="6" cy="18" r="3"></circle>
-                    <circle cx="18" cy="16" r="3"></circle>
-                    <line x1="2" y1="2" x2="22" y2="22"></line>
-                  </svg>
-                  <span
-                    className="text-[15px] font-[400] max-w-[250px] text-center"
-                    style={{ lineHeight: "1.4" }}
-                  >
-                    {lyricsError || t("player.no_lyrics_found")}
-                  </span>
-                </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-          </div>
-        </motion.div>
+        </div>
       </div>
 
-      <button
-        type="button"
-        aria-label={t("player.close_fullscreen")}
-        onClick={onClose}
-        data-no-window-drag
-        className="absolute top-[6px] left-[6px] z-30 inline-flex h-[32px] w-[32px] items-center justify-center rounded-lg border-none bg-black/50 backdrop-blur-xl text-white/80 hover:text-white hover:bg-white/10 active:scale-[0.94] transition-all cursor-pointer select-none pointer-events-auto"
-      >
-        <DownLine size={18} />
-      </button>
+      <div className="absolute top-1.5 left-1/2 z-30 flex -translate-x-1/2 justify-center pointer-events-none">
+        <FullscreenTopNotch>
+          <BetaVisualsWarning docked={false} />
+          {showProviderIsland && <LyricsProviderIsland />}
+          {isLyricsLoading && <LyricsNotchStatus kind="loading" />}
+          {isLyricsMissing && (
+            <LyricsNotchStatus
+              kind={isInstrumental ? "instrumental" : "missing"}
+            />
+          )}
+        </FullscreenTopNotch>
+      </div>
 
-      {/* lyrics pane toggle — like the desktop app's top-left "Lyrics" pill.
-          Pressing it springs the pill, fires one expanding ring, and the music
-          glyph slides in while the pane choreographs across (LYRICS_TOGGLE_TRANSITION). */}
-      <button
-        type="button"
-        aria-pressed={lyricsVisible}
-        aria-label={t("player.lyrics")}
-        title={t("player.lyrics")}
-        onClick={toggleLyrics}
-        data-no-window-drag
-        className={`group absolute top-[6px] left-[46px] z-30 inline-flex h-[32px] items-center rounded-lg border-none px-[12px] backdrop-blur-xl cursor-pointer select-none pointer-events-auto overflow-hidden transition-[background-color,color,transform,scale] duration-200 ease-out active:scale-[0.9] ${
-          lyricsVisible
-            ? "bg-white/15 text-white hover:bg-white/25"
-            : "bg-black/50 text-white/70 hover:text-white hover:bg-white/10"
-        }`}
-      >
-        {lyricsPulse > 0 && (
-          <motion.span
-            key={lyricsPulse}
-            initial={{ opacity: 0.5, scale: 0.55 }}
-            animate={{ opacity: 0, scale: 2.1 }}
-            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none absolute inset-0 rounded-lg bg-white"
-            aria-hidden
-          />
-        )}
-        <motion.span
-          className="relative inline-flex items-center text-[13px] font-[600] leading-none tracking-wide"
-          animate={{ scale: lyricsVisible ? 1 : 0.97 }}
-          transition={{ type: "spring", stiffness: 350, damping: 22 }}
-        >
-          <AnimatePresence initial={false} mode="popLayout">
-            {lyricsVisible && (
-              <motion.span
-                key="lyrics-pill-icon"
-                initial={{ opacity: 0, width: 0, scale: 0.4 }}
-                animate={{ opacity: 1, width: 16, scale: 1 }}
-                exit={{ opacity: 0, width: 0, scale: 0.4 }}
-                transition={{
-                  duration: 0.28,
-                  ease: [0.32, 0.72, 0, 1],
-                }}
-                className="inline-flex items-center justify-center overflow-hidden"
-                aria-hidden
-              >
-                <Music2Fill size={14} />
-              </motion.span>
-            )}
-          </AnimatePresence>
-          <span className="relative">{t("player.lyrics")}</span>
-        </motion.span>
-      </button>
+      <div className="absolute top-1.5 left-1.5 z-30">
+        <Notch align="start" tone="glass" blur={glassBlur}>
+          <button
+            type="button"
+            aria-label={t("player.close_fullscreen")}
+            onClick={onClose}
+            data-no-window-drag
+            className="inline-flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-control border-none bg-transparent text-white/70 transition-colors select-none hover:bg-white/10 hover:text-white active:scale-95"
+          >
+            <DownLine size={16} />
+          </button>
+        </Notch>
+      </div>
+
+      {/* AI translate toggle (fork feature) — top-right glass notch, the
+          mirror of upstream's close notch */}
+      <div className="absolute top-1.5 right-1.5 z-30">
+        <Notch align="end" tone="glass" blur={glassBlur}>
+          <AiTranslateButton />
+        </Notch>
+      </div>
     </div>
   );
 }

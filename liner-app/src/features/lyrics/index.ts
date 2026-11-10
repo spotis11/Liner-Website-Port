@@ -38,6 +38,7 @@ export {
   TranslationError,
   providerIsReady,
   useLyricsAiTranslation,
+  useCanvasTranslatedLyrics,
   ensureTranslation,
   useAiTranslatePrefetch,
   AiTranslateButton,

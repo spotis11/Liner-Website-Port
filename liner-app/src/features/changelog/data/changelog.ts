@@ -19,6 +19,25 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.13.1",
+    date: "2026-11-10",
+    title: "The fullscreen player is now the new one — and lyrics load again",
+    entries: [
+      {
+        type: "changed",
+        text: "The fullscreen player is the real new upstream player now, pixel for pixel: the fork's Song/Video tabs and the separate \"Lyrics\" on/off button are gone (the pane is always shown, exactly like the desktop app), the player column sits centered on the left and glides into a compact horizontal layout on short windows, and everything breathes with the upstream spring animations — cover, track info, timeline and controls all reflow together with framer-motion layout transitions. \"No lyrics found\", \"instrumental\" and the loading state now appear in the glass notch at the top center, the lyrics switcher moved into the same notch, and the background, glass frame and ambient layer are the upstream ones.",
+      },
+      {
+        type: "changed",
+        text: "Lyrics draw on the upstream canvas renderer (word-level sweep, free-scroll that hands back to autoscroll after a few seconds, tap a line to seek) with the AI Translate fork riding along: translated lines render as a subtitle under each line, the way the desktop shows native translations, and the AI toggle moved to its own glass notch at the top right.",
+      },
+      {
+        type: "fixed",
+        text: "Lyrics load again. The site backend used to answer every lyrics request with a clean 404, so the fullscreen player said \"Failed to load lyrics.\" for everything. The backend now streams real lyrics server-side from LRCLIB (open, no auth, exact-match first then ranked search) in the same event shape the desktop backend uses — line-synced LRC whenever the release has it, plain text otherwise, quality-scored against your track's title, artist and duration. The sound wave visualizer toggle still works for those who turned it on.",
+      },
+    ],
+  },
+  {
     version: "1.13.0",
     date: "2026-11-10",
     title: "Our own accounts + guest mode, a cleaner sidebar, and the newest fullscreen player",

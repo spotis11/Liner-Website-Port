@@ -28,3 +28,4 @@ export {
 } from "./ensureTranslation";
 export { AiTranslateButton } from "./ui/AiTranslateButton";
 export { AiTranslateSettingsTab } from "./ui/AiTranslateSettingsTab";
+export { useCanvasTranslatedLyrics } from "./useCanvasTranslations";

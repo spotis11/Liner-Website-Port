@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { maintenanceGate } from "@/lib/maintenance";
 import { verifyAccessToken } from "@/lib/websiteAuth";
 import { db } from "@/lib/db";
+import { collectLyricsCandidates, type LyricsHint } from "@/lib/lyricsProviders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,9 +19,15 @@ export const dynamic = "force-dynamic";
  *  - /v1/explore/popular                 community popular = most-liked tracks
  *                                          across the site's accounts
  *  - /v1/me/history, /v1/me/library/...  clean empty collections for now
- *  - /v1/tracks/:id/lyrics, /v1/me/lyrics/search
- *                                        clean 404 (the client falls over to
- *                                        its own lyrics providers)
+ *  - /v1/tracks/:id/lyrics              real lyrics, streamed as SSE from
+ *                                        this server's own provider pool
+ *                                        (LRCLIB — open, no auth) in the
+ *                                        exact event shape the desktop
+ *                                        backend uses, so the SPA's
+ *                                        streamLyrics() parser consumes it
+ *                                        unchanged; /v1/me/lyrics/search
+ *                                        stays a clean 404 (the client
+ *                                        falls over to its own providers)
  *  - /v1/presence/heartbeat              accepted, client keeps its interval
  *  - everything else                     forwarded server-side to
  *                                          api.tryliner.fun (no preflight, no
@@ -193,6 +200,82 @@ async function popularTracks(window: string): Promise<NextResponse> {
   });
 }
 
+/**
+ * GET /v1/tracks/:id/lyrics?title=&artist=&durationMs= — lyrics as an SSE
+ * stream, exactly the contract the SPA's api.streamLyrics() parses (the
+ * desktop backend's event shape). The track id itself is ignored: the SPA
+ * always sends searchable title/artist hints alongside it. A known
+ * instrumental is answered as plain JSON (the client checks content-type
+ * before reading the stream) — we cannot know that server-side, so the
+ * stream simply ends with status "not_found" instead.
+ */
+function lyricsStream(url: URL): Response {
+  const hint: LyricsHint = {
+    title: (url.searchParams.get("title") ?? "").trim(),
+    artist: (url.searchParams.get("artist") ?? "").trim(),
+    durationMs: Number(url.searchParams.get("durationMs")) || undefined,
+  };
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (payload: unknown) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+      };
+      try {
+        const outcomes = await collectLyricsCandidates(hint);
+        let best: { provider: string; quality: number; syncLevel: string } | null =
+          null;
+        for (const outcome of outcomes) {
+          if (outcome.candidate && !best) {
+            best = {
+              provider: outcome.candidate.provider,
+              quality: outcome.candidate.quality.total,
+              syncLevel: outcome.candidate.syncLevel,
+            };
+          }
+          send(
+            outcome.candidate
+              ? {
+                  type: "provider",
+                  provider: outcome.provider,
+                  status: "found",
+                  syncLevel: outcome.candidate.syncLevel,
+                  candidate: outcome.candidate,
+                  ...(hint.durationMs ? { durationMs: hint.durationMs } : {}),
+                }
+              : {
+                  type: "provider",
+                  provider: outcome.provider,
+                  status: outcome.error ? "error" : "not_found",
+                  ...(outcome.error ? { message: outcome.error } : {}),
+                  ...(hint.durationMs ? { durationMs: hint.durationMs } : {}),
+                },
+          );
+        }
+        send(
+          best
+            ? { type: "done", cached: false, best }
+            : { type: "done", cached: false, status: "not_found" },
+        );
+      } catch {
+        send({ type: "done", cached: false, status: "not_found" });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+    },
+  });
+}
+
 export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ path: string[] }> },
@@ -215,7 +298,7 @@ export async function GET(
     return NextResponse.json({ status: "not_found" }, { status: 404 });
   }
   if (route.startsWith("tracks/") && route.endsWith("/lyrics")) {
-    return NextResponse.json({ status: "not_found" }, { status: 404 });
+    return lyricsStream(url);
   }
   if (route === "explore/popular") {
     const raw = url.searchParams.get("window") ?? "all";
