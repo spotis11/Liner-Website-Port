@@ -228,6 +228,9 @@ describe("resolveDirectAudioStream", () => {
   });
 
   it("falls back to the Riff IOS profile with plain urls when every device profile is refused", async () => {
+    // decipher is a file-wide mock reused by earlier tests — scope the
+    // assertion to calls made during THIS test
+    const decipherCallsBefore = webPlayer.decipher.mock.calls.length;
     const fetchSpy = mockPlayerApi([
       playerResponse([], "UNPLAYABLE"), // TVHTML5
       playerResponse([], "UNPLAYABLE"), // VISIONOS
@@ -247,7 +250,7 @@ describe("resolveDirectAudioStream", () => {
       mimeType: "audio/webm",
       url: opus.url,
     });
-    expect(webPlayer.decipher).not.toHaveBeenCalled();
+    expect(webPlayer.decipher.mock.calls.length).toBe(decipherCallsBefore);
 
     const calls = playerCalls(fetchSpy);
     expect(calls).toHaveLength(4);
