@@ -342,7 +342,9 @@
       "login_successful": "Giriş başarılı",
       "account_created": "Hesap oluşturuldu!",
       "logged_in": "Giriş yapıldı!"
-    }
+    },
+    "btn_guest": "Continue as guest",
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
   },
   "player": {
     "mute": "Sesi kapat",

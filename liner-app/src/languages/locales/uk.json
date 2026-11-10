@@ -344,7 +344,9 @@
     "error_handle_required": "Введіть імʼя користувача або email",
     "error_password_required": "Введіть пароль",
     "error_passwords_no_match": "Паролі не збігаються",
-    "error_wrong_password": "Невірний пароль"
+    "error_wrong_password": "Невірний пароль",
+    "btn_guest": "Continue as guest",
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
   },
   "player": {
     "mute": "Вимкнути звук",

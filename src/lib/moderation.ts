@@ -120,14 +120,44 @@ export interface LinerIdentity {
 }
 
 /**
- * Same verification as verifyLinerToken, but keeps the full upstream /v1/me
- * payload so the website can cache what an account volunteers about itself
- * (email, display name, avatar, account creation date) for the site owner's
- * User Finder. Returns null for dead tokens / unreachable upstream.
+ * Same verification as verifyLinerToken, but keeps the full /v1/me payload so
+ * the website can cache what an account volunteers about itself (email,
+ * display name, avatar, account creation date) for the site owner's User
+ * Finder. Returns null for dead tokens / unreachable upstream.
+ *
+ * Website accounts are verified FIRST (our own session table — same origin,
+ * no upstream round trip); only tokens our database does not know fall
+ * through to the upstream API check.
  */
 export async function verifyLinerTokenFull(
   accessToken: string,
 ): Promise<LinerIdentity | null> {
+  try {
+    const { verifyAccessToken } = await import("@/lib/websiteAuth");
+    const identity = await verifyAccessToken(accessToken);
+    if (identity) {
+      const account = await db.account.findUnique({
+        where: { id: identity.accountId },
+      });
+      if (account) {
+        return {
+          username: account.username,
+          me: {
+            id: account.id,
+            email: account.email,
+            username: account.username,
+            displayName: account.displayName,
+            avatarUrl: account.avatarUrl,
+            bio: account.bio,
+            isGuest: account.isGuest,
+            accountCreatedAt: account.createdAt.toISOString(),
+          },
+        };
+      }
+    }
+  } catch {
+    // website verification is an optimization — fall through to upstream
+  }
   try {
     const probe = await fetchLinerMeVerified(accessToken, 6_000);
     if (probe.status !== "ok") return null;
@@ -426,10 +456,22 @@ export async function addBan(input: {
       select: { ip: true },
     });
     if (seen.length > 0) {
-      await db.banIp.createMany({
-        data: seen.map((row) => ({ ip: row.ip, username })),
-        skipDuplicates: true,
-      });
+      try {
+        // dedupe client-side: sqlite has no skipDuplicates support
+        const existing = await db.banIp.findMany({
+          where: { username },
+          select: { ip: true },
+        });
+        const known = new Set(existing.map((row) => row.ip));
+        const fresh = seen
+          .map((row) => ({ ip: row.ip, username }))
+          .filter((row) => !known.has(row.ip));
+        if (fresh.length > 0) {
+          await db.banIp.createMany({ data: fresh });
+        }
+      } catch {
+        // mirror-only optimization — the ban row is the source of truth
+      }
     }
     frozenIps = seen.map((row) => row.ip).sort();
   }

@@ -503,7 +503,9 @@
     "verify_via_telegram": "Подтвердить через Telegram",
     "waiting_telegram": "Ожидание подтверждения в Telegram...",
     "waiting_verification": "Ожидание подтверждения в Telegram...",
-    "welcome_back": "С возвращением"
+    "welcome_back": "С возвращением",
+    "btn_guest": "Войти как гость",
+    "guest_hint": "Без почты и пароля — на сайте создаётся приватный гостевой аккаунт, который сохранится для следующих входов."
   },
   "offline": {
     "entered_auto_title": "Включён офлайн-режим",

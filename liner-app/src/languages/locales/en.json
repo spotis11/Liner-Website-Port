@@ -506,7 +506,9 @@
     "verify_via_telegram": "Verify via Telegram",
     "waiting_telegram": "Waiting for Telegram verification...",
     "waiting_verification": "Waiting for Telegram verification...",
-    "welcome_back": "Welcome back"
+    "welcome_back": "Welcome back",
+    "btn_guest": "Continue as guest",
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
   },
   "maintenance": {
     "title": "Currently on Maintenance!",

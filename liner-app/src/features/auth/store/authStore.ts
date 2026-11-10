@@ -22,6 +22,7 @@ export type AuthState = {
   user: AuthUser | null;
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  guestLogin: () => Promise<void>;
   register: (
     email: string,
     password: string,
@@ -133,6 +134,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ status: "authenticated", user: result.user });
     // welcome flow: brand-new accounts get the 3-step onboarding wizard
     useWelcomeStore.getState().notifyRegister(result.user);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("library:changed"));
+    }
+  },
+  guestLogin: async () => {
+    // guest mode: a real account row in the website's own database — no
+    // email/password, permanent across restarts, private by default
+    const result = await api.guestLogin();
+    await enforceWebsiteBan(result.user).catch(() => {});
+    set({ status: "authenticated", user: result.user });
+    useWelcomeStore.getState().notifyLogin(result.user);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("library:changed"));
     }

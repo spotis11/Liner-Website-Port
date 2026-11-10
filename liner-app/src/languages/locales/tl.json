@@ -344,7 +344,9 @@
       "login_successful": "Naka-log in!",
       "account_created": "Nagawa ang account!",
       "logged_in": "Naka-log in!"
-    }
+    },
+    "btn_guest": "Continue as guest",
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
   },
   "player": {
     "repeat_off": "Repeat: naka-off",

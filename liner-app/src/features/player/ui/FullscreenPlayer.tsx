@@ -618,16 +618,14 @@ export function FullscreenPlayer({
       {/* lyrics pane toggle — like the desktop app's top-left "Lyrics" pill.
           Pressing it springs the pill, fires one expanding ring, and the music
           glyph slides in while the pane choreographs across (LYRICS_TOGGLE_TRANSITION). */}
-      <motion.button
+      <button
         type="button"
         aria-pressed={lyricsVisible}
         aria-label={t("player.lyrics")}
         title={t("player.lyrics")}
         onClick={toggleLyrics}
         data-no-window-drag
-        whileTap={{ scale: 0.9 }}
-        transition={{ type: "spring", stiffness: 500, damping: 26 }}
-        className={`absolute top-[6px] left-[46px] z-30 inline-flex h-[32px] items-center rounded-lg border-none px-[12px] backdrop-blur-xl cursor-pointer select-none pointer-events-auto overflow-hidden transition-colors duration-300 ${
+        className={`group absolute top-[6px] left-[46px] z-30 inline-flex h-[32px] items-center rounded-lg border-none px-[12px] backdrop-blur-xl cursor-pointer select-none pointer-events-auto overflow-hidden transition-[background-color,color,transform] duration-300 active:scale-[0.9] ${
           lyricsVisible
             ? "bg-white/15 text-white hover:bg-white/25"
             : "bg-black/50 text-white/70 hover:text-white hover:bg-white/10"
@@ -668,7 +666,7 @@ export function FullscreenPlayer({
           </AnimatePresence>
           <span className="relative">{t("player.lyrics")}</span>
         </motion.span>
-      </motion.button>
+      </button>
     </div>
   );
 }

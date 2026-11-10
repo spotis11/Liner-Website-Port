@@ -24,6 +24,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { isEdgeToEdge } = useWindowState();
   const login = useAuthStore((state) => state.login);
+  const guestLogin = useAuthStore((state) => state.guestLogin);
   const register = useAuthStore((state) => state.register);
   const { t } = useTranslation();
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -47,6 +48,22 @@ export default function LoginPage() {
     setRegisterStep(1);
     setError("");
     setConfirmPassword("");
+  };
+
+  // guest mode: one tap, no email/password — a real (permanent) account is
+  // minted on this website's own database and signed in immediately
+  const handleGuest = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await guestLogin();
+      navigate("/", { replace: true });
+    } catch (nextError) {
+      setError(resolveErrorMessage(nextError));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const resolveErrorMessage = (nextError: unknown): string => {
@@ -594,6 +611,31 @@ export default function LoginPage() {
                   )}
                 </AnimatePresence>
               </form>
+
+              {/* guest mode — separated from the credential forms by a hairline */}
+              <div className="mt-[16px] flex items-center gap-[12px]">
+                <span className="h-px flex-1 bg-border-primary" />
+                <span className="text-[11px] font-[500] uppercase tracking-wide text-text-tertiary">
+                  {t("login.or")}
+                </span>
+                <span className="h-px flex-1 bg-border-primary" />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={submitting}
+                onClick={handleGuest}
+                className="mt-[12px] w-full"
+              >
+                {submitting ? (
+                  <span className="h-[14px] w-[14px] animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  t("login.btn_guest")
+                )}
+              </Button>
+              <p className="m-0 mt-[8px] text-center text-[11px] leading-[1.5] text-text-tertiary">
+                {t("login.guest_hint")}
+              </p>
             </div>
           </div>
 

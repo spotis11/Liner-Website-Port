@@ -156,7 +156,7 @@ describe("announcementsApi — website-port announcement admin gate", () => {
     expect(result.id).toBe("ann_1");
     const urls = fetchMock.mock.calls.map((call) => call[0]);
     expect(urls[0]).toBe("/api/announcements");
-    expect(String(urls[1])).toContain("/v1/auth/refresh");
+    expect(String(urls[1])).toContain("/api/auth/refresh");
     expect(urls[2]).toBe("/api/announcements");
     const retryBody = JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
     expect(retryBody.accessToken).toBe("fresh");

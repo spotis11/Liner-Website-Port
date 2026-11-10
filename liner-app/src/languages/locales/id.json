@@ -435,7 +435,9 @@
     "verify_via_telegram": "Verifikasi lewat Telegram",
     "waiting_telegram": "Menunggu verifikasi Telegram...",
     "waiting_verification": "Menunggu verifikasi Telegram...",
-    "welcome_back": "Selamat datang kembali"
+    "welcome_back": "Selamat datang kembali",
+    "btn_guest": "Continue as guest",
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
   },
   "player": {
     "autoplay_radio": "Radio Otomatis",

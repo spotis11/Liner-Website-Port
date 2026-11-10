@@ -473,7 +473,9 @@
     "verify_via_telegram": "Vérifier via Telegram",
     "waiting_telegram": "En attente de la vérification Telegram...",
     "waiting_verification": "En attente de la vérification Telegram...",
-    "welcome_back": "Bon retour"
+    "welcome_back": "Bon retour",
+    "btn_guest": "Continuer en invité",
+    "guest_hint": "Sans e-mail ni mot de passe — un compte invité privé est créé sur ce site et conservé pour votre prochaine visite."
   },
   "player": {
     "autoplay_radio": "Radio automatique",

@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { createRoot, Root } from "react-dom/client";
 import WindowControls from "./WindowControls";
 
@@ -17,21 +17,29 @@ describe("WindowControls (website port)", () => {
     root.render(<WindowControls {...props} />);
   };
 
-  const cleanup = async () => {
-    await React.act(async () => {
-      root.unmount();
-    });
-    container.remove();
-    delete (window as unknown as Record<string, unknown>).linerElectron;
-  };
-
   (globalThis as unknown as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+
+  // Unmount every root: a leaked root keeps a scheduler callback alive that
+  // fires after jsdom teardown ("window is not defined") and fails the run.
+  afterEach(async () => {
+    if (root) {
+      await React.act(async () => {
+        root.unmount();
+      });
+      root = undefined as unknown as Root;
+    }
+    if (container) {
+      container.remove();
+      container = undefined as unknown as HTMLDivElement;
+    }
+  });
 
   it("renders no buttons even when the electron bridge is present", () => {
     (window as unknown as Record<string, unknown>).linerElectron = {};
     render();
     expect(container.querySelectorAll("button")).toHaveLength(0);
     expect(container.textContent).toBe("");
+    delete (window as unknown as Record<string, unknown>).linerElectron;
   });
 
   it("renders no buttons with variant/style overrides", () => {

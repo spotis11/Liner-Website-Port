@@ -208,7 +208,7 @@ describe("moderationApi — website-port ban system", () => {
       expect(bans).toHaveLength(1);
       const urls = fetchMock.mock.calls.map((call) => call[0]);
       expect(urls[0]).toBe("/api/moderation/bans");
-      expect(String(urls[1])).toContain("/v1/auth/refresh");
+      expect(String(urls[1])).toContain("/api/auth/refresh");
       expect(urls[2]).toBe("/api/moderation/bans");
       const retryHeaders = fetchMock.mock.calls[2][1]?.headers as Record<string, string>;
       expect(retryHeaders.authorization).toBe("Bearer fresh");
@@ -283,7 +283,7 @@ describe("moderationApi — website-port ban system", () => {
       const urls = fetchMock.mock.calls.map((call) => call[0]);
       // attempt -> refresh (dead) -> retry (cookie-authenticated success)
       expect(urls[0]).toBe("/api/moderation/bans");
-      expect(String(urls[1])).toContain("/v1/auth/refresh");
+      expect(String(urls[1])).toContain("/api/auth/refresh");
       expect(urls[2]).toBe("/api/moderation/bans");
       const retryHeaders = fetchMock.mock.calls[2][1]?.headers as Record<string, string>;
       expect(retryHeaders.authorization).toBe("Bearer stale");

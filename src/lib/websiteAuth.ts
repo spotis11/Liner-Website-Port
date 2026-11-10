@@ -1,0 +1,421 @@
+import crypto from "node:crypto";
+import { db, ensureDbReady } from "@/lib/db";
+
+/**
+ * Website-port accounts — OUR OWN login system, upstream-independent.
+ *
+ * WHY: upstream api.tryliner.fun sits behind a WAF that blocks datacenter
+ * egress entirely (all /v1/* requests 403 from this host), so signing in was
+ * impossible for anyone reaching the site from this server's network. These
+ * accounts live in the website's own sqlite database (db/custom.db), which
+ * survives republishes AND sandbox recycling — registered accounts and their
+ * libraries are permanent.
+ *
+ * PASSWORDS: scrypt (node:crypto, N=16384) with a per-account 16-byte salt.
+ * Format: scrypt$N$r$p$salt_hex$hash_hex. Verification is constant-time.
+ *
+ * TOKENS: 48 random bytes each, handed to the client as `at_…`/`rt_…`. The
+ * database only stores sha256 hashes, so a db leak never leaks live sessions.
+ * Access token lives 30 days (the client proactively refreshes 120 s before
+ * expiry); the refresh token rotates on every use and lives 90 days.
+ *
+ * CLIENT CONTRACT: the response body mirrors the upstream AuthTokens shape
+ * ({ accessToken, refreshToken, accessTokenExpiresAt, user }) so the SPA's
+ * auth-session store keeps working untouched.
+ */
+
+export const ACCESS_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+export const REFRESH_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+
+const SCRYPT_N = 16384;
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
+const SCRYPT_KEYLEN = 64;
+
+// upstream PublicUser-compatible username slug
+const USERNAME_RE = /^[a-z0-9_]{3,24}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+export class WebsiteAuthError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "WebsiteAuthError";
+  }
+}
+
+// ---- password hashing ------------------------------------------------------
+
+export function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16);
+  const hash = crypto.scryptSync(password.normalize("NFKC"), salt, SCRYPT_KEYLEN, {
+    N: SCRYPT_N,
+    r: SCRYPT_R,
+    p: SCRYPT_P,
+  });
+  return [
+    "scrypt",
+    SCRYPT_N,
+    SCRYPT_R,
+    SCRYPT_P,
+    salt.toString("hex"),
+    hash.toString("hex"),
+  ].join("$");
+}
+
+export function verifyPassword(password: string, stored: string): boolean {
+  try {
+    const [scheme, n, r, p, saltHex, hashHex] = stored.split("$");
+    if (scheme !== "scrypt") return false;
+    const expected = Buffer.from(hashHex, "hex");
+    const actual = crypto.scryptSync(
+      password.normalize("NFKC"),
+      Buffer.from(saltHex, "hex"),
+      expected.length,
+      { N: Number(n), r: Number(r), p: Number(p) },
+    );
+    return crypto.timingSafeEqual(expected, actual);
+  } catch {
+    return false;
+  }
+}
+
+// ---- tokens ----------------------------------------------------------------
+
+function sha256(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function mintToken(prefix: string): string {
+  return `${prefix}_${crypto.randomBytes(48).toString("hex")}`;
+}
+
+export function normalizeUsername(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+export function validateRegistration(input: {
+  email: string;
+  password: string;
+  username: string;
+  displayName: string;
+}): void {
+  if (!EMAIL_RE.test(input.email.trim())) {
+    throw new WebsiteAuthError(400, "INVALID_EMAIL", "Enter a valid email address.");
+  }
+  if (typeof input.password !== "string" || input.password.length < 8) {
+    throw new WebsiteAuthError(
+      400,
+      "WEAK_PASSWORD",
+      "Password must be at least 8 characters.",
+    );
+  }
+  if (input.password.length > 200) {
+    throw new WebsiteAuthError(400, "WEAK_PASSWORD", "Password is too long.");
+  }
+  const username = normalizeUsername(input.username ?? "");
+  if (!USERNAME_RE.test(username)) {
+    throw new WebsiteAuthError(
+      400,
+      "INVALID_USERNAME",
+      "Username must be 3-24 lowercase letters, digits or underscores.",
+    );
+  }
+  if (!input.displayName?.trim() || input.displayName.trim().length > 60) {
+    throw new WebsiteAuthError(
+      400,
+      "INVALID_DISPLAY_NAME",
+      "Display name must be 1-60 characters.",
+    );
+  }
+}
+
+export function toPublicUser(account: {
+  id: string;
+  email: string | null;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  isPublic: boolean;
+  showActivity: boolean;
+  showHistory: boolean;
+  showLikedTracks: boolean;
+  participateLeaderboards: boolean;
+}) {
+  return {
+    id: account.id,
+    email: account.email ?? undefined,
+    username: account.username,
+    displayName: account.displayName,
+    avatarUrl: account.avatarUrl,
+    bio: account.bio,
+    isPublic: account.isPublic,
+    showActivity: account.showActivity,
+    showHistory: account.showHistory,
+    showLikedTracks: account.showLikedTracks,
+    participateLeaderboards: account.participateLeaderboards,
+  };
+}
+
+// ---- sessions ----------------------------------------------------------------
+
+export interface IssuedSession {
+  accessToken: string;
+  refreshToken: string;
+  accessTokenExpiresAt: string;
+}
+
+/** Mint both tokens and persist their hashes. */
+export async function issueSession(
+  accountId: string,
+  userAgent: string | null,
+): Promise<IssuedSession> {
+  await ensureDbReady();
+  const accessToken = mintToken("at");
+  const refreshToken = mintToken("rt");
+  await db.session.create({
+    data: {
+      accountId,
+      tokenHash: sha256(accessToken),
+      refreshHash: sha256(refreshToken),
+      userAgent: userAgent?.slice(0, 300) ?? null,
+      expiresAt: new Date(Date.now() + ACCESS_TOKEN_TTL_MS),
+    },
+  });
+  return {
+    accessToken,
+    refreshToken,
+    accessTokenExpiresAt: new Date(
+      Date.now() + ACCESS_TOKEN_TTL_MS,
+    ).toISOString(),
+  };
+}
+
+export interface VerifiedIdentity {
+  accountId: string;
+  username: string;
+  sessionId: string;
+}
+
+/**
+ * Verify a raw Bearer token against our own sessions. Cheap (single indexed
+ * lookup), updates lastSeenAt best-effort.
+ */
+export async function verifyAccessToken(
+  token: string | null | undefined,
+): Promise<VerifiedIdentity | null> {
+  if (!token || (!token.startsWith("at_") && !token.startsWith("rt_"))) {
+    return null;
+  }
+  await ensureDbReady();
+  const session = await db.session.findUnique({
+    where: { tokenHash: sha256(token) },
+    select: {
+      id: true,
+      accountId: true,
+      expiresAt: true,
+      account: { select: { username: true } },
+    },
+  });
+  if (!session || session.expiresAt.getTime() <= Date.now()) return null;
+  void db.session
+    .update({ where: { id: session.id }, data: { lastSeenAt: new Date() } })
+    .catch(() => undefined);
+  return {
+    accountId: session.accountId,
+    username: session.account.username,
+    sessionId: session.id,
+  };
+}
+
+/**
+ * Rotate a refresh token: the used token dies, a fresh pair is minted.
+ * Reuse of a dead refresh token fails (the hash row is gone).
+ */
+export async function rotateSession(
+  refreshToken: string,
+): Promise<{ identity: VerifiedIdentity; session: IssuedSession } | null> {
+  if (!refreshToken.startsWith("rt_")) return null;
+  await ensureDbReady();
+  const hash = sha256(refreshToken);
+  const stale = await db.session.findUnique({
+    where: { refreshHash: hash },
+    select: { id: true, accountId: true, account: { select: { username: true } } },
+  });
+  if (!stale) return null;
+  await db.session.delete({ where: { id: stale.id } }).catch(() => undefined);
+  const session = await issueSession(stale.accountId, null);
+  return {
+    identity: {
+      accountId: stale.accountId,
+      username: stale.account.username,
+      sessionId: stale.id,
+    },
+    session,
+  };
+}
+
+export async function destroySessionByRefreshToken(
+  refreshToken: string | undefined,
+): Promise<void> {
+  if (!refreshToken) return;
+  await ensureDbReady();
+  await db.session
+    .deleteMany({ where: { refreshHash: sha256(refreshToken) } })
+    .catch(() => undefined);
+}
+
+// ---- accounts ----------------------------------------------------------------
+
+async function assertAvailable(
+  email: string,
+  username: string,
+): Promise<void> {
+  const [emailTaken, usernameTaken] = await Promise.all([
+    db.account.findUnique({ where: { email }, select: { id: true } }),
+    db.account.findUnique({ where: { username }, select: { id: true } }),
+  ]);
+  if (emailTaken) {
+    throw new WebsiteAuthError(
+      409,
+      "EMAIL_TAKEN",
+      "That email is already registered.",
+    );
+  }
+  if (usernameTaken) {
+    throw new WebsiteAuthError(
+      409,
+      "USERNAME_TAKEN",
+      "That username is already taken.",
+    );
+  }
+}
+
+/** Generate a collision-safe guest username (guest_ab12cd). */
+async function nextGuestUsername(): Promise<string> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const candidate = `guest_${crypto.randomBytes(3).toString("hex")}`;
+    const taken = await db.account.findUnique({
+      where: { username: candidate },
+      select: { id: true },
+    });
+    if (!taken) return candidate;
+  }
+  return `guest_${crypto.randomBytes(8).toString("hex")}`;
+}
+
+export async function createAccount(input: {
+  email: string;
+  password: string;
+  username: string;
+  displayName: string;
+  userAgent: string | null;
+}) {
+  await ensureDbReady();
+  const email = input.email.trim().toLowerCase();
+  const username = normalizeUsername(input.username);
+  validateRegistration({ ...input, email, username });
+  await assertAvailable(email, username);
+  const account = await db.account.create({
+    data: {
+      email,
+      username,
+      displayName: input.displayName.trim(),
+      passwordHash: hashPassword(input.password),
+    },
+  });
+  const session = await issueSession(account.id, input.userAgent);
+  return { account, session };
+}
+
+export async function authenticate(
+  emailOrUsername: string,
+  password: string,
+  userAgent: string | null,
+) {
+  await ensureDbReady();
+  const identifier = emailOrUsername.trim().toLowerCase();
+  if (!identifier || !password) {
+    throw new WebsiteAuthError(
+      400,
+      "MISSING_CREDENTIALS",
+      "Enter your email and password.",
+    );
+  }
+  const account = await db.account.findFirst({
+    where: {
+      OR: [{ email: identifier }, { username: identifier }],
+    },
+  });
+  // scrypt verification runs even for a missing account so response timing
+  // does not reveal whether the identifier exists
+  const hash =
+    account?.passwordHash ??
+    "scrypt$16384$8$1$00$00".padEnd(80, "0");
+  const ok = verifyPassword(password, hash);
+  if (!account || !ok || account.isGuest) {
+    throw new WebsiteAuthError(
+      401,
+      "INVALID_CREDENTIALS",
+      "Wrong email or password.",
+    );
+  }
+  const session = await issueSession(account.id, userAgent);
+  return { account, session };
+}
+
+export async function createGuestAccount(
+  userAgent: string | null,
+): Promise<{
+  account: {
+    id: string;
+    username: string;
+    displayName: string;
+  };
+  session: IssuedSession;
+}> {
+  await ensureDbReady();
+  const username = await nextGuestUsername();
+  const short = username.split("_")[1] ?? "";
+  const account = await db.account.create({
+    data: {
+      username,
+      displayName: `Guest ${short.toUpperCase()}`,
+      isGuest: true,
+    },
+  });
+  const session = await issueSession(account.id, userAgent);
+  return {
+    account: {
+      id: account.id,
+      username: account.username,
+      displayName: account.displayName,
+    },
+    session,
+  };
+}
+
+/** Map a bare {id, username, displayName} guest into a full PublicUser. */
+export function guestPublicUser(account: {
+  id: string;
+  username: string;
+  displayName: string;
+}) {
+  return toPublicUser({
+    id: account.id,
+    email: null,
+    username: account.username,
+    displayName: account.displayName,
+    avatarUrl: null,
+    bio: null,
+    isPublic: false,
+    showActivity: false,
+    showHistory: false,
+    showLikedTracks: false,
+    participateLeaderboards: false,
+  });
+}

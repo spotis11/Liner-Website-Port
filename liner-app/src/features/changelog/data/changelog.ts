@@ -19,6 +19,33 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.13.0",
+    date: "2026-11-10",
+    title: "Our own accounts + guest mode, a cleaner sidebar, and the newest fullscreen player",
+    entries: [
+      {
+        type: "added",
+        text: "Our own login system. Sign-up and sign-in no longer touch Liner's upstream servers (whose bot-wall made logging in impossible from many networks): accounts now live in this website's own database and are permanent — they survive restarts and republishes. Passwords are stored scrypt-hashed, sessions rotate their refresh tokens on every use, and your liked songs and playlists are stored per-account on the site too, so a logged-in library actually works end to end.",
+      },
+      {
+        type: "added",
+        text: "Guest mode. One tap on the new \"Continue as guest\" button on the login screen drops you straight into the app — no email, no password, no captcha. A guest is a real (private) account in the same database, so everything you do is kept for your next visit, not thrown away when the browser closes.",
+      },
+      {
+        type: "changed",
+        text: "The fork-only Downloads tab, the separate Local Music tab and the old 10-band equalizer modal are gone — the sidebar is back to the clean upstream set (Home, Search, Library, Changelog, Settings), local files stay reachable from the Library page, and the equalizer is the upstream quick picker in the player's tuning popup.",
+      },
+      {
+        type: "changed",
+        text: "The fullscreen player is synced with the newest upstream Liner: plain-text TTML lyrics now render as untimed lines instead of a blank pane, lyrics providers that return garbage (LRC headers, markup) are filtered out and the switcher auto-falls over to a provider that actually has text, the provider island stays available when the active provider has no text, and the mini player's progress bar eases through seeks and track changes instead of crawling for a second. The lyrics pill itself got a proper press animation — a springy tap, one expanding ring, and the music glyph sliding in as the pane choreographs across.",
+      },
+      {
+        type: "fixed",
+        text: "Playback hardening ported from upstream: a googlevideo host that simply cannot be reached now counts as a refused network (so you get the honest \"YouTube refused every audio stream from this network\" message instead of a dead-track error), signed-in TV failures are carried into the fallback error so nothing is silently swallowed, and the desktop build's CORS handling keeps credentialed headers only for Liner hosts so googlevideo SABR streams keep working.",
+      },
+    ],
+  },
+  {
     version: "1.12.2",
     date: "2026-11-02",
     title: "Maintenance mode — take the whole site down with one switch",

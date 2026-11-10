@@ -435,7 +435,9 @@
     "verify_via_telegram": "Über Telegram verifizieren",
     "waiting_telegram": "Warte auf Telegram-Verifizierung…",
     "waiting_verification": "Warte auf Telegram-Verifizierung…",
-    "welcome_back": "Willkommen zurück!"
+    "welcome_back": "Willkommen zurück!",
+    "btn_guest": "Continue as guest",
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
   },
   "player": {
     "autoplay_radio": "Autoplay-Radio",

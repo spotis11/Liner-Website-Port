@@ -57,18 +57,6 @@ function offlineModeAction() {
 }
 
 import { getApiBaseUrl } from "./baseUrl";
-import {
-  PowTimeoutError,
-  SUPPORTED_POW_ALGORITHM,
-  type PowChallenge,
-  type PowSolution,
-} from "./proofOfWork";
-import { solvePow } from "./proofOfWorkRunner";
-import {
-  isHumanCheckMode,
-  runHumanCheck,
-  type HumanCheckAction,
-} from "./humanCheck";
 
 const CLIENT_VERSION =
   (import.meta.env.VITE_CLIENT_VERSION as string | undefined) ||
@@ -222,7 +210,11 @@ async function executeRequest<T>(
   const startTime = performance.now();
   const method = (init?.method ?? "GET").toUpperCase();
   const rawBody = typeof init?.body === "string" ? init.body : null;
-  const signedHeaders = await signApiRequest(method, path, rawBody);
+  // website-port routes ("/api/…") are same-origin and signed with the browser
+  // session cookie instead of the upstream HMAC signer
+  const signedHeaders = path.startsWith("/api/")
+    ? {}
+    : await signApiRequest(method, path, rawBody);
   const currentSession = getAuthSession();
   let accessToken = allowRefresh ? await getValidAccessToken() : null;
 
@@ -230,7 +222,8 @@ async function executeRequest<T>(
     allowRefresh &&
     currentSession?.accessToken &&
     !accessToken &&
-    !path.startsWith("/v1/auth/")
+    !path.startsWith("/v1/auth/") &&
+    !path.startsWith("/api/auth/")
   ) {
     const expiryMs = getSessionExpiryMs(currentSession);
     if (expiryMs && expiryMs > Date.now()) {
@@ -283,8 +276,10 @@ async function executeRequest<T>(
 
   let res: Response;
   try {
+    // website-port routes live on this same origin — never prefix them with
+    // the upstream base url
     res = await fetchWithTimeout(
-      getApiBaseUrl() + path,
+      path.startsWith("/api/") ? path : getApiBaseUrl() + path,
       {
         ...init,
         headers: {
@@ -320,7 +315,12 @@ async function executeRequest<T>(
     syncServerTime(dateHeader);
   }
 
-  if (res.status === 401 && allowRefresh && !path.startsWith("/v1/auth/")) {
+  if (
+    res.status === 401 &&
+    allowRefresh &&
+    !path.startsWith("/v1/auth/") &&
+    !path.startsWith("/api/auth/")
+  ) {
     const currentSession = getAuthSession();
     // If the token in session store was already rotated by another parallel request,
     // retry immediately with the rotated token without firing duplicate refresh requests
@@ -609,100 +609,23 @@ import type {
   MostSavedType,
 } from "../contracts";
 
-const RETRYABLE_POW_CODES = new Set(["POW_EXPIRED", "POW_REUSED"]);
-
-interface AuthProof {
-  pow?: PowSolution;
-  turnstile?: string;
-  edge?: boolean;
-}
-
-function authBody(proof: AuthProof) {
-  return { pow: proof.pow, turnstile: proof.turnstile };
-}
-
-function authInit(proof: AuthProof, body: unknown): RequestInit {
-  return {
-    method: "POST",
-    body: JSON.stringify(body),
-    ...(proof.edge ? { credentials: "include" as const } : {}),
-  };
-}
-
-function blockedBeforeOurServer(error: unknown): boolean {
-  return error instanceof TypeError || statusOf(error) === 0;
-}
-
-async function humanCheck(
-  challenge: PowChallenge,
-  purpose: HumanCheckAction,
-): Promise<string | undefined> {
-  const requested = challenge.turnstile?.mode;
-  const mode = isHumanCheckMode(requested) ? requested : "off";
-  if (mode === "off" && !challenge.turnstile?.edge) return undefined;
-  return runHumanCheck(purpose, mode === "off" ? "optional" : mode);
-}
-
-async function authProofFor(
-  purpose: HumanCheckAction,
-  email: string,
-): Promise<AuthProof> {
-  let challenge: PowChallenge;
-  try {
-    challenge = await request<PowChallenge>(
-      "/v1/auth/challenge",
-      { method: "POST", body: JSON.stringify({ purpose, email }) },
-      false,
-    );
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return {};
-    throw error;
-  }
-  const work =
-    challenge.mode === "off" || challenge.algorithm !== SUPPORTED_POW_ALGORITHM
-      ? undefined
-      : solvePow(challenge);
-  void work?.catch(() => undefined);
-  const turnstile = await humanCheck(challenge, purpose);
-  return {
-    pow: await work,
-    turnstile,
-    edge: challenge.turnstile?.edge === true,
-  };
-}
-
-async function withAuthProof<T>(
-  purpose: HumanCheckAction,
-  email: string,
-  send: (proof: AuthProof) => Promise<T>,
-): Promise<T> {
-  let proof: AuthProof | undefined;
-  try {
-    proof = await authProofFor(purpose, email);
-    return await send(proof);
-  } catch (error) {
-    const retryable =
-      error instanceof PowTimeoutError ||
-      (error instanceof ApiError &&
-        !!error.code &&
-        RETRYABLE_POW_CODES.has(error.code)) ||
-      (proof?.edge === true && blockedBeforeOurServer(error));
-    if (!retryable) throw error;
-    return send(await authProofFor(purpose, email));
-  }
-}
-
 // ---- Endpoints --------------------------------------------------------------
 
 export const api = {
   async login(email: string, password: string): Promise<AuthTokens> {
-    const result = await withAuthProof("login", email, (proof) =>
-      request<AuthTokens>(
-        "/v1/auth/login",
-        authInit(proof, { email, password, ...authBody(proof) }),
-        false,
-      ),
-    );
+    // website accounts: same-origin /api/auth — our own database, no proof-of-work
+    const result = await request<AuthTokens>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }, false);
+    setAuthSession(result);
+    return result;
+  },
+
+  async guestLogin(): Promise<AuthTokens> {
+    const result = await request<AuthTokens>("/api/auth/guest", {
+      method: "POST",
+    }, false);
     setAuthSession(result);
     return result;
   },
@@ -713,29 +636,25 @@ export const api = {
     username: string,
     displayName: string,
   ): Promise<AuthTokens> {
-    const result = await withAuthProof("register", email, (proof) =>
-      request<AuthTokens>(
-        "/v1/auth/register",
-        authInit(proof, {
-          email,
-          password,
-          username: username.trim().toLowerCase(),
-          displayName: displayName.trim(),
-          ...authBody(proof),
-        }),
-        false,
-      ),
-    );
+    const result = await request<AuthTokens>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        password,
+        username: username.trim().toLowerCase(),
+        displayName: displayName.trim(),
+      }),
+    }, false);
     setAuthSession(result);
     return result;
   },
 
   getMe(): Promise<AuthUser> {
-    return request<AuthUser>("/v1/me");
+    return request<AuthUser>("/api/auth/me");
   },
 
   updateProfile(data: UpdateProfileInput): Promise<PublicUser> {
-    return request<PublicUser>("/v1/users/me", {
+    return request<PublicUser>("/api/auth/profile", {
       method: "PATCH",
       body: JSON.stringify(data),
     });
@@ -879,13 +798,13 @@ export const api = {
   listLikedTracks(limit = 100, cursor?: string): Promise<ApiLikedTracksPage> {
     const params = new URLSearchParams({ limit: String(limit) });
     if (cursor) params.set("cursor", cursor);
-    return request<ApiLikedTracksPage>(`/v1/me/library/tracks?${params}`);
+    return request<ApiLikedTracksPage>(`/api/library/tracks?${params}`);
   },
 
   async likeTrack(id: string): Promise<void> {
     if (isLocalTrackId(id)) throw new Error("Local tracks stay on this device");
     const track = await clientCatalog.resolveSnapshot(id);
-    return request<void>(`/v1/me/library/tracks/${encodeURIComponent(id)}`, {
+    return request<void>("/api/library/tracks", {
       method: "PUT",
       ...(track
         ? { body: JSON.stringify({ track, trackSnapshot: track }) }
@@ -894,9 +813,10 @@ export const api = {
   },
 
   unlikeTrack(id: string): Promise<void> {
-    return request<void>(`/v1/me/library/tracks/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
+    return request<void>(
+      `/api/library/tracks?trackId=${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    );
   },
 
   listSavedCollections(
@@ -928,40 +848,30 @@ export const api = {
   },
 
   listPlaylists(): Promise<{ items: ApiUserPlaylist[] }> {
-    return request<{ items: ApiUserPlaylist[] }>("/v1/me/playlists");
+    return request<{ items: ApiUserPlaylist[] }>("/api/library/playlists");
   },
 
   async readUserPlaylist(
     id: string,
     options: { limit?: number; etag?: string } = {},
   ): Promise<UserPlaylistRead> {
-    const params = new URLSearchParams({ compact: "true" });
-    if (options.limit) params.set("limit", String(options.limit));
-    let status = 200;
-    let etag: string | undefined;
-    const body = await executeRequest<
-      | {
-          playlist: ApiUserPlaylist;
-          items: ApiUserPlaylistItem[];
-          trackCount?: number;
-          durationMs?: number;
-          partial?: boolean;
-        }
-      | undefined
-    >(
-      `/v1/me/playlists/${encodeURIComponent(id)}?${params}`,
-      options.etag ? { headers: { "If-None-Match": options.etag } } : undefined,
+    // the website database has no etag support — every read is a full body
+    void options;
+    const body = await executeRequest<{
+      playlist: ApiUserPlaylist;
+      items: ApiUserPlaylistItem[];
+      trackCount?: number;
+      durationMs?: number;
+      partial?: boolean;
+    }>(
+      `/api/library/playlists/${encodeURIComponent(id)}`,
+      undefined,
       true,
       DEFAULT_TIMEOUT_MS,
-      (res) => {
-        status = res.status;
-        etag = res.headers?.get?.("etag") ?? undefined;
-      },
     );
-    if (status === 304 || !body) return { notModified: true };
     return {
       notModified: false,
-      etag,
+      etag: undefined,
       partial: body.partial === true,
       trackCount: body.trackCount ?? body.items.length,
       durationMs:
@@ -981,7 +891,7 @@ export const api = {
     return request<{
       playlist: ApiUserPlaylist;
       items: ApiUserPlaylistItem[];
-    }>(`/v1/me/playlists/${encodeURIComponent(id)}`);
+    }>(`/api/library/playlists/${encodeURIComponent(id)}`);
   },
 
   createPlaylist(input: {
@@ -989,7 +899,7 @@ export const api = {
     description?: string;
     isPublic?: boolean;
   }): Promise<ApiUserPlaylist> {
-    return request<ApiUserPlaylist>("/v1/me/playlists", {
+    return request<ApiUserPlaylist>("/api/library/playlists", {
       method: "POST",
       body: JSON.stringify(input),
     });
@@ -1000,13 +910,13 @@ export const api = {
     input: { title?: string; description?: string | null; isPublic?: boolean },
   ): Promise<ApiUserPlaylist> {
     return request<ApiUserPlaylist>(
-      `/v1/me/playlists/${encodeURIComponent(id)}`,
+      `/api/library/playlists/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify(input) },
     );
   },
 
   deletePlaylist(id: string): Promise<void> {
-    return request<void>(`/v1/me/playlists/${encodeURIComponent(id)}`, {
+    return request<void>(`/api/library/playlists/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   },
@@ -1020,7 +930,7 @@ export const api = {
       throw new Error("Local tracks stay on this device");
     const track = snapshot ?? (await clientCatalog.resolveSnapshot(trackId));
     return request<ApiUserPlaylistItem>(
-      `/v1/me/playlists/${encodeURIComponent(playlistId)}/tracks/${encodeURIComponent(trackId)}`,
+      `/api/library/playlists/${encodeURIComponent(playlistId)}/tracks/${encodeURIComponent(trackId)}`,
       {
         method: "POST",
         ...(track
@@ -1043,7 +953,7 @@ export const api = {
       added: number;
       rejected: number;
     }>(
-      `/v1/me/playlists/${encodeURIComponent(playlistId)}/tracks`,
+      `/api/library/playlists/${encodeURIComponent(playlistId)}/tracks`,
       { method: "POST", body: JSON.stringify({ tracks }) },
       true,
       60_000,
@@ -1052,7 +962,7 @@ export const api = {
 
   removePlaylistItem(playlistId: string, itemId: string): Promise<void> {
     return request<void>(
-      `/v1/me/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(itemId)}`,
+      `/api/library/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(itemId)}`,
       { method: "DELETE" },
     );
   },
@@ -1067,7 +977,7 @@ export const api = {
       playlist: ApiUserPlaylist;
       items: ApiUserPlaylistItem[];
     }>(
-      `/v1/me/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(itemId)}/move`,
+      `/api/library/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(itemId)}/move`,
       {
         method: "POST",
         body: JSON.stringify({ beforeItemId, revision }),
