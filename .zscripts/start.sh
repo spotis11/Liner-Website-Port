@@ -79,12 +79,20 @@ if [ -f "./next-service-dist/server.js" ]; then
 
     if [ "$DATABASE_URL" = "$DEFAULT_PACKAGED_DATABASE_URL" ]; then
         if [ ! -f "$DEFAULT_PACKAGED_DB_PATH" ]; then
-            echo "❌ 未找到打包后的数据库文件 $DEFAULT_PACKAGED_DB_PATH"
-            echo "   为避免生产环境启动到空数据库，启动已终止"
-            exit 1
+            # 自 v1.13.3 起部署包不再携带 custom.db（避免解包时用构建机的
+            # 陈旧副本覆盖线上库）。全新容器首次启动时没有 db 文件属预期：
+            # 运行时 ensureDbReady() 会自动建表，并从包内 db/db-mirror-seed.json
+            # 恢复账号/会话/曲库。仅当 seed mirror 也缺失（异常包，空库无法
+            # 自愈）时才终止启动。
+            if [ ! -f "$BUILD_DIR/db/db-mirror-seed.json" ]; then
+                echo "❌ 未找到数据库文件 $DEFAULT_PACKAGED_DB_PATH"
+                echo "   且包内缺少 db/db-mirror-seed.json，空库无法自愈，启动已终止"
+                exit 1
+            fi
+            echo "🗄️  全新容器：包内未携带 custom.db，运行时将自动建表并从 db-mirror-seed.json 恢复数据"
+        else
+            echo "🗄️  当前使用打包数据库: $DEFAULT_PACKAGED_DB_PATH"
         fi
-
-        echo "🗄️  当前使用打包数据库: $DEFAULT_PACKAGED_DB_PATH"
     else
         echo "🗄️  当前使用外部指定数据库: $DATABASE_URL"
     fi
