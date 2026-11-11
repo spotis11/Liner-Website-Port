@@ -24,9 +24,11 @@ import {
  * Providers (first match wins):
  *   1. Resend HTTPS API     — RESEND_API_KEY            (disabled: the
  *      jayjoice.tryliner.fun domain was never verified on Resend)
- *   2. Proton SMTP          — SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS
- *      (smtp.protonmail.ch:465; the password is an SMTP token generated in
- *      Proton settings, NOT the account login password)
+ *   2. SMTP                 — SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS
+ *      (currently the owner's Gmail identity: smtp.gmail.com:465. NOTE:
+ *      Gmail requires an APP PASSWORD (2-Step Verification → App
+ *      passwords) — the normal account login password is always rejected
+ *      with 535 5.7.8. Failed sends are audited and retried on boot.)
  *   3. Nothing configured   → sends nothing, logs "not_configured" — the
  *      site keeps working exactly as before, triggers never throw.
  *
@@ -245,7 +247,12 @@ async function logAttempt(input: {
             status: "sent",
             error: null,
           }
-        : {},
+        : // retry-on-failed: overwrite the stale error with the newest
+          // attempt's outcome, keeping status "failed" (never pins dedupe)
+          {
+            provider: input.result.provider ?? null,
+            error: input.result.error ?? null,
+          },
     });
     return "logged";
   } catch (err) {
@@ -357,4 +364,80 @@ export async function deliverBannedEmail(
     text: content.text,
     replyTo: LINER_APPEAL_EMAIL,
   });
+}
+
+/**
+ * Boot-time self-healing: re-attempt every transactional mail that never
+ * landed ("failed" rows — provider outage, bad credentials at the time).
+ * Only a "sent" row pins the dedupe slot, so a retry simply overwrites the
+ * failure; once the SMTP credentials in .env are fixed, the pending
+ * welcome/ban mails go out on the next server boot without any manual step.
+ * Rows whose backing entity is gone (account deleted, ban lifted) are left
+ * alone. Never throws — a mailer problem must not affect bootstrap.
+ */
+export async function retryFailedTransactionalEmails(): Promise<{
+  retried: number;
+  sent: number;
+}> {
+  let retried = 0;
+  let sent = 0;
+  try {
+    const failed = await db.emailLog.findMany({
+      where: { status: { not: "sent" } },
+      select: {
+        type: true,
+        refKey: true,
+        username: true,
+        email: true,
+        createdAt: true,
+      },
+    });
+    for (const row of failed) {
+      try {
+        let outcome: DeliveryOutcome | null = null;
+        if (row.type === "welcome") {
+          const account = await db.account.findUnique({
+            where: { username: row.username },
+            select: { displayName: true, createdAt: true, email: true },
+          });
+          if (!account) continue; // account is gone — nothing to welcome
+          outcome = await deliverWelcomeEmail({
+            username: row.username,
+            displayName: account.displayName,
+            email: row.email,
+            accountCreatedAt: account.createdAt,
+          });
+        } else if (row.type === "banned") {
+          const ban = await db.ban.findUnique({
+            where: { id: row.refKey },
+            select: { reason: true, createdAt: true, expiresAt: true },
+          });
+          if (!ban) continue; // ban row gone — the mail is moot
+          outcome = await deliverBannedEmail({
+            username: row.username,
+            displayName: null,
+            reason: ban.reason,
+            bannedAt: ban.createdAt,
+            expiresAt: ban.expiresAt,
+            email: row.email,
+            banId: row.refKey,
+          });
+        } else {
+          continue; // unknown type — never guess
+        }
+        retried += 1;
+        if (outcome?.sent) sent += 1;
+      } catch {
+        // per-row failure stays non-fatal
+      }
+    }
+    if (retried > 0) {
+      console.log(
+        `[mailer] retry sweep: ${retried} failed mail(s) re-attempted, ${sent} sent`,
+      );
+    }
+  } catch (err) {
+    console.warn("[mailer] retry sweep failed:", err);
+  }
+  return { retried, sent };
 }

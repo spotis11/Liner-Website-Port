@@ -1,10 +1,5 @@
 import { forwardRef, memo } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import WindowControls, {
-  WINDOW_CONTROLS_LAYOUT_ID,
-  WINDOW_CONTROLS_MORPH,
-} from "@/features/navigation/ui/WindowControls";
 import logo from "@/assets/logo.svg";
 import { cn } from "@/shared/lib";
 import { HistoryNavIsland } from "./HistoryNavIsland";
@@ -48,15 +43,6 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
       <div className="flex items-center gap-[8px] mr-[6px] shrink-0">
         <HistoryNavIsland />
-        <motion.div
-          layoutId={WINDOW_CONTROLS_LAYOUT_ID}
-          transition={WINDOW_CONTROLS_MORPH}
-          data-no-window-drag
-          data-no-tooltip="true"
-          className="h-[38px] flex items-center gap-[2px] px-[4px] rounded-[10px] shrink-0 bg-bg-glass backdrop-blur-[20px]"
-        >
-          <WindowControls bare />
-        </motion.div>
       </div>
     </header>
   );

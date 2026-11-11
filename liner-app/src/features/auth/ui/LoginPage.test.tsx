@@ -110,10 +110,6 @@ vi.mock("@/languages", () => {
   };
 });
 
-vi.mock("@/features/navigation/ui/WindowControls", () => ({
-  default: () => <div data-testid="window-controls" />,
-}));
-
 vi.mock("react-apple-emojis", () => ({
   Emoji: () => <span data-testid="emoji" />,
 }));

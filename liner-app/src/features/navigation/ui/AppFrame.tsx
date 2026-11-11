@@ -26,7 +26,6 @@ import {
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { cn } from "@/shared/lib";
-import WindowControlsNotch from "./WindowControlsNotch";
 import RightDrawer from "./RightDrawer";
 import { FullscreenRouteContext } from "../fullscreenRouteContext";
 import DynamicBlurBackground from "./DynamicBlurBackground";
@@ -47,7 +46,6 @@ import {
   playerEngine,
   MiniPlayer,
   usePlayerStore,
-  useGlassBlur,
   attachMiniPipAutoBehavior,
 } from "@/features/player";
 import SearchResultsList from "@/features/search/ui/SearchResultsList";
@@ -735,7 +733,6 @@ export default function AppFrame({ children }: AppFrameProps) {
   const hasCustomBg = useHasCustomBackground();
   const hasPageBackdrop = useHasPageBackdrop();
   const classicSurfaces = useClassicSurfaces();
-  const glassBlur = useGlassBlur();
 
   return (
     <div
@@ -1138,14 +1135,6 @@ export default function AppFrame({ children }: AppFrameProps) {
       </AnimatePresence>
 
       <AppOverlays />
-      {isFullscreenPlayer && (
-        <div
-          data-theme="dark"
-          className="dark absolute top-1.5 right-1.5 z-[80]"
-        >
-          <WindowControlsNotch tone="glass" blur={glassBlur} />
-        </div>
-      )}
     </div>
   );
 }

@@ -19,6 +19,21 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.17.0",
+    date: "2026-11-11",
+    title: "Desktop chrome removed",
+    entries: [
+      {
+        type: "changed",
+        text: "The leftover desktop-app window controls are gone — the fake minimize / maximize / close capsule in the header and the notch blob in the fullscreen player. This is a website: your browser already provides all the window buttons, so the app no longer pretends to be a desktop app.",
+      },
+      {
+        type: "changed",
+        text: "Under the hood: welcome and ban notification emails now retry automatically after a failed delivery (bad mail credentials, provider outage) — nothing is silently lost, and new accounts get their welcome email as soon as mail delivery works.",
+      },
+    ],
+  },
+  {
     version: "1.16.0",
     date: "2026-11-11",
     title: "Clearer sign-in errors + passwords for Discord accounts",

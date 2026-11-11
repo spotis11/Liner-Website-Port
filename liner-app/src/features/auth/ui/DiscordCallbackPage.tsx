@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { DiscordFill, WarningFill } from "@mingcute/react";
 import Button from "@/shared/ui/Button";
-import WindowControls from "@/features/navigation/ui/WindowControls";
 import LoginBackdrop from "./LoginBackdrop";
 import { useWindowState } from "@/features/navigation/hooks/useWindowState";
 import { useAuthStore, type DiscordLoginPayload } from "../store/authStore";
@@ -105,7 +104,6 @@ export default function DiscordCallbackPage() {
           isEdgeToEdge ? "px-4" : "px-[26px] pb-[34px]",
         )}
       >
-        <WindowControls />
         <div className="flex w-full max-w-[420px] flex-col items-center rounded-[20px] border border-border-primary bg-bg-surface/80 p-[28px] shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           {error ? (
             <motion.div

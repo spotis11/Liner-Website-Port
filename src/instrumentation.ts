@@ -123,5 +123,16 @@ export async function register() {
     } catch {
       // never let the watchdog break server bootstrap
     }
+    // self-healing mail queue: once the SMTP credentials in .env work, every
+    // welcome/ban mail that previously failed goes out on the next boot.
+    // Deferred so it never slows or breaks server bootstrap; unref'd so it
+    // never keeps the process alive just for itself.
+    setTimeout(() => {
+      void import("@/lib/mailer")
+        .then(({ retryFailedTransactionalEmails }) =>
+          retryFailedTransactionalEmails(),
+        )
+        .catch(() => undefined);
+    }, 15_000).unref();
   }
 }

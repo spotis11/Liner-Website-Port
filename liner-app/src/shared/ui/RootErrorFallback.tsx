@@ -9,7 +9,6 @@ import {
   LuChevronDown,
   LuChevronUp,
 } from "react-icons/lu";
-import WindowControls from "@/features/navigation/ui/WindowControls";
 import Button from "./Button";
 import { createTranslatorSync, getStoredLocale } from "@/languages";
 import { useWindowDrag } from "@/shared/hooks";
@@ -150,9 +149,6 @@ export function RootErrorFallback({
       role="alert"
       className="relative flex flex-col h-screen w-screen overflow-hidden rounded-[12px] bg-bg-canvas p-1.5 select-none"
     >
-      {/* Window Controls */}
-      <WindowControls />
-
       {/* Main Container */}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full bg-bg-primary rounded-xl border border-border-primary/40 p-6 md:p-10 overflow-y-auto">
         <div className="flex flex-col items-center max-w-[560px] w-full text-center my-auto">
