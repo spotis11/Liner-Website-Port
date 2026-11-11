@@ -19,6 +19,21 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.13.2",
+    date: "2026-11-11",
+    title: "The Lyrics button is back",
+    entries: [
+      {
+        type: "added",
+        text: "The fullscreen \"Lyrics\" pill is back — now inside the top-left glass notch next to the close button. Pressing it springs the pill, fires one expanding ring and slides the music glyph in while the lyrics pane choreographs away (0.5s expo curve, the pane slides + fades as the player glides back to center). Your choice is remembered across sessions, and the lyrics status in the top notch (switcher, \"No lyrics found\", instrumental, loading) only shows while the pane is open.",
+      },
+      {
+        type: "fixed",
+        text: "Finished the Local Music removal: the desktop half of the feature (local file import IPC and scheme) is gone for good, no dead imports left, and the storage settings no longer list a Local Music category. The type check now passes on a fresh checkout again.",
+      },
+    ],
+  },
+  {
     version: "1.13.1",
     date: "2026-11-10",
     title: "The fullscreen player is now the new one — and lyrics load again",

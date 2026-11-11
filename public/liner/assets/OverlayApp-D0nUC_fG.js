@@ -1,0 +1,1 @@
+import{n as e}from"./index-By2NQEHs.js";import{A as t,Mt as n,R as r,t as i}from"./OverlayPlayer-DMPNUxfW.js";/* empty css                */var a=e();function o(){return r()?(0,a.jsxs)(n,{attribute:`data-theme`,defaultTheme:`dark`,enableSystem:!1,forcedTheme:`dark`,children:[(0,a.jsx)(t,{}),(0,a.jsx)(i,{})]}):(window.linerElectron?.closeOverlay?.(),null)}export{o as default};
