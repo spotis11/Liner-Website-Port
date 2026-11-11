@@ -5,7 +5,6 @@ import LibraryPage from "@/features/library/ui/LibraryPage";
 import PlaylistPage from "@/features/library/ui/PlaylistPage";
 import {
   CachedTracksPage,
-  LocalTracksPage,
   SavedLikesPage,
 } from "@/features/library";
 import ArtistPage from "@/features/artist/ui/ArtistPage";
@@ -38,7 +37,6 @@ const KEPT_PAGES: ReadonlyArray<{ path: string; element: ReactElement }> = [
 const PLAYER_PATH = "/player";
 const OFFLINE_PATHS = new Set([
   "/library",
-  "/library/local",
   "/library/cached",
   "/library/saved",
   PLAYER_PATH,
@@ -74,7 +72,6 @@ export function AppRoutes() {
         <div key={`${pathname}?${search}`} className="page-transition">
           <Routes location={shellLocation}>
             <Route path="/library/playlist" element={<PlaylistPage />} />
-            <Route path="/library/local" element={<LocalTracksPage />} />
             <Route path="/library/cached" element={<CachedTracksPage />} />
             <Route path="/library/saved" element={<SavedLikesPage />} />
             <Route path="/artist" element={<ArtistPage />} />

@@ -1,5 +1,4 @@
 import { getApiBaseUrl } from "@/shared/api/baseUrl";
-import { isLocalTrackId } from "@/shared/media/local";
 
 const DEV_OVERRIDE_KEY = "liner_ambient_dev_script";
 const scripts = new Map<string, string | null>();
@@ -32,7 +31,7 @@ export function cachedAmbientScript(
 export function loadAmbientScript(trackId: string): Promise<string | null> {
   const override = devOverride();
   if (override) return Promise.resolve(override);
-  if (!trackId || isLocalTrackId(trackId)) return Promise.resolve(null);
+  if (!trackId) return Promise.resolve(null);
   if (scripts.has(trackId))
     return Promise.resolve(scripts.get(trackId) ?? null);
   const pending = inFlight.get(trackId);

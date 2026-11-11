@@ -33,7 +33,7 @@ import {
 } from "../../ui/TrackSearch";
 import { TrackSortMenu, useTrackSort } from "../../ui/TrackSort";
 import { useLikesCover } from "../../hooks/useLikesCover";
-import { formatTrackDuration } from "../../local/lib/formatLocalDurations";
+import { formatTrackDuration } from "@/shared/utils/formatTrackDurations";
 import { useSavedTracks } from "../hooks/useSavedTracks";
 
 const PAGE_KEY = "saved-likes";

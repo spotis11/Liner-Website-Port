@@ -1017,7 +1017,6 @@
       "categories": {
         "audio": "Pistas de audio",
         "covers": "Carátulas de álbum",
-        "local": "Música local",
         "lyrics": "Letras",
         "metadata": "Catálogo y búsqueda"
       },
@@ -1034,9 +1033,6 @@
       "device_usage_raw": "Liner está utilizando actualmente {size} de almacenamiento local.",
       "done_button": "Listo",
       "empty_storage": "¡La caché está completamente limpia!",
-      "local_confirm_button": "Borrar música local",
-      "local_confirm_desc": "La música local es tu biblioteca importada, no caché. Se borrarán de Liner {tracks} ({size}), junto con sus portadas. Tus archivos originales se quedan donde están.",
-      "local_confirm_title": "¿Borrar también tu música local?",
       "no_limit": "Sin límite",
       "open_folder": "Abrir carpeta de caché",
       "open_folder_description": "Abre la carpeta donde se almacenan la caché temporal y los archivos multimedia",

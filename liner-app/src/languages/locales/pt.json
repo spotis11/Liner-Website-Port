@@ -1027,7 +1027,6 @@
       "categories": {
         "audio": "Faixas de áudio",
         "covers": "Capas",
-        "local": "Música local",
         "lyrics": "Letras",
         "metadata": "Catálogo e pesquisa"
       },
@@ -1044,9 +1043,6 @@
       "device_usage_raw": "O Liner está usando {size} do armazenamento local.",
       "done_button": "Concluir",
       "empty_storage": "O cache está limpinho!",
-      "local_confirm_button": "Apagar música local",
-      "local_confirm_desc": "A música local é a sua biblioteca importada, não cache. {tracks} ({size}) serão apagadas do Liner, junto com as capas. Os seus arquivos originais continuam onde estão.",
-      "local_confirm_title": "Apagar também a sua música local?",
       "no_limit": "Sem limite",
       "open_folder": "Abrir pasta do cache",
       "open_folder_description": "Abre a pasta onde ficam os itens temporários do cache e as mídias",

@@ -72,7 +72,6 @@ import {
 } from "./snap-native.js";
 import { DiscordRpcManager } from "./discord.js";
 import { PoTokenService } from "./youtube/potoken.js";
-import { setupLocalTracks } from "./local-tracks/ipc.js";
 import {
   createSavedTrackLibrary,
   setupSavedTracks,
@@ -82,7 +81,6 @@ import {
   installNetSimulation,
   simulatedResponseStatus,
 } from "./netsim/install.js";
-import { registerLocalTrackScheme } from "./local-tracks/protocol.js";
 import { attachZoomControls } from "./zoom.js";
 import {
   YOUTUBE_REQUEST_URLS,
@@ -108,7 +106,6 @@ app.commandLine.appendSwitch("disable-http2");
 if (detectCompositor() !== "none") {
   app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
 }
-registerLocalTrackScheme();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -533,7 +530,6 @@ if (!gotTheLock) {
       app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME);
     }
     const savedTracks = createSavedTrackLibrary();
-    setupLocalTracks(savedTracks);
     setupSavedTracks(savedTracks);
     installNetSimulation(session.defaultSession);
     setupNetProbe();

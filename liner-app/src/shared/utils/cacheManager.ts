@@ -1,5 +1,4 @@
 import { linerDb } from "@/shared/storage/linerDb";
-import { useLocalLibraryStore } from "@/features/library/local/store/localLibraryStore";
 import {
   audioCache,
   DEFAULT_AUDIO_CACHE_LIMIT_BYTES,
@@ -34,12 +33,11 @@ const PRESERVED_STORAGE_KEYS = new Set([
 ]);
 
 export type StorageCategoryId =
-  "covers" | "audio" | "lyrics" | "metadata" | "local" | "liked";
+  "covers" | "audio" | "lyrics" | "metadata" | "liked";
 
 export type StorageCategoryGroup = "music" | "cache";
 
 export const LIBRARY_CATEGORY_IDS: ReadonlySet<StorageCategoryId> = new Set([
-  "local",
   "liked",
 ]);
 
@@ -324,16 +322,6 @@ export async function getStorageAnalytics(): Promise<StorageAnalytics> {
     }
   }
 
-  let localBytes = 0;
-  let localCount = 0;
-  if (typeof window !== "undefined" && window.linerElectron?.localTracksUsage) {
-    try {
-      const usage = await window.linerElectron.localTracksUsage();
-      localBytes = usage.bytes;
-      localCount = usage.count;
-    } catch {}
-  }
-
   let likedBytes = 0;
   let likedCount = 0;
   let freeBytes: number | undefined;
@@ -400,14 +388,6 @@ export async function getStorageAnalytics(): Promise<StorageAnalytics> {
       group: "cache",
     },
     {
-      id: "local",
-      labelKey: "settings.storage.categories.local",
-      bytes: localBytes,
-      count: localCount,
-      color: "#047857",
-      group: "music",
-    },
-    {
       id: "liked",
       labelKey: "settings.storage.categories.liked",
       bytes: likedBytes,
@@ -443,9 +423,6 @@ export async function clearStorageCategories(
   categoryIds: StorageCategoryId[],
 ): Promise<void> {
   const set = new Set(categoryIds);
-  if (set.has("local")) {
-    await useLocalLibraryStore.getState().removeAll();
-  }
   const isAllCategories =
     set.has("audio") &&
     set.has("covers") &&

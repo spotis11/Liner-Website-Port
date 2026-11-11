@@ -24,7 +24,6 @@ import {
 } from "./playbackStream";
 import { findYoutubeStandIn } from "./youtubeStandIn";
 import { findExactSongVersion } from "./exactSongVersion";
-import { isLocalTrackId, localTrackAudioUrl } from "@/shared/media/local";
 import { savedAudioUrl, savedTrackRecord } from "@/shared/media/saved";
 import { appAllowsAccountPlayback } from "./accountPlayback";
 import {
@@ -195,19 +194,6 @@ export async function resolvePlaybackStream(
   signal?: AbortSignal,
   options: ResolveStreamOptions = {},
 ): Promise<PlaybackStream> {
-  // local library files never touch the network — served by the desktop's
-  // privileged scheme (upstream parity); on the web build these ids never occur
-  if (isLocalTrackId(track.id)) {
-    recordPlaybackSuccess("played", "local file", track.title);
-    return {
-      url: localTrackAudioUrl(track.id),
-      source: "local",
-      expiresAtMs: null,
-      mimeType: "",
-      codec: "local",
-      bitrate: 0,
-    };
-  }
   // saved-offline likes are served from their own on-disk library
   const saved = savedTrackRecord(track.id);
   if (saved) {

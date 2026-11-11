@@ -3,7 +3,6 @@ import { HeartFill } from "@mingcute/react";
 import { ToggleSwitch } from "@/shared/ui";
 import { PresetPills } from "@/shared/ui/PresetPills";
 import { useTranslation } from "@/languages";
-import { LocalFilesIcon, useLocalLibraryStore } from "@/features/library/local";
 import { useSavedTracksStore } from "@/features/library/saved";
 import {
   formatStorageBytes,
@@ -28,16 +27,14 @@ function RowIcon({ children }: { children: ReactNode }) {
 
 export function StorageDownloadsSection({
   liked,
-  local,
   onRemove,
   songBytes,
   searchQuery,
 }: {
   songBytes: number;
   liked?: StorageCategoryItem;
-  local?: StorageCategoryItem;
   onRemove: (
-    kind: "liked" | "local",
+    kind: "liked",
     bytes: number,
     remove: () => Promise<unknown>,
   ) => void;
@@ -51,7 +48,6 @@ export function StorageDownloadsSection({
   const setEnabled = useSavedTracksStore((state) => state.setEnabled);
   const setLimitBytes = useSavedTracksStore((state) => state.setLimitBytes);
   const removeSaved = useSavedTracksStore((state) => state.removeAll);
-  const removeLocal = useLocalLibraryStore((state) => state.removeAll);
 
   const limitSongs = useSongEstimate(limitBytes, songBytes);
   const savedCount = records.length;
@@ -59,8 +55,6 @@ export function StorageDownloadsSection({
     records.length > 0
       ? records.reduce((sum, record) => sum + record.byteSize, 0)
       : (liked?.bytes ?? 0);
-  const localBytes = local?.bytes ?? 0;
-  const localCount = local?.count ?? 0;
 
   const likedDescription = (() => {
     if (!enabled) return t("settings.storage.liked_status.disabled");
@@ -131,36 +125,6 @@ export function StorageDownloadsSection({
               ariaLabel={t("settings.storage.liked_toggle")}
             />
           </div>
-        }
-      />
-
-      <SettingRow
-        icon={
-          <RowIcon>
-            <LocalFilesIcon size={18} />
-          </RowIcon>
-        }
-        title={t("settings.storage.categories.local")}
-        description={
-          localCount > 0
-            ? t("settings.storage.local_desc", {
-                songs: t("common.songs", { count: localCount }),
-              })
-            : t("settings.storage.local_empty")
-        }
-        explained
-        titleKey="settings.storage.categories.local"
-        searchQuery={searchQuery}
-        control={
-          <StorageSizeAction
-            bytes={localBytes}
-            actionLabel={t("settings.storage.remove")}
-            confirmLabel={t("settings.storage.remove_size", {
-              size: formatStorageBytes(localBytes),
-            })}
-            disabled={localCount === 0}
-            onConfirm={() => onRemove("local", localBytes, removeLocal)}
-          />
         }
       />
 

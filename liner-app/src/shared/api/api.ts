@@ -21,7 +21,6 @@ import type {
 } from "@/shared/contracts";
 
 import { usePlayerStore } from "@/features/player/store/playerStore";
-import { isLocalTrackId } from "@/shared/media/local";
 import { showToast } from "@/shared/ui/Toast";
 import { createTranslatorSync, getStoredLocale } from "@/languages";
 import {
@@ -147,7 +146,7 @@ function getPlatform(): string {
 function getActiveSessionId(): string | undefined {
   try {
     const id = usePlayerStore.getState().currentTrack?.id;
-    return id && !isLocalTrackId(id) ? id : undefined;
+    return id || undefined;
   } catch {
     return undefined;
   }
@@ -802,7 +801,6 @@ export const api = {
   },
 
   async likeTrack(id: string): Promise<void> {
-    if (isLocalTrackId(id)) throw new Error("Local tracks stay on this device");
     const track = await clientCatalog.resolveSnapshot(id);
     return request<void>("/api/library/tracks", {
       method: "PUT",
@@ -926,8 +924,6 @@ export const api = {
     trackId: string,
     snapshot?: ApiTrackBase,
   ): Promise<ApiUserPlaylistItem> {
-    if (isLocalTrackId(trackId))
-      throw new Error("Local tracks stay on this device");
     const track = snapshot ?? (await clientCatalog.resolveSnapshot(trackId));
     return request<ApiUserPlaylistItem>(
       `/api/library/playlists/${encodeURIComponent(playlistId)}/tracks/${encodeURIComponent(trackId)}`,

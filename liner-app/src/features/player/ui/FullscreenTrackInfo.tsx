@@ -8,7 +8,6 @@ import {
 } from "@/features/library/hooks";
 import { useAddCurrentTrackToPlaylist } from "../hooks/useAddCurrentTrackToPlaylist";
 import { ArtistAvatar, ArtistLink } from "@/features/artist";
-import { isLocalTrackId } from "@/shared/media/local";
 import { useTranslation } from "@/languages";
 import { ScrollableText } from "@/shared/ui";
 import { usePlayerStore } from "../store/playerStore";
@@ -26,7 +25,6 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
   const track = usePlayerStore((s) => s.currentTrack);
   const glassBlur = useGlassBlur();
 
-  const isLocal = isLocalTrackId(track?.id);
   const isLiked = useIsTrackLiked(track?.id);
   const likeMutation = useLikeTrack();
   const unlikeMutation = useUnlikeTrack();
@@ -68,18 +66,15 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
               </svg>
             </span>
           )}
-          {!isLocal && (
-            <ArtistAvatar
-              artistId={track?.artistId}
-              artistList={track?.artistList}
-              size={18}
-            />
-          )}
+          <ArtistAvatar
+            artistId={track?.artistId}
+            artistList={track?.artistList}
+            size={18}
+          />
           <ArtistLink
             name={track?.artists || ""}
             artistId={track?.artistId}
             artistList={track?.artistList}
-            plain={isLocal}
             onNavigate={() => {
               if (location.pathname !== "/player") onClose?.();
             }}
@@ -88,34 +83,30 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
         </p>
       </div>
 
-      {!isLocal && (
-        <button
-          type="button"
-          aria-label={isLiked ? t("common.unlike") : t("common.like")}
-          onClick={handleLikeToggle}
-          className={cn(
-            "relative inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[11px] border-none bg-white/[0.06] cursor-pointer text-white transition-colors duration-200 ease-out hover:bg-white/[0.12] active:scale-[0.92]",
-            glassBlur && "backdrop-blur-xl backdrop-brightness-[1.15]",
-          )}
-        >
-          <LikeMorphIcon liked={Boolean(isLiked)} size={20} />
-        </button>
-      )}
+      <button
+        type="button"
+        aria-label={isLiked ? t("common.unlike") : t("common.like")}
+        onClick={handleLikeToggle}
+        className={cn(
+          "relative inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[11px] border-none bg-white/[0.06] cursor-pointer text-white transition-colors duration-200 ease-out hover:bg-white/[0.12] active:scale-[0.92]",
+          glassBlur && "backdrop-blur-xl backdrop-brightness-[1.15]",
+        )}
+      >
+        <LikeMorphIcon liked={Boolean(isLiked)} size={20} />
+      </button>
 
-      {!isLocal && (
-        <button
-          type="button"
-          aria-label={t("common.add_to_playlist")}
-          title={t("common.add_to_playlist")}
-          onClick={openAddToPlaylist}
-          className={cn(
-            "inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[11px] border-none bg-white/[0.06] cursor-pointer text-white transition-colors duration-200 ease-out hover:bg-white/[0.12] active:scale-[0.92]",
-            glassBlur && "backdrop-blur-xl backdrop-brightness-[1.15]",
-          )}
-        >
-          <AddLine size={20} />
-        </button>
-      )}
+      <button
+        type="button"
+        aria-label={t("common.add_to_playlist")}
+        title={t("common.add_to_playlist")}
+        onClick={openAddToPlaylist}
+        className={cn(
+          "inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[11px] border-none bg-white/[0.06] cursor-pointer text-white transition-colors duration-200 ease-out hover:bg-white/[0.12] active:scale-[0.92]",
+          glassBlur && "backdrop-blur-xl backdrop-brightness-[1.15]",
+        )}
+      >
+        <AddLine size={20} />
+      </button>
     </div>
   );
 }

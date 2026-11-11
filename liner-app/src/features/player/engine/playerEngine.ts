@@ -6,7 +6,6 @@ import {
   type PlayerState,
 } from "../store/playerStore";
 import { playerRuntime } from "./playerRuntime";
-import { isLocalTrackId } from "@/shared/media/local";
 import { EQ_MAX_CUSTOM_PRESETS, EQ_PRESET_NAME_MAX } from "./equalizer";
 import { isRadioContext, shouldRefillRadio } from "./radioMode";
 import { pitchShifter } from "./pitchShifter";
@@ -230,18 +229,6 @@ class PlaybackTelemetryTracker {
 
     if (this.playedDurationMs >= 3000 || this.completed) {
       const snap = this.activeTrack;
-      // local tracks live on the user's device — nothing to report upstream
-      if (snap && isLocalTrackId(snap.id)) {
-        this.activeTrackId = null;
-        this.activeTrack = null;
-        this.playbackSessionId = "";
-        this.lastTickTime = null;
-        this.playedDurationMs = 0;
-        this.completed = false;
-        this.loopCount = 0;
-        this.hasSeekBackward = false;
-        return Promise.resolve();
-      }
       const artistsList = snap?.artistList?.length
         ? snap.artistList.map((a) => ({ id: a.id || "unknown", name: a.name }))
         : snap?.artists

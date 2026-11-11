@@ -10,7 +10,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { SongCardWithMenu, playerEngine } from "@/features/player";
 import type { Track } from "@/shared/types";
 import { useTranslation } from "@/languages";
-import { formatTrackDuration } from "../../local/lib/formatLocalDurations";
+import { formatTrackDuration } from "@/shared/utils/formatTrackDurations";
 import { useCachedTracksStore } from "../store/cachedTracksStore";
 
 const ROW_HEIGHT = 64;
@@ -28,14 +28,9 @@ const CachedTrackRow = memo(function CachedTrackRow({
   highlight?: string;
   top: number;
 }) {
-  const remove = useCachedTracksStore((state) => state.remove);
   const play = useCallback(
     () => void playerEngine.playTrack(track, queue, context),
     [track, queue, context],
-  );
-  const removeFromDevice = useCallback(
-    () => void remove(track.id),
-    [remove, track.id],
   );
 
   return (
@@ -54,7 +49,6 @@ const CachedTrackRow = memo(function CachedTrackRow({
         durationMs={track.durationMs}
         highlight={highlight}
         onPlay={play}
-        onRemoveFromDevice={removeFromDevice}
       />
     </div>
   );

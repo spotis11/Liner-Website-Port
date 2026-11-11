@@ -47,7 +47,6 @@ import {
   useHasPageBackdrop,
 } from "@/features/settings/store/customizationStore";
 import { ArtistAvatar, ArtistLink } from "@/features/artist";
-import { isLocalTrackId } from "@/shared/media/local";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import { useSongMenuItems } from "../hooks/useSongMenuItems";
 
@@ -330,7 +329,6 @@ function MiniPlayer({
 
   const currentTrack = player.currentTrack;
   const volumeLevel = toVolumeLevel(player.volume);
-  const isLocal = isLocalTrackId(currentTrack?.id);
   const isLiked = useIsTrackLiked(currentTrack?.id);
   const eqActive = isEqActive(player.isEqEnabled, player.eqGains);
   const likeMutation = useLikeTrack();
@@ -841,24 +839,20 @@ function MiniPlayer({
                     </span>
                   </span>
                 )}
-                {!isLocal && (
-                  <ArtistAvatar
-                    artistId={player.currentTrack?.artistId}
-                    artistList={player.currentTrack?.artistList}
-                    size={15}
-                  />
-                )}
+                <ArtistAvatar
+                  artistId={player.currentTrack?.artistId}
+                  artistList={player.currentTrack?.artistList}
+                  size={15}
+                />
                 <ArtistLink
                   name={trackArtists}
                   artistId={player.currentTrack?.artistId}
                   artistList={player.currentTrack?.artistList}
-                  plain={isLocal}
                   className="text-text-tertiary pointer-events-auto"
                 />
               </p>
             </div>
-            {!isLocal && (
-              <button
+            <button
                 type="button"
                 aria-label={isLiked ? "Unlike" : "Like"}
                 className={`${iconButtonClass} shrink-0 transition-colors duration-150 pointer-events-auto prevent-seek ${
@@ -872,7 +866,6 @@ function MiniPlayer({
               >
                 {isLiked ? <HeartFill size={20} /> : <HeartLine size={20} />}
               </button>
-            )}
           </div>
 
           <div

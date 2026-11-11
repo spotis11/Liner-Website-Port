@@ -10,7 +10,6 @@ import { getAuthSession } from "@/shared/api/auth-session";
 import type { DiscordRpcSettings, DiscordRpcStatePayload } from "../contracts";
 import { useDiscordSettingsStore } from "../store/discordSettingsStore";
 import { discordGateway, toDiscordFetchableUrl } from "../lib/discordGateway";
-import { isLocalTrackId } from "@/shared/media/local";
 
 
 export function useDiscordSync() {
@@ -184,7 +183,7 @@ export function useDiscordSync() {
       status: player.status,
       track: currentTrack
         ? {
-            id: isLocalTrackId(currentTrack.id) ? "" : currentTrack.id,
+            id: currentTrack.id,
             title: currentTrack.title,
             artist: artistName,
             artistId: primaryArtistId,

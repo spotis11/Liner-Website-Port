@@ -68,7 +68,7 @@ function TelegramCleaningDuck({ size = 130 }: { size?: number }) {
   );
 }
 
-type ClearKind = "cache" | "liked" | "local";
+type ClearKind = "cache" | "liked";
 
 const CLEAR_COPY: Record<
   ClearKind,
@@ -85,12 +85,6 @@ const CLEAR_COPY: Record<
     workingDesc: "settings.storage.removing_subtitle",
     done: "settings.storage.removed_title",
     doneDesc: "settings.storage.removed_liked_subtitle",
-  },
-  local: {
-    working: "settings.storage.removing_local_title",
-    workingDesc: "settings.storage.removing_subtitle",
-    done: "settings.storage.removed_title",
-    doneDesc: "settings.storage.removed_local_subtitle",
   },
 };
 
@@ -301,7 +295,6 @@ export function StorageTab({ searchQuery }: { searchQuery?: string }) {
             <StorageDownloadsSection
               songBytes={songBytes}
               liked={musicCategories.find((c) => c.id === "liked")}
-              local={musicCategories.find((c) => c.id === "local")}
               onRemove={(kind, bytes, remove) =>
                 void runClear(kind, bytes, remove)
               }

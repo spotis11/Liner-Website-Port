@@ -1018,7 +1018,6 @@
       "categories": {
         "audio": "Lagu Audio",
         "covers": "Sampul",
-        "local": "Musik Lokal",
         "lyrics": "Lirik",
         "metadata": "Katalog & Pencarian"
       },
@@ -1035,9 +1034,6 @@
       "device_usage_raw": "Liner saat ini menggunakan {size} penyimpanan lokal.",
       "done_button": "Selesai",
       "empty_storage": "Cache sudah bersih kinclong!",
-      "local_confirm_button": "Hapus musik lokal",
-      "local_confirm_desc": "Musik Lokal adalah pustaka yang kamu impor, bukan cache. {tracks} ({size}) akan dihapus dari Liner beserta sampulnya. File aslimu tetap di tempatnya.",
-      "local_confirm_title": "Hapus juga musik lokalmu?",
       "no_limit": "Tanpa batas",
       "open_folder": "Buka Folder Cache",
       "open_folder_description": "Tampilkan folder tempat cache sementara dan media dikumpulkan",

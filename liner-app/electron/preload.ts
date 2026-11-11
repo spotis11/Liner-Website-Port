@@ -9,11 +9,6 @@ import type { SolveResult as YoutubeSolveResult } from "./youtube/n-solver";
 import type { MainNetResult } from "./netdiag";
 import type { NetProbeResult } from "./netprobe/types";
 import type {
-  LocalImportResult,
-  LocalLibraryUsage,
-  LocalTrackRecord,
-} from "./local-tracks/types";
-import type {
   SavedLibraryUsage,
   SavedLyricsState,
   SavedTrackInput,
@@ -205,12 +200,6 @@ export interface LinerElectronApi {
     playerId: string,
     values: string[],
   ) => Promise<YoutubeSolveResult>;
-  localTracksList: () => Promise<LocalTrackRecord[]>;
-  localTracksImport: (paths: string[]) => Promise<LocalImportResult>;
-  localTracksPick: () => Promise<LocalImportResult | null>;
-  localTracksRemove: (ids: string[]) => Promise<void>;
-  localTracksRemoveAll: () => Promise<number>;
-  localTracksUsage: () => Promise<LocalLibraryUsage>;
   savedTracksList: () => Promise<SavedTrackRecord[]>;
   savedTracksSave: (input: SavedTrackInput) => Promise<SavedTrackRecord | null>;
   savedTracksRemove: (trackIds: string[]) => Promise<number>;
@@ -472,13 +461,6 @@ const api: LinerElectronApi = {
   youtubeTvSession: () => ipcRenderer.invoke("youtube:tv-session"),
   youtubeSolveN: (playerId, values) =>
     ipcRenderer.invoke("youtube:solve-n", { playerId, values }),
-  localTracksList: () => ipcRenderer.invoke("local-tracks:list"),
-  localTracksImport: (paths) =>
-    ipcRenderer.invoke("local-tracks:import", paths),
-  localTracksPick: () => ipcRenderer.invoke("local-tracks:pick"),
-  localTracksRemove: (ids) => ipcRenderer.invoke("local-tracks:remove", ids),
-  localTracksRemoveAll: () => ipcRenderer.invoke("local-tracks:remove-all"),
-  localTracksUsage: () => ipcRenderer.invoke("local-tracks:usage"),
   savedTracksList: () => ipcRenderer.invoke("saved-tracks:list"),
   savedTracksSave: (input) => ipcRenderer.invoke("saved-tracks:save", input),
   savedTracksRemove: (trackIds) =>

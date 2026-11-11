@@ -17,7 +17,6 @@ import {
   useLikeTrack,
   useUnlikeTrack,
 } from "@/features/library/hooks";
-import { isLocalTrackId } from "@/shared/media/local/localTrackIds";
 import { useTranslation } from "@/languages";
 
 export interface MiniPipPlayerProps {
@@ -78,7 +77,7 @@ function MiniPipPlayer({ pipWindow }: MiniPipPlayerProps) {
   );
 
   const progress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0;
-  const showLike = track !== null && !isLocalTrackId(track.id);
+  const showLike = track !== null;
 
   return (
     <div

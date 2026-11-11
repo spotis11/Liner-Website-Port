@@ -908,7 +908,6 @@
       "categories": {
         "audio": "Audiodateien",
         "covers": "Cover-Artwork",
-        "local": "Lokale Musik",
         "lyrics": "Songtexte",
         "metadata": "Katalog & Suche"
       },
@@ -925,9 +924,6 @@
       "device_usage_raw": "Liner belegt derzeit {size} lokalen Speicher.",
       "done_button": "Fertig",
       "empty_storage": "Dein Cache ist leer.",
-      "local_confirm_button": "Lokale Musik löschen",
-      "local_confirm_desc": "Lokale Musik ist deine importierte Bibliothek, kein Cache. {tracks} ({size}) werden samt Covern aus Liner gelöscht. Deine Originaldateien bleiben, wo sie sind.",
-      "local_confirm_title": "Auch deine lokale Musik löschen?",
       "no_limit": "Kein Limit",
       "open_folder": "Cache-Ordner öffnen",
       "open_folder_description": "Zeigt den Ordner, in dem temporärer Cache und Medien gesammelt werden",

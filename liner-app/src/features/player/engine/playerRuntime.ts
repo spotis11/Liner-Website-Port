@@ -7,7 +7,6 @@ import { isStandaloneAudioFile } from "@/shared/storage/audioFormat";
 import type { Track } from "@/shared/types";
 import { pitchShifter } from "./pitchShifter";
 import { FLAT_EQ, isEqActive } from "./equalizer";
-import { isLocalTrackId } from "@/shared/media/local";
 import { isSavedTrack } from "@/shared/media/saved";
 import { resolvePlaybackStream, type PlaybackStream } from "./streamResolver";
 import { markLinerStreamFailed } from "@/shared/media/liner/linerPlayback";
@@ -703,7 +702,7 @@ export class PlayerRuntime {
 
   public async preloadTrack(track: Track): Promise<void> {
     if (this.currentTrackId === track.id) return;
-    if (isLocalTrackId(track.id) || isSavedTrack(track.id)) return;
+    if (isSavedTrack(track.id)) return;
     if (this.preloadingTrackId === track.id) return;
 
     const cached = await linerDb.getAudio(track.id);
@@ -1238,7 +1237,7 @@ export class PlayerRuntime {
     stream: PlaybackStream,
     signal: AbortSignal,
   ) {
-    if (isLocalTrackId(track.id) || isSavedTrack(track.id)) return;
+    if (isSavedTrack(track.id)) return;
     if (track.durationMs && track.durationMs > 20 * 60 * 1000) return;
     const generation = audioCache.currentGeneration();
     void (async () => {

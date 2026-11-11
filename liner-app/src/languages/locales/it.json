@@ -963,7 +963,6 @@
       "categories": {
         "audio": "Tracce audio",
         "covers": "Copertine",
-        "local": "Musica locale",
         "lyrics": "Testi",
         "metadata": "Catalogo e ricerca"
       },
@@ -980,9 +979,6 @@
       "device_usage_raw": "Liner sta usando {size} di spazio locale.",
       "done_button": "Fatto",
       "empty_storage": "La cache è pulitissima!",
-      "local_confirm_button": "Elimina musica locale",
-      "local_confirm_desc": "La musica locale è la tua libreria importata, non cache. {tracks} ({size}) verranno eliminati da Liner, insieme alle copertine. I tuoi file originali restano dove sono.",
-      "local_confirm_title": "Eliminare anche la tua musica locale?",
       "no_limit": "Nessun limite",
       "open_folder": "Apri cartella della cache",
       "open_folder_description": "Mostra la cartella in cui vengono raccolti la cache temporanea e i contenuti multimediali",

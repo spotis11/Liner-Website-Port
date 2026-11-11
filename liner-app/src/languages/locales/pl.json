@@ -967,7 +967,6 @@
       "categories": {
         "audio": "Ścieżki audio",
         "covers": "Okładki",
-        "local": "Muzyka lokalna",
         "lyrics": "Teksty",
         "metadata": "Katalog i wyszukiwanie"
       },
@@ -984,9 +983,6 @@
       "device_usage_raw": "Liner używa obecnie {size} pamięci lokalnej.",
       "done_button": "Gotowe",
       "empty_storage": "Pamięć podręczna jest czysta!",
-      "local_confirm_button": "Usuń muzykę lokalną",
-      "local_confirm_desc": "Muzyka lokalna to twoja zaimportowana biblioteka, a nie pamięć podręczna. {tracks} ({size}) zostanie usuniętych z Liner razem z okładkami. Oryginalne pliki zostaną na miejscu.",
-      "local_confirm_title": "Usunąć też muzykę lokalną?",
       "no_limit": "Bez limitu",
       "open_folder": "Otwórz folder pamięci podręcznej",
       "open_folder_description": "Pokaż folder, w którym zapisywane są pliki tymczasowe i multimedia",

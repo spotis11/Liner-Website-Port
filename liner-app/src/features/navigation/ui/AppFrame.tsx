@@ -61,7 +61,6 @@ import {
   RemoveFromLibraryModal,
   ImportLikesModal,
   ImportReviewModal,
-  LocalDropZone,
   CreatePlaylistModal,
   useModalStore,
 } from "@/features/library";
@@ -103,7 +102,6 @@ const AppOverlays = memo(function AppOverlays() {
       <ImportLikesModal />
       <CreatePlaylistModal />
       <ImportReviewModal />
-      <LocalDropZone />
       <SettingsModal />
       <UpdateModal />
       <YoutubeSignInNotice />
@@ -299,7 +297,6 @@ export default function AppFrame({ children }: AppFrameProps) {
   const isBackNavigableRoute =
     pathname === "/artist" ||
     pathname === "/library/playlist" ||
-    pathname === "/library/local" ||
     pathname === "/library/cached" ||
     pathname === "/library/saved" ||
     pathname === "/collection";

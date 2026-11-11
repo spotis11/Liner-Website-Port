@@ -4,14 +4,12 @@ import allOfflineCover from "@/assets/all-offline-cover.svg";
 import { playerEngine } from "@/features/player";
 import { useTranslation } from "@/languages";
 import { useCachedTracksStore } from "../cached";
-import { useLocalTracks } from "../local/hooks/useLocalTracks";
 import { useSavedTracks } from "../saved/hooks/useSavedTracks";
 import { mergeOfflineTracks } from "../lib/offlineMix";
 
 export default function OfflineMixCard() {
   const { t } = useTranslation();
   const { tracks: saved, isLoading: savedLoading } = useSavedTracks();
-  const { tracks: local, isLoading: localLoading } = useLocalTracks();
   const cachedItems = useCachedTracksStore((state) => state.items);
   const cachedLoaded = useCachedTracksStore((state) => state.loaded);
   const loadCached = useCachedTracksStore((state) => state.load);
@@ -25,11 +23,10 @@ export default function OfflineMixCard() {
       mergeOfflineTracks(
         saved,
         cachedItems.map((item) => item.track),
-        local,
       ),
-    [saved, cachedItems, local],
+    [saved, cachedItems],
   );
-  const loading = savedLoading || localLoading || !cachedLoaded;
+  const loading = savedLoading || !cachedLoaded;
   const context = t("library.offline_mix.title");
 
   if (!loading && tracks.length === 0) return null;
