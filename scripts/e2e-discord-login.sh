@@ -26,6 +26,7 @@ cd /home/z/my-project
 DATABASE_URL="file:/home/z/my-project/db/custom.db" \
 DISCORD_API_BASE="http://127.0.0.1:9420" \
 DISCORD_AUTHORIZE_BASE="http://127.0.0.1:9420/oauth2/authorize" \
+DISCORD_PUBLIC_BASE="http://127.0.0.1:3000" \
 NODE_ENV=production PORT=3000 HOSTNAME=127.0.0.1 \
 nohup node .next/standalone/server.js > /tmp/liner-prod.log 2>&1 &
 echo $! > /tmp/liner-prod.pid
