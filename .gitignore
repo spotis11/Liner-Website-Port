@@ -92,3 +92,7 @@ scripts/e2e-profile/
 
 # runtime full-database mirror (never ship, never commit)
 /db/db-mirror.json
+# deploy-time cache of the last successful production export (contains
+# account rows — never commit; primary fallback for the build seed)
+/db/production-mirror-latest.json
+/scripts/webserver.pid

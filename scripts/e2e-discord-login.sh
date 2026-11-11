@@ -12,6 +12,7 @@ step() { echo; echo "=== $1 ==="; }
 strip() { sed -e 's/\\"/"/g' <<< "$1" | sed -e 's/^"//' -e 's/"$//'; }
 
 step "1. mock discord up + prod server restarted with mock endpoints"
+rm -rf /tmp/discord-e2e && mkdir -p /tmp/discord-e2e
 if curl -s -o /dev/null --max-time 2 http://127.0.0.1:9420/users/@me; then
   echo "  mock already running"
 else
@@ -23,7 +24,7 @@ if [ -f /tmp/liner-prod.pid ] && kill -0 "$(cat /tmp/liner-prod.pid)" 2>/dev/nul
   kill "$(cat /tmp/liner-prod.pid)"; sleep 2
 fi
 cd /home/z/my-project
-DATABASE_URL="file:/home/z/my-project/db/custom.db" \
+DATABASE_URL="file:/tmp/discord-e2e/custom.db" \
 DISCORD_API_BASE="http://127.0.0.1:9420" \
 DISCORD_AUTHORIZE_BASE="http://127.0.0.1:9420/oauth2/authorize" \
 DISCORD_PUBLIC_BASE="http://127.0.0.1:3000" \
@@ -93,7 +94,7 @@ $AB screenshot /tmp/render/discord-e2e-signedin.png 2>&1 | tail -1
 step "6. server-side: account row exists with discordId + session"
 ACC=$(cd /home/z/my-project && python3 -c "
 import sqlite3
-c = sqlite3.connect('db/custom.db')
+c = sqlite3.connect('/tmp/discord-e2e/custom.db')
 row = c.execute(\"SELECT username, displayName, discordId, avatarUrl FROM Account WHERE discordId='918273645500000001'\").fetchone()
 print(row)")
 echo "  db: $ACC"
@@ -110,4 +111,11 @@ echo "  raw: $($AB errors 2>/dev/null | head -3 | tr '\n' ' ')"
 echo
 echo "RESULT: PASS=$PASS FAIL=$FAIL"
 # leave the mock running for teardown by the caller; note pid
+# teardown: restore the standard :3000 dev server (workspace db, no mock)
+if [ -f /tmp/liner-prod.pid ] && kill -0 "$(cat /tmp/liner-prod.pid)" 2>/dev/null; then
+  kill "$(cat /tmp/liner-prod.pid)"; sleep 2
+fi
+python3 /home/z/my-project/scripts/spawn_prod_webserver.py > /tmp/liner-prod.log 2>&1
+sleep 3
+curl -s -o /dev/null -w "prod :3000 restored -> HTTP %{http_code}\n" http://localhost:3000
 echo "mock pid: $(cat /tmp/mock_discord.pid)"

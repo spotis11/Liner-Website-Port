@@ -1,6 +1,6 @@
-import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { buildDbMirrorSnapshot, ensureDbReady } from "@/lib/db";
+import { checkDbMirrorKey } from "@/lib/dbMirrorGate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,55 +19,15 @@ export const dynamic = "force-dynamic";
  * exactly what production had at build time (see restoreDbFromMirror in
  * src/lib/db.ts and .zscripts/database-runtime-build.sh).
  *
- * AUTH: the response contains every account row (password hashes, emails,
- * session token hashes), so it is locked behind DB_MIRROR_EXPORT_KEY — a
- * random secret shared only between this server's env and the workspace
- * build (both read the same gitignored .env; the key never enters git).
- * Unconfigured server → 503 (build falls back to the workspace seed).
- * Timing-safe comparison; no CORS headers, so browsers can't read it.
- *
- * KEY TRANSPORTS: the platform's HTTP gateway strips non-standard request
- * headers (it already rewrites Host and intercepts HEAD), which silently
- * emptied `x-db-mirror-key` and made every deploy-time export 403 — the
- * build then fell back to the stale workspace mirror and users lost their
- * accounts all over again (v1.14.2). The key is therefore accepted through
- * every transport a gateway must respect, in order:
- *   1. `x-db-mirror-key: <key>`      (original, works server-to-server locally)
- *   2. `authorization: Bearer <key>` (core HTTP — no gateway drops this)
- *   3. `?exportKey=<key>`            (last-resort fallback; HTTPS-only secret,
- *                                     kept out of build logs)
- *
- * Intentionally NOT gated by the maintenance wall: deploys often happen
- * during maintenance, and the round-trip must keep working then.
+ * AUTH + key transports: see src/lib/dbMirrorGate.ts (shared with the
+ * restore endpoint). Intentionally NOT gated by the maintenance wall: deploys
+ * often happen during maintenance, and the round-trip must keep working then.
  */
 export async function GET(req: NextRequest) {
-  const expected = process.env.DB_MIRROR_EXPORT_KEY?.trim();
-  if (!expected) {
-    return NextResponse.json(
-      { error: "db mirror export is not configured on this server" },
-      { status: 503 },
-    );
-  }
-
-  const headerKey = req.headers.get("x-db-mirror-key")?.trim() ?? "";
-  const bearerKey =
-    req.headers
-      .get("authorization")
-      ?.replace(/^Bearer\s+/i, "")
-      .trim() ?? "";
-  const paramKey = req.nextUrl.searchParams.get("exportKey")?.trim() ?? "";
-  const provided = headerKey || bearerKey || paramKey;
-
-  const ok =
-    provided.length > 0 &&
-    provided.length === expected.length &&
-    crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
-  if (!ok) {
-    // Diagnostics only — never log the key material itself.
-    console.warn(
-      `[db-mirror] export request rejected (header=${headerKey ? `${headerKey.length} chars` : "absent"}, bearer=${bearerKey ? `${bearerKey.length} chars` : "absent"}, param=${paramKey ? `${paramKey.length} chars` : "absent"}, expected=${expected.length} chars)`,
-    );
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const gate = checkDbMirrorKey(req);
+  if (!gate.ok) {
+    if (gate.diagnostic) console.warn(gate.diagnostic);
+    return NextResponse.json(gate.body, { status: gate.status });
   }
 
   await ensureDbReady();

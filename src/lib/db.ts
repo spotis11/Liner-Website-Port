@@ -661,6 +661,94 @@ async function restoreDbFromMirror(): Promise<void> {
   }
 }
 
+/**
+ * Validate raw JSON text as a full-database mirror. Exported for the restore
+ * endpoint, which must never replace live production state with a malformed
+ * or empty payload — a mirror has to carry at least one account or one
+ * system key to be accepted (same rule the build's seed validation uses).
+ */
+export function parseDbMirrorPayload(raw: string): DbMirror | null {
+  const parsed = parseDbMirror(raw);
+  if (!parsed) return null;
+  const hasState =
+    (parsed.tables.account as unknown[]).length > 0 ||
+    (parsed.tables.systemKey as unknown[]).length > 0;
+  return hasState ? parsed : null;
+}
+
+/**
+ * Replace the contents of every mirrored table with the rows from `mirror`.
+ *
+ * WHY THIS EXISTS: the seed-mirror round-trip protects data going *into* a
+ * deploy, but once a bad seed has shipped (the historical workspace-fallback
+ * bug that wiped user accounts and echoed E2E test accounts into
+ * production), there was no way to repair the LIVE server short of another
+ * deploy. This is the owner's recovery tool: POST a known-good mirror
+ * (fetched via /api/db-mirror/latest, optionally cleaned) and production
+ * state is restored in place.
+ *
+ * Semantics: full REPLACE, not merge — rows absent from the mirror are
+ * deleted (deletes run in reverse FK order, inserts in RESTORE_ORDER).
+ * Caller is responsible for the key gate; this function is unfailingly
+ * destructive. The runtime db-mirror.json is refreshed afterwards so the
+ * next boot can't resurrect the replaced state from a stale mirror file.
+ */
+export async function replaceDbFromMirrorObject(
+  mirror: DbMirror,
+): Promise<{ restored: number; deleted: number; tables: Record<string, number> }> {
+  await ensureDbReady();
+
+  let deleted = 0;
+  for (const name of [...RESTORE_ORDER].reverse()) {
+    const delegate = (db as unknown as Record<
+      string,
+      { deleteMany: () => Promise<{ count: number }> }
+    >)[name];
+    try {
+      const result = await delegate.deleteMany();
+      deleted += result.count;
+    } catch (err) {
+      console.warn(`[db] mirror restore: deleteMany(${name}) failed:`, err);
+    }
+  }
+
+  let restored = 0;
+  const tables: Record<string, number> = {};
+  for (const name of RESTORE_ORDER) {
+    const rows = mirror.tables[name] ?? [];
+    tables[name] = 0;
+    if (rows.length === 0) continue;
+    const delegate = (db as unknown as Record<
+      string,
+      { createMany: (a: { data: unknown[] }) => Promise<{ count: number }> }
+    >)[name];
+    let ok = 0;
+    try {
+      const result = await delegate.createMany({ data: rows });
+      ok = result.count;
+    } catch {
+      // batch rejected (shape drift / duplicate) — insert row by row so one
+      // bad row cannot drop the whole table
+      for (const row of rows) {
+        try {
+          await delegate.createMany({ data: [row] });
+          ok += 1;
+        } catch {
+          // skip malformed row
+        }
+      }
+    }
+    tables[name] = ok;
+    restored += ok;
+  }
+
+  console.log(
+    `[db] mirror restore replaced state: deleted ${deleted} row(s), restored ${restored} row(s) (savedAt ${mirror.savedAt})`,
+  );
+  await refreshDbMirror();
+  return { restored, deleted, tables };
+}
+
 // --- ensureDbReady ----------------------------------------------------------
 
 let readyPromise: Promise<boolean> | null = null

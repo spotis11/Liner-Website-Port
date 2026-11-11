@@ -23,6 +23,13 @@ mkdir -p "$TARGET_DB_DIR"
 # mirror (see restoreDbFromMirror in src/lib/db.ts).
 
 SEED_PATH="$TARGET_DB_DIR/db-mirror-seed.json"
+# Persistent cache of the last SUCCESSFUL production export. Lives in the
+# workspace (gitignored), survives across builds. It is the primary fallback
+# source when the live fetch fails: a slightly stale production snapshot is
+# ALWAYS safer than the workspace's own db state, which local/E2E testing
+# pollutes with test accounts — shipping that state to production once wiped
+# real user accounts and echoed e2e_* test accounts into the live seed chain.
+CACHE_PATH="${DB_MIRROR_CACHE_PATH:-$SOURCE_DB_DIR/production-mirror-latest.json}"
 
 # --- NEW: prefer the LIVE production state over any local copy --------------
 # Every deploy can recreate the FC container; the workspace database has
@@ -32,7 +39,9 @@ SEED_PATH="$TARGET_DB_DIR/db-mirror-seed.json"
 # DB_MIRROR_EXPORT_KEY in the shared gitignored .env). Fetching it here makes
 # the package restore exactly what production had at build time.
 MIRROR_URL="${DB_MIRROR_SOURCE_URL:-https://liner-music.space-z.ai/api/db-mirror/latest}"
-MIRROR_KEY="$(grep -E '^DB_MIRROR_EXPORT_KEY=' "$PROJECT_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' | tr -d ' ' || true)"
+# Key precedence: explicit env override (E2E / alternate servers) first, then
+# the shared gitignored .env that workspace builds and production both read.
+MIRROR_KEY="${DB_MIRROR_EXPORT_KEY:-$(grep -E '^DB_MIRROR_EXPORT_KEY=' "$PROJECT_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' | tr -d ' ' || true)}"
 
 validate_mirror() {
     python3 - "$1" << 'PYEOF'
@@ -84,17 +93,48 @@ if [ -n "$MIRROR_KEY" ]; then
         echo "✅ $SUMMARY"
         echo "   → package will restore the LIVE production state (accounts/sessions survive the deploy)"
         FETCHED=1
+        # Persist this export as the emergency fallback for future builds.
+        if cp "$SEED_PATH" "$CACHE_PATH.tmp" 2>/dev/null && mv "$CACHE_PATH.tmp" "$CACHE_PATH"; then
+            echo "💾 cached production export for future fallback: $CACHE_PATH"
+        else
+            echo "⚠️  could not write the production mirror cache (non-fatal)"
+        fi
     else
-        echo "⚠️  fetched mirror invalid ($SUMMARY) — falling back to the workspace copy"
+        echo "⚠️  fetched mirror invalid ($SUMMARY)"
         rm -f "$SEED_PATH.tmp"
     fi
 else
-    echo "ℹ️  DB_MIRROR_EXPORT_KEY not set in .env — production mirror fetch skipped, using the workspace copy"
+    echo "ℹ️  DB_MIRROR_EXPORT_KEY not set in .env — production mirror fetch skipped"
+fi
+
+# --- Fallback chain (only reached when the live fetch did not happen) -------
+# Order matters and is deliberate:
+#   1. cached production export — the last state production is KNOWN to have
+#      had; at worst it loses accounts created since that export.
+#   2. workspace runtime mirror — last resort. DANGER: this file tracks the
+#      workspace's own db, which local/E2E testing pollutes with test
+#      accounts. Shipping it to production has historically wiped real user
+#      accounts; expect a loud warning here instead of a silent pass.
+if [ "$FETCHED" = "0" ]; then
+    if [ -f "$CACHE_PATH" ]; then
+        CACHE_SUMMARY="$(validate_mirror "$CACHE_PATH" || true)"
+        if [[ "$CACHE_SUMMARY" == OK* ]]; then
+            cp "$CACHE_PATH" "$SEED_PATH"
+            echo "🛟  LIVE FETCH UNAVAILABLE — using the cached production export ($CACHE_SUMMARY)"
+            echo "    Accounts created on production AFTER this export will NOT be in the package."
+            FETCHED=1
+        else
+            echo "⚠️  cached production export is invalid ($CACHE_SUMMARY) — ignoring it"
+        fi
+    fi
 fi
 
 if [ "$FETCHED" = "0" ]; then
     if [ -f "$SOURCE_DB_DIR/db-mirror.json" ]; then
-        echo "🗄️  Seeding the package mirror from the live runtime mirror (db/db-mirror.json)..."
+        echo "🚨  FALLING BACK TO THE WORKSPACE MIRROR ($SOURCE_DB_DIR/db-mirror.json)"
+        echo "    This file reflects the LOCAL workspace db, not production. If local"
+        echo "    or E2E testing ran against :3000, its test accounts ship to"
+        echo "    production with this package. Prefer fixing the live fetch first!"
         cp "$SOURCE_DB_DIR/db-mirror.json" "$SEED_PATH"
     else
         echo "🗄️  Generating the package mirror from the workspace database..."
