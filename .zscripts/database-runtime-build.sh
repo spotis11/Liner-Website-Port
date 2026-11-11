@@ -34,13 +34,8 @@ SEED_PATH="$TARGET_DB_DIR/db-mirror-seed.json"
 MIRROR_URL="${DB_MIRROR_SOURCE_URL:-https://liner-music.space-z.ai/api/db-mirror/latest}"
 MIRROR_KEY="$(grep -E '^DB_MIRROR_EXPORT_KEY=' "$PROJECT_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' | tr -d ' ' || true)"
 
-FETCHED=0
-if [ -n "$MIRROR_KEY" ]; then
-    echo "🗄️  Fetching the live production database mirror from $MIRROR_URL ..."
-    CURL_RC=0
-    curl -fsS -m 30 -H "x-db-mirror-key: $MIRROR_KEY" "$MIRROR_URL" -o "$SEED_PATH.tmp" 2>/dev/null || CURL_RC=$?
-    if [ "$CURL_RC" = "0" ]; then
-        if SUMMARY="$(python3 - "$SEED_PATH.tmp" << 'PYEOF'
+validate_mirror() {
+    python3 - "$1" << 'PYEOF'
 import json, sys
 try:
     with open(sys.argv[1]) as f:
@@ -57,19 +52,40 @@ try:
 except Exception as exc:
     print(f"BAD {exc}")
 PYEOF
-)" && [[ "$SUMMARY" == OK* ]]; then
-            mv "$SEED_PATH.tmp" "$SEED_PATH"
-            echo "✅ $SUMMARY"
-            echo "   → package will restore the LIVE production state (accounts/sessions survive the deploy)"
-            FETCHED=1
-        else
-            echo "⚠️  fetched mirror invalid ($SUMMARY) — falling back to the workspace copy"
-            rm -f "$SEED_PATH.tmp"
-        fi
+}
+
+fetch_mirror() {
+    # $1 = full URL, $2 = transport label (for the log)
+    curl -fsS -m 30 \
+        -H "x-db-mirror-key: $MIRROR_KEY" \
+        -H "authorization: Bearer $MIRROR_KEY" \
+        "$1" -o "$SEED_PATH.tmp" 2>/dev/null
+}
+
+FETCHED=0
+if [ -n "$MIRROR_KEY" ]; then
+    echo "🗄️  Fetching the live production database mirror from $MIRROR_URL ..."
+    CURL_RC=0
+    fetch_mirror "$MIRROR_URL" || CURL_RC=$?
+    SUMMARY="$(validate_mirror "$SEED_PATH.tmp" || true)"
+
+    # Transport fallback: the platform gateway strips non-standard headers,
+    # so a 403 (bad/empty key) retries once via the ?exportKey= param.
+    if [[ "$SUMMARY" != OK* ]]; then
+        [ -n "$SUMMARY" ] && echo "↪️  headers attempt failed ($SUMMARY) — retrying via the exportKey parameter"
+        rm -f "$SEED_PATH.tmp"
+        CURL_RC=0
+        fetch_mirror "$MIRROR_URL?exportKey=$MIRROR_KEY" || CURL_RC=$?
+        SUMMARY="$(validate_mirror "$SEED_PATH.tmp" || true)"
+    fi
+
+    if [[ "$SUMMARY" == OK* ]]; then
+        mv "$SEED_PATH.tmp" "$SEED_PATH"
+        echo "✅ $SUMMARY"
+        echo "   → package will restore the LIVE production state (accounts/sessions survive the deploy)"
+        FETCHED=1
     else
-        SIZE=0
-        [ -f "$SEED_PATH.tmp" ] && SIZE=$(stat -c%s "$SEED_PATH.tmp")
-        echo "⚠️  could not fetch the production mirror (curl exit $CURL_RC, $SIZE bytes) — falling back to the workspace copy"
+        echo "⚠️  fetched mirror invalid ($SUMMARY) — falling back to the workspace copy"
         rm -f "$SEED_PATH.tmp"
     fi
 else

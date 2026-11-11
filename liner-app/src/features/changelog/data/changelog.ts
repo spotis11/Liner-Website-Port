@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.14.2",
+    date: "2026-11-11",
+    title: "Account survival, now bulletproof",
+    entries: [
+      {
+        type: "fixed",
+        text: "The account-survival system added in 1.14.1 had one remaining hole: the hosting gateway silently strips non-standard request headers, so the deploy-time database export kept getting rejected and some updates still reset accounts. The export key now travels through gateway-proof channels (the standard Authorization header plus a parameter fallback), so every update reliably carries your live account, sessions, playlists and likes over to the new version.",
+      },
+    ],
+  },
+  {
     version: "1.14.1",
     date: "2026-11-11",
     title: "Your account now survives website updates",

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/db-mirror/latest — deploy-time database export.
  *
- * WHY THIS EXISTS: every platform Deploy can recreate the FC container, and
+ * WHY THIS EXISTS: every platform Deploy recreates the FC container, and
  * the container's filesystem (including the live SQLite file AND the runtime
  * db-mirror.json written next to it) dies with it. The package's seed mirror
  * used to be built from the WORKSPACE database — which has never seen the
@@ -26,6 +26,17 @@ export const dynamic = "force-dynamic";
  * Unconfigured server → 503 (build falls back to the workspace seed).
  * Timing-safe comparison; no CORS headers, so browsers can't read it.
  *
+ * KEY TRANSPORTS: the platform's HTTP gateway strips non-standard request
+ * headers (it already rewrites Host and intercepts HEAD), which silently
+ * emptied `x-db-mirror-key` and made every deploy-time export 403 — the
+ * build then fell back to the stale workspace mirror and users lost their
+ * accounts all over again (v1.14.2). The key is therefore accepted through
+ * every transport a gateway must respect, in order:
+ *   1. `x-db-mirror-key: <key>`      (original, works server-to-server locally)
+ *   2. `authorization: Bearer <key>` (core HTTP — no gateway drops this)
+ *   3. `?exportKey=<key>`            (last-resort fallback; HTTPS-only secret,
+ *                                     kept out of build logs)
+ *
  * Intentionally NOT gated by the maintenance wall: deploys often happen
  * during maintenance, and the round-trip must keep working then.
  */
@@ -38,13 +49,24 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const provided = req.headers.get("x-db-mirror-key")?.trim() ?? "";
+  const headerKey = req.headers.get("x-db-mirror-key")?.trim() ?? "";
+  const bearerKey =
+    req.headers
+      .get("authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim() ?? "";
+  const paramKey = req.nextUrl.searchParams.get("exportKey")?.trim() ?? "";
+  const provided = headerKey || bearerKey || paramKey;
+
   const ok =
     provided.length > 0 &&
     provided.length === expected.length &&
     crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
   if (!ok) {
-    console.warn("[db-mirror] export request rejected (bad key)");
+    // Diagnostics only — never log the key material itself.
+    console.warn(
+      `[db-mirror] export request rejected (header=${headerKey ? `${headerKey.length} chars` : "absent"}, bearer=${bearerKey ? `${bearerKey.length} chars` : "absent"}, param=${paramKey ? `${paramKey.length} chars` : "absent"}, expected=${expected.length} chars)`,
+    );
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
