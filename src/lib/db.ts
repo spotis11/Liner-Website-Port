@@ -526,6 +526,24 @@ function parseDbMirror(raw: string): DbMirror | null {
   }
 }
 
+/**
+ * Read every mirrored table from the LIVE database and return the mirror
+ * object in memory (no file I/O). Used by the deploy-time export endpoint
+ * (GET /api/db-mirror/latest) so the platform build can package the
+ * production state as the seed mirror — the piece that makes accounts,
+ * sessions and libraries survive a deploy that recreates the container.
+ */
+export async function buildDbMirrorSnapshot(): Promise<DbMirror> {
+  const tables: Record<string, unknown[]> = {}
+  for (const name of MIRROR_TABLES) {
+    tables[name] = await (db as unknown as Record<string, { findMany: () => Promise<unknown[]> }>)[name].findMany()
+  }
+  return {
+    savedAt: new Date().toISOString(),
+    tables,
+  }
+}
+
 let mirrorTimer: ReturnType<typeof setTimeout> | null = null
 
 /**
@@ -594,7 +612,14 @@ async function restoreDbFromMirror(): Promise<void> {
     if (!candidate || !existsSync(candidate)) continue
     try {
       const parsed = parseDbMirror(readFileSync(candidate, 'utf8'))
-      if (parsed && (parsed.tables.account as unknown[]).length > 0) {
+      // Accept a mirror that carries accounts OR system keys — a production
+      // state can legitimately have zero accounts yet hold the owner's
+      // maintenance switch / admin-gate secret, which must survive too.
+      if (
+        parsed &&
+        ((parsed.tables.account as unknown[]).length > 0 ||
+          (parsed.tables.systemKey as unknown[]).length > 0)
+      ) {
         mirror = parsed
         source = candidate
         break

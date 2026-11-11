@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.14.1",
+    date: "2026-11-11",
+    title: "Your account now survives website updates",
+    entries: [
+      {
+        type: "fixed",
+        text: "Deploying a new website version used to sign everyone out and wipe every account, playlist and like — the update package carried a stale database snapshot, so the live one was replaced on every deploy. The site now exports its live database during the build and restores it on the new version, so sessions stay valid: after an update you are still signed in with everything exactly where you left it.",
+      },
+    ],
+  },
+  {
     version: "1.14.0",
     date: "2026-11-11",
     title: "Sign in with Discord",

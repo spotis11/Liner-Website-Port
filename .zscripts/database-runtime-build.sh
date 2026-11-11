@@ -24,16 +24,70 @@ mkdir -p "$TARGET_DB_DIR"
 
 SEED_PATH="$TARGET_DB_DIR/db-mirror-seed.json"
 
-if [ -f "$SOURCE_DB_DIR/db-mirror.json" ]; then
-    echo "🗄️  Seeding the package mirror from the live runtime mirror (db/db-mirror.json)..."
-    cp "$SOURCE_DB_DIR/db-mirror.json" "$SEED_PATH"
+# --- NEW: prefer the LIVE production state over any local copy --------------
+# Every deploy can recreate the FC container; the workspace database has
+# never seen the accounts users created on production, so seeding from it
+# signed everyone out on each republish. The running production server can
+# export its live state via GET /api/db-mirror/latest (locked behind
+# DB_MIRROR_EXPORT_KEY in the shared gitignored .env). Fetching it here makes
+# the package restore exactly what production had at build time.
+MIRROR_URL="${DB_MIRROR_SOURCE_URL:-https://liner-music.space-z.ai/api/db-mirror/latest}"
+MIRROR_KEY="$(grep -E '^DB_MIRROR_EXPORT_KEY=' "$PROJECT_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' | tr -d ' ' || true)"
+
+FETCHED=0
+if [ -n "$MIRROR_KEY" ]; then
+    echo "🗄️  Fetching the live production database mirror from $MIRROR_URL ..."
+    CURL_RC=0
+    curl -fsS -m 30 -H "x-db-mirror-key: $MIRROR_KEY" "$MIRROR_URL" -o "$SEED_PATH.tmp" 2>/dev/null || CURL_RC=$?
+    if [ "$CURL_RC" = "0" ]; then
+        if SUMMARY="$(python3 - "$SEED_PATH.tmp" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        data = json.load(f)
+    tables = data.get("tables")
+    saved = data.get("savedAt")
+    if not isinstance(tables, dict) or not isinstance(saved, str):
+        raise ValueError("bad shape")
+    accounts = len(tables.get("account") or [])
+    keys = len(tables.get("systemKey") or [])
+    if accounts == 0 and keys == 0:
+        raise ValueError("mirror carries neither accounts nor system keys")
+    print(f"OK accounts={accounts} systemKeys={keys} savedAt={saved}")
+except Exception as exc:
+    print(f"BAD {exc}")
+PYEOF
+)" && [[ "$SUMMARY" == OK* ]]; then
+            mv "$SEED_PATH.tmp" "$SEED_PATH"
+            echo "✅ $SUMMARY"
+            echo "   → package will restore the LIVE production state (accounts/sessions survive the deploy)"
+            FETCHED=1
+        else
+            echo "⚠️  fetched mirror invalid ($SUMMARY) — falling back to the workspace copy"
+            rm -f "$SEED_PATH.tmp"
+        fi
+    else
+        SIZE=0
+        [ -f "$SEED_PATH.tmp" ] && SIZE=$(stat -c%s "$SEED_PATH.tmp")
+        echo "⚠️  could not fetch the production mirror (curl exit $CURL_RC, $SIZE bytes) — falling back to the workspace copy"
+        rm -f "$SEED_PATH.tmp"
+    fi
 else
-    echo "🗄️  Generating the package mirror from the workspace database..."
-    (
-        cd "$PROJECT_DIR"
-        DATABASE_URL="file:$SOURCE_DB_PATH" \
-            node scripts/gen_db_mirror_seed.mjs --out "$SEED_PATH"
-    )
+    echo "ℹ️  DB_MIRROR_EXPORT_KEY not set in .env — production mirror fetch skipped, using the workspace copy"
+fi
+
+if [ "$FETCHED" = "0" ]; then
+    if [ -f "$SOURCE_DB_DIR/db-mirror.json" ]; then
+        echo "🗄️  Seeding the package mirror from the live runtime mirror (db/db-mirror.json)..."
+        cp "$SOURCE_DB_DIR/db-mirror.json" "$SEED_PATH"
+    else
+        echo "🗄️  Generating the package mirror from the workspace database..."
+        (
+            cd "$PROJECT_DIR"
+            DATABASE_URL="file:$SOURCE_DB_PATH" \
+                node scripts/gen_db_mirror_seed.mjs --out "$SEED_PATH"
+        )
+    fi
 fi
 
 if [ ! -s "$SEED_PATH" ]; then
