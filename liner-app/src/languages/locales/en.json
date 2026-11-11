@@ -431,6 +431,7 @@
       "account_not_found": "Account not found or session expired. Try registering.",
       "already_linked": "This Telegram account is already linked to another account. Sign in with Telegram instead.",
       "display_name_required": "Display name is required.",
+      "discord_only": "That account was created with Discord — use the Continue with Discord button to sign in.",
       "email_already_used": "This email is already in use.",
       "email_invalid": "Enter a valid email address.",
       "failed_start_auth": "Failed to start Telegram auth",
@@ -1185,7 +1186,7 @@
         "description": "Appear in top listener leaderboards for artists and global rankings.",
         "title": "Leaderboards participation"
       },
-      "password_note": "Liner accounts are managed by the Liner service, which doesn't offer in-app password changes yet. Contact support if you need to change yours.",
+      "password_note": "Add a password to your account or change the existing one. Discord accounts can add a password to also sign in with email or username.",
       "privacy_section": "Privacy & Social",
       "privacy_subtitle": "Control your visibility and social presence across Liner",
       "public_profile": {
@@ -1222,7 +1223,14 @@
       "username_hint": "3-30 lowercase characters (a-z, 0-9, _). Must be unique.",
       "username_invalid": "Username must be 3-30 lowercase letters, numbers, or underscores.",
       "username_label": "Username",
-      "username_taken": "This username is already taken. Please choose another."
+      "username_taken": "This username is already taken. Please choose another.",
+      "password_discord_note": "Your account was created with Discord, so it has no password yet. Add one to also sign in with your email or username.",
+      "password_add_label": "Add password",
+      "password_current_label": "Current password",
+      "password_new_label": "New password",
+      "password_save": "Save password",
+      "password_saved": "Password updated. You can now sign in with it.",
+      "password_failed": "Could not update the password."
     },
     "reset_defaults": "Reset to defaults",
     "save_preferences": "Save preferences",

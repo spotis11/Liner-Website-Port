@@ -19,6 +19,21 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.16.0",
+    date: "2026-11-11",
+    title: "Clearer sign-in errors + passwords for Discord accounts",
+    entries: [
+      {
+        type: "fixed",
+        text: "Registering with an email or username that already exists used to fail with a vague \"Something went wrong\". The site now tells you exactly what happened — and when that account was created with Discord, it points you at the Continue with Discord button instead. Trying a password on a Discord-created account now says the same thing instead of a misleading \"wrong password\".",
+      },
+      {
+        type: "added",
+        text: "Discord accounts can now add a password (Settings → Account → Security). After adding one you can sign in with your email or username and the password — no Discord needed. Accounts that already have a password can change it after confirming the current one.",
+      },
+    ],
+  },
+  {
     version: "1.15.0",
     date: "2026-11-11",
     title: "On this device",

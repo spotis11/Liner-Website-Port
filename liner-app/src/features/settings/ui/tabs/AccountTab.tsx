@@ -34,6 +34,7 @@ export function AccountTab({ searchQuery }: { searchQuery?: string }) {
   const { toast } = useToast();
   const user = useAuthStore((s) => s.user);
   const updateProfile = useAuthStore((s) => s.updateProfile);
+  const setPassword = useAuthStore((s) => s.setPassword);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +47,14 @@ export function AccountTab({ searchQuery }: { searchQuery?: string }) {
   const [avatarBusy, setAvatarBusy] = useState(false);
 
   const [privacyBusy, setPrivacyBusy] = useState<string | null>(null);
+
+  const [passwordValue, setPasswordValue] = useState("");
+  const [currentPasswordValue, setCurrentPasswordValue] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordErrorKind, setPasswordErrorKind] = useState<
+    "weak" | "wrong" | "generic" | null
+  >(null);
+  const [passwordSavedTick, setPasswordSavedTick] = useState(0);
 
   const isPublic = user?.isPublic ?? true;
   const showActivity = user?.showActivity ?? true;
@@ -194,6 +203,44 @@ export function AccountTab({ searchQuery }: { searchQuery?: string }) {
 
   const openSupport = () => {
     window.open("https://t.me/liner_app?direct", "_blank", "noopener,noreferrer");
+  };
+
+  // Security section: a real password form for website accounts (Discord
+  // accounts ADD a password; password accounts CHANGE it after confirming
+  // the current one). Guests and stale user objects keep the support row.
+  const showPasswordForm = !user.isGuest && typeof user.hasPassword === "boolean";
+  const passwordErrorText =
+    passwordErrorKind === "weak"
+      ? t("login.errors.password_min_8")
+      : passwordErrorKind === "wrong"
+        ? t("login.errors.wrong_password")
+        : passwordErrorKind
+          ? t("settings.profile.password_failed")
+          : null;
+
+  const savePassword = async () => {
+    if (passwordBusy || passwordValue.length < 8) return;
+    setPasswordBusy(true);
+    setPasswordErrorKind(null);
+    try {
+      await setPassword({
+        password: passwordValue,
+        currentPassword: currentPasswordValue || undefined,
+      });
+      setPasswordSavedTick((tick) => tick + 1);
+      setPasswordValue("");
+      setCurrentPasswordValue("");
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "WEAK_PASSWORD") {
+        setPasswordErrorKind("weak");
+      } else if (error instanceof ApiError && error.code === "WRONG_PASSWORD") {
+        setPasswordErrorKind("wrong");
+      } else {
+        setPasswordErrorKind("generic");
+      }
+    } finally {
+      setPasswordBusy(false);
+    }
   };
 
   const email = user.email ?? "";
@@ -465,24 +512,111 @@ export function AccountTab({ searchQuery }: { searchQuery?: string }) {
       <SettingSection
         label={t("settings.profile.security_section")}
       >
-        <SettingRow
-          title={t("settings.profile.change_password")}
-          description={t("settings.profile.password_note")}
-          explained
-          icon={<LockLine size={20} />}
-          titleKey="settings.profile.change_password"
-          descKey="settings.profile.password_note"
-          searchQuery={searchQuery}
-          control={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={openSupport}
-            >
-              {t("settings.profile.contact_support")}
-            </Button>
-          }
-        />
+        {showPasswordForm ? (
+          <div
+            className="rounded-[12px] bg-black/[0.04] px-[16px] py-[13px] dark:bg-white/[0.08] flex flex-col gap-[10px]"
+            data-testid="account-password-form"
+          >
+            <div className="flex items-start gap-[10px]">
+              <LockLine size={20} className="text-text-secondary shrink-0 mt-[1px]" />
+              <div className="flex flex-col gap-[2px]">
+                <span className="text-text-primary text-[14px] font-[500] leading-snug">
+                  {user.hasPassword
+                    ? t("settings.profile.change_password")
+                    : t("settings.profile.password_add_label")}
+                </span>
+                <span className="text-text-tertiary text-[12px] leading-[1.4]">
+                  {t("settings.profile.password_note")}
+                </span>
+              </div>
+            </div>
+            {user.hasPassword && (
+              <div className="flex flex-col gap-[4px]">
+                <label
+                  htmlFor="account-current-password"
+                  className="text-text-primary text-[14px] font-[500] leading-snug"
+                >
+                  {t("settings.profile.password_current_label")}
+                </label>
+                <TextInput
+                  id="account-current-password"
+                  type="password"
+                  size="sm"
+                  value={currentPasswordValue}
+                  autoComplete="current-password"
+                  onChange={(e) => setCurrentPasswordValue(e.target.value)}
+                  disabled={passwordBusy}
+                />
+              </div>
+            )}
+            <div className="flex flex-col gap-[4px]">
+              <label
+                htmlFor="account-new-password"
+                className="text-text-primary text-[14px] font-[500] leading-snug"
+              >
+                {t("settings.profile.password_new_label")}
+              </label>
+              <TextInput
+                id="account-new-password"
+                type="password"
+                size="sm"
+                value={passwordValue}
+                autoComplete="new-password"
+                hasError={passwordErrorKind === "weak" || passwordErrorKind === "wrong"}
+                onChange={(e) => {
+                  setPasswordValue(e.target.value);
+                  setPasswordErrorKind(null);
+                }}
+                disabled={passwordBusy}
+              />
+              {passwordErrorText && (
+                <span className="text-[12px] leading-[1.4] text-accent-primary">
+                  {passwordErrorText}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-[8px] pt-[2px]">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={savePassword}
+                disabled={
+                  passwordBusy ||
+                  passwordValue.length < 8 ||
+                  (user.hasPassword && !currentPasswordValue)
+                }
+              >
+                {passwordBusy
+                  ? t("settings.profile.saving")
+                  : t("settings.profile.password_save")}
+              </Button>
+              {passwordSavedTick > 0 && !passwordErrorKind && (
+                <span className="text-text-tertiary text-[12px]">
+                  {t("settings.profile.password_saved")}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <SettingRow
+            title={t("settings.profile.change_password")}
+            description={t("settings.profile.password_note")}
+            explained
+            icon={<LockLine size={20} />}
+            titleKey="settings.profile.change_password"
+            descKey="settings.profile.password_note"
+            searchQuery={searchQuery}
+            control={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openSupport}
+              >
+                {t("settings.profile.contact_support")}
+              </Button>
+            }
+          />
+        )}
       </SettingSection>
     </div>
   );

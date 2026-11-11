@@ -145,6 +145,8 @@ export function toPublicUser(account: {
   showHistory: boolean;
   showLikedTracks: boolean;
   participateLeaderboards: boolean;
+  passwordHash?: string | null;
+  isGuest?: boolean | null;
 }) {
   return {
     id: account.id,
@@ -158,6 +160,10 @@ export function toPublicUser(account: {
     showHistory: account.showHistory,
     showLikedTracks: account.showLikedTracks,
     participateLeaderboards: account.participateLeaderboards,
+    // client hints only — never the hash itself. settings uses hasPassword
+    // to show "add password" (Discord accounts) vs "change password".
+    hasPassword: Boolean(account.passwordHash),
+    isGuest: Boolean(account.isGuest),
   };
 }
 
@@ -275,18 +281,40 @@ async function assertAvailable(
   email: string,
   username: string,
 ): Promise<void> {
-  const [emailTaken, usernameTaken] = await Promise.all([
-    db.account.findUnique({ where: { email }, select: { id: true } }),
-    db.account.findUnique({ where: { username }, select: { id: true } }),
+  const [emailRow, usernameRow] = await Promise.all([
+    db.account.findUnique({
+      where: { email },
+      select: { id: true, username: true, isGuest: true, passwordHash: true },
+    }),
+    db.account.findUnique({
+      where: { username },
+      select: { id: true, username: true, isGuest: true, passwordHash: true },
+    }),
   ]);
-  if (emailTaken) {
+  if (emailRow) {
+    if (!emailRow.isGuest && !emailRow.passwordHash) {
+      // the email belongs to a Discord-linked (passwordless) account —
+      // registering can never succeed, so tell the user the real way in
+      throw new WebsiteAuthError(
+        409,
+        "DISCORD_ONLY",
+        `An account with this email already exists (@${emailRow.username}) and was created with Discord — use 'Continue with Discord' to sign in.`,
+      );
+    }
     throw new WebsiteAuthError(
       409,
       "EMAIL_TAKEN",
-      "That email is already registered.",
+      "This email is already registered — try logging in instead.",
     );
   }
-  if (usernameTaken) {
+  if (usernameRow) {
+    if (!usernameRow.isGuest && !usernameRow.passwordHash) {
+      throw new WebsiteAuthError(
+        409,
+        "DISCORD_ONLY",
+        "That username belongs to an account that was created with Discord — pick a different username, or use 'Continue with Discord'.",
+      );
+    }
     throw new WebsiteAuthError(
       409,
       "USERNAME_TAKEN",
@@ -306,6 +334,57 @@ async function nextGuestUsername(): Promise<string> {
     if (!taken) return candidate;
   }
   return `guest_${crypto.randomBytes(8).toString("hex")}`;
+}
+
+/**
+ * Set or change the account's own password (Settings -> Account -> Security).
+ * Discord-linked accounts can ADD a password — after that, email/username +
+ * password login works for them too. Accounts that already have a password
+ * must confirm the current one. Guests cannot (they have no email).
+ */
+export async function setAccountPassword(input: {
+  accountId: string;
+  currentPassword?: string;
+  password: string;
+}): Promise<void> {
+  await ensureDbReady();
+  if (
+    typeof input.password !== "string" ||
+    input.password.length < 8 ||
+    input.password.length > 200
+  ) {
+    throw new WebsiteAuthError(
+      400,
+      "WEAK_PASSWORD",
+      "Password must be at least 8 characters.",
+    );
+  }
+  const account = await db.account.findUnique({
+    where: { id: input.accountId },
+  });
+  if (!account || account.isGuest) {
+    throw new WebsiteAuthError(
+      403,
+      "GUEST_ACCOUNT",
+      "Guest accounts cannot set a password.",
+    );
+  }
+  if (account.passwordHash) {
+    if (
+      !input.currentPassword ||
+      !verifyPassword(input.currentPassword, account.passwordHash)
+    ) {
+      throw new WebsiteAuthError(
+        403,
+        "WRONG_PASSWORD",
+        "Current password is incorrect.",
+      );
+    }
+  }
+  await db.account.update({
+    where: { id: input.accountId },
+    data: { passwordHash: hashPassword(input.password) },
+  });
 }
 
 export async function createAccount(input: {
@@ -357,6 +436,16 @@ export async function authenticate(
     account?.passwordHash ??
     "scrypt$16384$8$1$00$00".padEnd(80, "0");
   const ok = verifyPassword(password, hash);
+  if (account && !account.isGuest && !account.passwordHash) {
+    // the account exists but has no password of its own (created via Discord
+    // OAuth) — password login can never succeed for it, so point the user to
+    // the Discord button instead of a misleading "wrong password"
+    throw new WebsiteAuthError(
+      401,
+      "DISCORD_ONLY",
+      "This account was created with Discord. Use 'Continue with Discord' to sign in.",
+    );
+  }
   if (!account || !ok || account.isGuest) {
     throw new WebsiteAuthError(
       401,

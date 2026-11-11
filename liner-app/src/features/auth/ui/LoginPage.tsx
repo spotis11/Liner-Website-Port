@@ -81,9 +81,11 @@ export default function LoginPage() {
     if (code === "server_error") return t("login.errors.server_error");
     if (code === "invalid_credentials")
       return t("login.errors.invalid_credentials");
+    if (code === "discord_only") return t("login.errors.discord_only");
     if (code === "email_already_used")
       return t("login.errors.email_already_used");
     if (code === "username_taken") return t("login.errors.username_taken");
+    if (code === "weak_password") return t("login.errors.password_min_8");
     if (code === "invalid_username") return t("login.errors.username_invalid");
     if (code === "invalid_input")
       return t("login.errors.display_name_required");

@@ -3,7 +3,6 @@ import {
   verifyAccessToken,
   toPublicUser,
   normalizeUsername,
-  WebsiteAuthError,
 } from "@/lib/websiteAuth";
 import { db } from "@/lib/db";
 
@@ -60,7 +59,12 @@ export async function PATCH(req: NextRequest) {
       select: { id: true },
     });
     if (taken && taken.id !== identity.accountId) {
-      throw new WebsiteAuthError(409, "USERNAME_TAKEN", "That username is already taken.");
+      // return (not throw): an uncaught WebsiteAuthError here would surface
+      // as a 500 and the client would never see the USERNAME_TAKEN code
+      return NextResponse.json(
+        { error: "That username is already taken.", code: "USERNAME_TAKEN" },
+        { status: 409 },
+      );
     }
     data.username = username;
   }

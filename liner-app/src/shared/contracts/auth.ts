@@ -10,6 +10,10 @@ export interface PublicUser {
   showHistory?: boolean;
   showLikedTracks?: boolean;
   participateLeaderboards?: boolean;
+  /** true when the account can sign in with a password (always false for pure Discord accounts until one is added) */
+  hasPassword?: boolean;
+  /** throwaway guest account (no email, no password) */
+  isGuest?: boolean;
 }
 
 export type AuthUser = PublicUser;

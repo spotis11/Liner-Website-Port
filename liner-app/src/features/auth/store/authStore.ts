@@ -38,6 +38,8 @@ export type AuthState = {
   /** OAuth handoff: install a session already minted by /api/auth/discord/callback */
   completeDiscordLogin: (payload: DiscordLoginPayload) => Promise<void>;
   updateProfile: (patch: UpdateProfileInput) => Promise<PublicUser>;
+  /** add a password to a Discord-linked account, or change an existing one */
+  setPassword: (input: { password: string; currentPassword?: string }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -180,6 +182,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     }));
     return updated;
   },
+  setPassword: async ({ password, currentPassword }) => {
+    await api.setPassword({ password, currentPassword });
+    // flip the local hint immediately so the form switches to "change password"
+    set((prev) =>
+      prev.user ? { user: { ...prev.user, hasPassword: true } } : prev,
+    );
+    const current = getAuthSession();
+    if (current?.user) {
+      setAuthSession({ ...current, user: { ...current.user, hasPassword: true } });
+    }
+  },
   logout: async () => {
     await clearPlayback();
     try {
@@ -254,9 +267,14 @@ export function getAuthErrorCode(error: unknown): string {
   // 5xx and cloudflare 52x: the server is down, not the user's input or connection
   if (error.status >= 500) return "server_error";
   if (error.code === "INVALID_CREDENTIALS") return "invalid_credentials";
+  if (error.code === "DISCORD_ONLY") return "discord_only";
   if (error.code === "EMAIL_ALREADY_USED") return "email_already_used";
+  if (error.code === "EMAIL_TAKEN") return "email_already_used";
+  if (error.code === "TAKEN") return "email_already_used";
   if (error.code === "USERNAME_TAKEN") return "username_taken";
   if (error.code === "INVALID_USERNAME") return "invalid_username";
+  if (error.code === "WEAK_PASSWORD") return "weak_password";
+  if (error.code === "WRONG_PASSWORD") return "wrong_password";
   if (error.code === "INVALID_INPUT") return "invalid_input";
   if (error.code?.startsWith("TURNSTILE_")) return "human_check_failed";
   return "unknown_error";
@@ -269,12 +287,18 @@ export function authErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "Unable to reach the server.";
   if (error.code === "INVALID_CREDENTIALS")
     return "Email or password is incorrect.";
-  if (error.code === "EMAIL_ALREADY_USED")
+  if (error.code === "DISCORD_ONLY")
+    return "That account was created with Discord — use the Continue with Discord button to sign in.";
+  if (error.code === "EMAIL_ALREADY_USED" || error.code === "EMAIL_TAKEN")
     return "This email is already in use.";
   if (error.code === "USERNAME_TAKEN")
     return "This username is already taken. Please choose another.";
   if (error.code === "INVALID_USERNAME")
     return "Username must be 3-30 lowercase characters (a-z, 0-9, _).";
+  if (error.code === "WEAK_PASSWORD")
+    return "Password must be at least 8 characters.";
+  if (error.code === "WRONG_PASSWORD")
+    return "Current password is incorrect.";
   // unknown api errors stay generic, never surface raw bodies
   return "Something went wrong. Please try again.";
 }

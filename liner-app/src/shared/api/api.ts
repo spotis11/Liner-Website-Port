@@ -659,6 +659,17 @@ export const api = {
     });
   },
 
+  /** Set (Discord accounts) or change (password accounts) the account password. */
+  setPassword(data: {
+    password: string;
+    currentPassword?: string;
+  }): Promise<{ ok: boolean }> {
+    return request<{ ok: boolean }>("/api/auth/password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
   getUserProfile(idOrUsername: string): Promise<UserProfile> {
     return request<UserProfile>(
       `/v1/users/${encodeURIComponent(idOrUsername)}`,
