@@ -24,6 +24,7 @@ import { useCustomPlaylistCoverMap } from "@/features/covers";
 import ImportingPlaylistCard from "./ImportingPlaylistCard";
 import OfflineMixCard from "./OfflineMixCard";
 import { CachedSongsCard, useCachedTracksStore } from "../cached";
+import { LocalFilesCard } from "../local";
 import { WifiOffLine } from "@mingcute/react";
 import { useOfflineModeStore } from "@/features/connectivity";
 import { goOnline } from "@/features/connectivity/engine/offlineController";
@@ -483,6 +484,10 @@ function OnlineLibraryPage() {
                                 />,
                               ]
                             : []),
+                          <LocalFilesCard
+                            key="local-files-card"
+                            viewMode={viewMode}
+                          />,
                           ...(isImporting && importJob
                             ? [
                                 <ImportingPlaylistCard
@@ -564,6 +569,7 @@ function OfflineLibraryPage() {
               />
             ) : null}
             <CachedSongsCard />
+            <LocalFilesCard />
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import type { Track, TrackArtist } from "@/shared/types";
+import type { LocalTrackRecord } from "@/shared/media/local";
 import type {
   LyricsCandidate,
   LyricsSyncLevel,
@@ -62,7 +63,8 @@ export interface CachedArtistRecord {
 }
 
 const DB_NAME = "liner_db_v1";
-const DB_VERSION = 4;
+// v5 adds "on this device" stores: user-imported audio files + their metadata
+const DB_VERSION = 5;
 
 const MEM_AUDIO_LIMIT = 3;
 // the memory maps only sit in front of indexeddb: cap them so a long session doesn't keep every record it saw
@@ -165,6 +167,19 @@ class LinerDb {
             unique: false,
           });
         }
+
+        if (!db.objectStoreNames.contains("localTracks")) {
+          const localTrackStore = db.createObjectStore("localTracks", {
+            keyPath: "id",
+          });
+          localTrackStore.createIndex("addedAt", "addedAt", {
+            unique: false,
+          });
+        }
+
+        if (!db.objectStoreNames.contains("localAudio")) {
+          db.createObjectStore("localAudio", { keyPath: "id" });
+        }
       };
 
       request.onsuccess = () => {
@@ -199,7 +214,13 @@ class LinerDb {
 
   // executes indexeddb transaction with one auto-reconnect retry and zero unhandled rejections
   private async runTransaction<T>(
-    storeName: "tracks" | "audio" | "lyrics" | "artists",
+    storeName:
+      | "tracks"
+      | "audio"
+      | "lyrics"
+      | "artists"
+      | "localTracks"
+      | "localAudio",
     mode: IDBTransactionMode,
     operation: (store: IDBObjectStore) => Promise<T>,
   ): Promise<T | null> {
@@ -755,7 +776,13 @@ class LinerDb {
   }
 
   async clearStore(
-    storeName: "tracks" | "audio" | "lyrics" | "artists",
+    storeName:
+      | "tracks"
+      | "audio"
+      | "lyrics"
+      | "artists"
+      | "localTracks"
+      | "localAudio",
   ): Promise<void> {
     if (storeName === "tracks") this.memTracks.clear();
     if (storeName === "audio") this.memAudio.clear();
@@ -763,6 +790,120 @@ class LinerDb {
     if (storeName === "artists") this.memArtists.clear();
 
     await this.runTransaction(storeName, "readwrite", (store) => {
+      return new Promise<void>((resolve) => {
+        const req = store.clear();
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+      });
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // "on this device" — user-imported audio files. Deliberately NOT part
+  // of clearAll(): clearing the cache never touches the user's music.
+  // ------------------------------------------------------------------
+
+  async listLocalTracks(): Promise<LocalTrackRecord[]> {
+    const result = await this.runTransaction(
+      "localTracks",
+      "readonly",
+      (store) => {
+        return new Promise<LocalTrackRecord[]>((resolve) => {
+          const records: LocalTrackRecord[] = [];
+          const req = store.openCursor();
+          req.onsuccess = () => {
+            const cursor = req.result;
+            if (cursor) {
+              records.push(cursor.value as LocalTrackRecord);
+              cursor.continue();
+            } else {
+              resolve(records);
+            }
+          };
+          req.onerror = () => resolve([]);
+        });
+      },
+    );
+    return result ?? [];
+  }
+
+  async putLocalTrack(
+    record: LocalTrackRecord,
+    audioBlob: Blob,
+  ): Promise<void> {
+    await this.runTransaction("localTracks", "readwrite", (store) => {
+      return new Promise<void>((resolve, reject) => {
+        const req = store.put(record);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    });
+    await this.runTransaction("localAudio", "readwrite", (store) => {
+      return new Promise<void>((resolve, reject) => {
+        const req = store.put({
+          id: record.id,
+          blob: audioBlob,
+          mimeType: record.mimeType,
+          byteSize: audioBlob.size,
+          savedAt: Date.now(),
+        });
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    });
+  }
+
+  async getLocalAudio(
+    id: string,
+  ): Promise<{ blob: Blob; mimeType: string } | null> {
+    const result = await this.runTransaction(
+      "localAudio",
+      "readonly",
+      (store) => {
+        return new Promise<{ blob: Blob; mimeType: string } | null>(
+          (resolve) => {
+            const req = store.get(id);
+            req.onsuccess = () => {
+              const record = req.result as
+                | { blob: Blob; mimeType: string }
+                | undefined;
+              resolve(record ?? null);
+            };
+            req.onerror = () => resolve(null);
+          },
+        );
+      },
+    );
+    return result;
+  }
+
+  /** removes the metadata row, its cover and the audio blob */
+  async deleteLocalTrack(id: string): Promise<void> {
+    await this.runTransaction("localTracks", "readwrite", (store) => {
+      return new Promise<void>((resolve) => {
+        const req = store.delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+      });
+    });
+    await this.runTransaction("localAudio", "readwrite", (store) => {
+      return new Promise<void>((resolve) => {
+        const req = store.delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+      });
+    });
+  }
+
+  async deleteAllLocalTracks(): Promise<void> {
+    await this.runTransaction("localTracks", "readwrite", (store) => {
+      return new Promise<void>((resolve) => {
+        const req = store.clear();
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+      });
+    });
+    await this.runTransaction("localAudio", "readwrite", (store) => {
       return new Promise<void>((resolve) => {
         const req = store.clear();
         req.onsuccess = () => resolve();

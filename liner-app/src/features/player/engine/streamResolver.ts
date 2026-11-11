@@ -25,6 +25,8 @@ import {
 import { findYoutubeStandIn } from "./youtubeStandIn";
 import { findExactSongVersion } from "./exactSongVersion";
 import { savedAudioUrl, savedTrackRecord } from "@/shared/media/saved";
+import { isLocalTrackId, localFileId } from "@/shared/media/local";
+import { linerDb } from "@/shared/storage";
 import { appAllowsAccountPlayback } from "./accountPlayback";
 import {
   recordPlaybackFailure,
@@ -194,6 +196,23 @@ export async function resolvePlaybackStream(
   signal?: AbortSignal,
   options: ResolveStreamOptions = {},
 ): Promise<PlaybackStream> {
+  // "on this device" files play straight from their indexeddb blob — nothing
+  // leaves the machine, no network resolution at all
+  if (isLocalTrackId(track.id)) {
+    const audio = await linerDb.getLocalAudio(localFileId(track.id));
+    if (audio) {
+      return {
+        blob: audio.blob,
+        source: "local",
+        mimeType: audio.mimeType,
+        codec: "local",
+        bitrate: 0,
+        expiresAtMs: null,
+      };
+    }
+    throw new Error("Local audio file is missing from this device");
+  }
+
   // saved-offline likes are served from their own on-disk library
   const saved = savedTrackRecord(track.id);
   if (saved) {

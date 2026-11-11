@@ -36,7 +36,20 @@ export interface SongMenuContext {
   playlistTitle?: string;
   /** play queue rows: adds "Remove from queue" (the queue animates the row out) */
   onRemoveFromQueue?: () => void;
+  /** "on this device" rows: adds "Remove from device" and hides cloud-only actions */
+  onRemoveFromDevice?: () => void;
 }
+
+// actions that make no sense for files living only on this device —
+// mirrors the desktop app's device menu
+const CLOUD_ONLY_ITEMS = new Set([
+  "start-radio",
+  "like-track",
+  "unlike-track",
+  "add-to-playlist",
+  "remove-from-playlist",
+  "share",
+]);
 
 export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
   const { t } = useTranslation();
@@ -53,6 +66,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     playlistItemId,
     playlistTitle,
     onRemoveFromQueue,
+    onRemoveFromDevice,
   } = ctx;
 
   const { data: playlistsData } = usePlaylistsList();
@@ -87,8 +101,8 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     const isTrack = searchType === "track" || !searchType;
 
     if (isTrack) {
-      if (playlistId) {
-        return [
+      const items: DropdownMenuItem[] = playlistId
+        ? [
           {
             id: "start-radio",
             label: t("common.start_radio"),
@@ -177,10 +191,8 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
               });
             },
           },
-        ];
-      }
-
-      return [
+        ]
+      : [
         {
           id: "start-radio",
           label: t("common.start_radio"),
@@ -279,6 +291,20 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
             ]
           : []),
       ];
+
+      if (onRemoveFromDevice) {
+        return [
+          ...items.filter((item) => !CLOUD_ONLY_ITEMS.has(item.id)),
+          {
+            id: "remove-from-device",
+            label: t("library.local.remove"),
+            icon: <LuTrash2 size={15} />,
+            danger: true,
+            onClick: onRemoveFromDevice,
+          },
+        ];
+      }
+      return items;
     }
 
     return [
@@ -318,6 +344,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     playlistItemId,
     playlistTitle,
     onRemoveFromQueue,
+    onRemoveFromDevice,
     liked,
     handleLike,
     handleShare,

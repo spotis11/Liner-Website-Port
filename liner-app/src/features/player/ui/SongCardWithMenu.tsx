@@ -45,6 +45,8 @@ export interface SongCardWithMenuProps {
   trailingAction?: React.ReactNode;
   /** play queue rows: adds "Remove from queue" to the card menu */
   onRemoveFromQueue?: () => void;
+  /** "on this device" rows: adds "Remove from device" and hides cloud-only actions */
+  onRemoveFromDevice?: () => void;
 }
 
 function SongCardWithMenu({
@@ -77,6 +79,7 @@ function SongCardWithMenu({
   highlight,
   trailingAction,
   onRemoveFromQueue,
+  onRemoveFromDevice,
 }: SongCardWithMenuProps) {
   const resolvedDurationMs = useMemo(() => {
     if (durationMs !== undefined) return durationMs;
@@ -104,6 +107,7 @@ function SongCardWithMenu({
     playlistItemId,
     playlistTitle,
     onRemoveFromQueue,
+    onRemoveFromDevice,
   });
 
   const [menuOpen, setMenuOpen] = useState(false);

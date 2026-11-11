@@ -29,4 +29,5 @@ export * from "./store/modalStore";
 export * from "./store/importStore";
 
 export { CachedTracksPage, CachedSongsCard } from "./cached";
+export { LocalTracksPage, LocalFilesCard, LocalDropZone } from "./local";
 export { SavedLikesPage } from "./saved";

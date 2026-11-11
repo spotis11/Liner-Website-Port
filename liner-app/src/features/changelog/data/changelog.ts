@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.15.0",
+    date: "2026-11-11",
+    title: "On this device",
+    entries: [
+      {
+        type: "added",
+        text: "The \"On this device\" feature from the Liner desktop app is here. Add your own MP3, FLAC, M4A, OGG, OPUS or WAV files with the Add files button, or just drop them anywhere in the window. Files live only in this browser on this computer — they are never uploaded to YouTube or Liner servers. Covers, artist and title tags are read automatically, duplicates are skipped, and everything works offline.",
+      },
+    ],
+  },
+  {
     version: "1.14.2",
     date: "2026-11-11",
     title: "Account survival, now bulletproof",

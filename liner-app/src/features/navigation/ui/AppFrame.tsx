@@ -62,6 +62,7 @@ import {
   ImportLikesModal,
   ImportReviewModal,
   CreatePlaylistModal,
+  LocalDropZone,
   useModalStore,
 } from "@/features/library";
 import {
@@ -102,6 +103,7 @@ const AppOverlays = memo(function AppOverlays() {
       <ImportLikesModal />
       <CreatePlaylistModal />
       <ImportReviewModal />
+      <LocalDropZone />
       <SettingsModal />
       <UpdateModal />
       <YoutubeSignInNotice />
