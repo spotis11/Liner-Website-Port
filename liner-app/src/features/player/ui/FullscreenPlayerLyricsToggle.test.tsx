@@ -12,8 +12,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  *  - the lyrics status notch (provider island / missing status) only shows
  *    while lyrics are visible
  *  - the preference persists across remounts via localStorage
- *  - the player UI column is horizontal (cover beside the controls, fork
- *    reference layout) — never the old cover-on-top vertical stack
+ *  - the player UI is vertical while the lyrics pane is on (upstream
+ *    cover-on-top layout) and horizontal once the pane is toggled off or
+ *    the track has no lyrics
  *
  * framer-motion is stubbed to apply `animate` values as inline styles
  * synchronously so the width choreography is assertable without rAF.
@@ -70,12 +71,8 @@ vi.mock("@/features/lyrics", () => ({
 }));
 
 vi.mock("./PlayerUiElements", () => ({
-  PlayerUiElements: (props: { layout?: string; fitPane?: boolean }) => (
-    <div
-      data-testid="player-ui"
-      data-layout={props.layout}
-      data-fitpane={String(!!props.fitPane)}
-    />
+  PlayerUiElements: (props: { layout?: string }) => (
+    <div data-testid="player-ui" data-layout={props.layout} />
   ),
 }));
 
@@ -294,20 +291,26 @@ describe("FullscreenPlayer lyrics toggle", () => {
     expect(findLeftPane(container)!.style.width).toBe("100%");
   });
 
-  it("keeps the player UI horizontal (cover beside the controls), never vertical", () => {
+  it("goes vertical with lyrics on and horizontal when toggled off", () => {
     ({ container, root } = renderFullscreen());
     const ui = () =>
       document.querySelector<HTMLElement>("[data-testid='player-ui']")!;
-    // pane open: horizontal layout, tightened to fit the half-width split
-    expect(ui().getAttribute("data-layout")).toBe("horizontal");
-    expect(ui().getAttribute("data-fitpane")).toBe("true");
+    // lyrics on: vertical — the upstream cover-on-top arrangement
+    expect(ui().getAttribute("data-layout")).toBe("vertical");
     const pill = findLyricsPill(container)!;
     act(() => pill.click());
-    // pane closed: still horizontal — just centered at full width
+    // toggle off: horizontal — cover beside the controls, centered
     expect(ui().getAttribute("data-layout")).toBe("horizontal");
-    expect(ui().getAttribute("data-fitpane")).toBe("false");
     act(() => pill.click());
-    expect(ui().getAttribute("data-layout")).toBe("horizontal");
-    expect(ui().getAttribute("data-fitpane")).toBe("true");
+    // back on: vertical again
+    expect(ui().getAttribute("data-layout")).toBe("vertical");
+  });
+
+  it("stays horizontal when lyrics are not found", () => {
+    mocks.useLyricsStore.mockReturnValue(withMissingLyrics());
+    ({ container, root } = renderFullscreen());
+    const ui =
+      document.querySelector<HTMLElement>("[data-testid='player-ui']")!;
+    expect(ui.getAttribute("data-layout")).toBe("horizontal");
   });
 });

@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.13.5",
+    date: "2026-11-11",
+    title: "Fullscreen player: vertical with lyrics, horizontal without",
+    entries: [
+      {
+        type: "changed",
+        text: "The fullscreen player shape now follows the Lyrics toggle again: with the lyrics pane on you get the classic vertical layout (cover art stacked above the timeline and controls, lyrics filling the right half), and turning the Lyrics pill off — or playing a track with no lyrics — settles into the compact horizontal layout with the cover beside the controls. The pane slide/fade choreography, the remembered preference and the AI translate button are unchanged.",
+      },
+    ],
+  },
+  {
     version: "1.13.4",
     date: "2026-11-11",
     title: "Fullscreen player: horizontal layout",

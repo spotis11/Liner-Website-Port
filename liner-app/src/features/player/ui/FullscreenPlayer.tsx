@@ -19,6 +19,7 @@ import { preloadCoverArt, useCoverSrc } from "@/features/covers";
 import KawarpWrapper from "./KawarpWrapper";
 import SoundWave, { useSoundWaveEnabled } from "./SoundWave";
 import { useTranslation } from "@/languages";
+import { useSettledLyricsLayout } from "../hooks/useSettledLyricsLayout";
 import { CanvasLyricsView } from "./CanvasLyricsView";
 import AmbientLayer from "./AmbientLayer";
 import { BetaVisualsWarning } from "./BetaVisualsWarning";
@@ -140,6 +141,18 @@ export function FullscreenPlayer({
 
   const paneOpen = hasLyrics && lyricsVisible;
 
+  // upstream layout rule — vertical (cover stacked above the controls) while
+  // the lyrics pane is on, horizontal (cover beside the controls) when the
+  // pane is off or the track resolves without lyrics. The fork feeds the hook
+  // the toggle-aware paneOpen, so flipping the Lyrics pill off collapses the
+  // split into the centered horizontal layout; while a lookup is still in
+  // flight the previous shape is kept (the "settled" part of the hook).
+  const isCompactLayout = useSettledLyricsLayout({
+    isMatchingTrack,
+    lyricsLoading,
+    hasLyrics: paneOpen,
+  });
+
   return (
     <div
       data-theme="dark"
@@ -195,10 +208,10 @@ export function FullscreenPlayer({
       <FullscreenFrameGlass />
 
       <div className="absolute inset-1.5 z-10 flex">
-        {/* left: player UI — horizontal column (cover art beside the title,
-            timeline and controls, like the reference layout — never the old
-            cover-on-top stack) that glides from half-width to centered while
-            the lyrics pane collapses (fork lyrics toggle choreography) */}
+        {/* left: player UI — vertical while the lyrics pane is on (upstream
+            cover-on-top arrangement), horizontal once the pane is toggled off
+            or the track has no lyrics; glides from half-width to centered as
+            the pane collapses (fork lyrics toggle choreography) */}
         <motion.div
           initial={false}
           animate={{ width: paneOpen ? "50%" : "100%" }}
@@ -207,8 +220,7 @@ export function FullscreenPlayer({
         >
           <PlayerUiElements
             onClose={onClose}
-            layout="horizontal"
-            fitPane={paneOpen}
+            layout={isCompactLayout ? "horizontal" : "vertical"}
           />
         </motion.div>
 
