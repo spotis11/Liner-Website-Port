@@ -16,7 +16,7 @@ export default function UpdateModal() {
   const releaseTag = updateInfo.version.startsWith("v")
     ? updateInfo.version
     : `v${updateInfo.version}`;
-  const changelogUrl = `https://github.com/goodbyeworld42-ai/Liner-Website-Port/releases/tag/${releaseTag}`;
+  const changelogUrl = `https://github.com/spotis11/Liner-Website-Port/releases/tag/${releaseTag}`;
 
   return (
     <Dialog
