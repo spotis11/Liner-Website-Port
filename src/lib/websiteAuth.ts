@@ -399,6 +399,101 @@ export async function createGuestAccount(
   };
 }
 
+// ---- discord oauth accounts -------------------------------------------------
+
+export interface DiscordLoginProfile {
+  id: string;
+  username: string;
+  globalName: string | null;
+  email: string | null;
+  avatarUrl: string;
+}
+
+/**
+ * Collision-safe username from a Discord handle: same charset as our own
+ * USERNAME_RE (3-24 lowercase a-z0-9_), falls back to dc_<id-suffix> when the
+ * handle is too short, and gets a random suffix when it is already taken.
+ */
+async function nextDiscordUsername(raw: string, discordId: string): Promise<string> {
+  const base =
+    raw
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "")
+      .slice(0, 24) || `dc_${discordId.slice(-6).toLowerCase()}`;
+  const seed = base.length >= 3 ? base : `dc_${discordId.slice(-6).toLowerCase()}`;
+  const direct = await db.account.findUnique({
+    where: { username: seed },
+    select: { id: true },
+  });
+  if (!direct) return seed;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const candidate = `${seed.slice(0, 19)}_${crypto.randomBytes(2).toString("hex")}`;
+    const taken = await db.account.findUnique({
+      where: { username: candidate },
+      select: { id: true },
+    });
+    if (!taken) return candidate;
+  }
+  return `dc_${crypto.randomBytes(8).toString("hex")}`;
+}
+
+/**
+ * Sign in (or auto-create / auto-link) a website account from a Discord
+ * profile. Resolution order:
+ *  1. discordId already linked → sign in (refresh the Discord avatar if the
+ *     stored one is unset or was Discord-hosted, never clobbering a custom one)
+ *  2. same verified email as an existing account → link that account
+ *  3. otherwise create a new account (no password — Discord is the credential)
+ */
+export async function loginWithDiscord(
+  profile: DiscordLoginProfile,
+  userAgent: string | null,
+) {
+  await ensureDbReady();
+  let account = await db.account.findUnique({
+    where: { discordId: profile.id },
+  });
+
+  if (!account && profile.email) {
+    const byEmail = await db.account.findUnique({
+      where: { email: profile.email.trim().toLowerCase() },
+    });
+    if (byEmail) {
+      account = await db.account.update({
+        where: { id: byEmail.id },
+        data: { discordId: profile.id },
+      });
+    }
+  }
+
+  if (!account) {
+    const username = await nextDiscordUsername(profile.username, profile.id);
+    account = await db.account.create({
+      data: {
+        username,
+        displayName: (profile.globalName || profile.username)
+          .trim()
+          .slice(0, 60) || username,
+        email: profile.email?.trim().toLowerCase() ?? null,
+        discordId: profile.id,
+        avatarUrl: profile.avatarUrl,
+      },
+    });
+  } else {
+    const isDiscordAvatar = account.avatarUrl?.includes("cdn.discordapp.com");
+    if (profile.avatarUrl && (isDiscordAvatar || !account.avatarUrl)) {
+      account = await db.account.update({
+        where: { id: account.id },
+        data: { avatarUrl: profile.avatarUrl },
+      });
+    }
+  }
+
+  const session = await issueSession(account.id, userAgent);
+  return { account, session };
+}
+
 /** Map a bare {id, username, displayName} guest into a full PublicUser. */
 export function guestPublicUser(account: {
   id: string;

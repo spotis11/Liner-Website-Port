@@ -178,6 +178,7 @@ const SCHEMA_DDL: string[] = [
   "username" TEXT NOT NULL,
   "displayName" TEXT NOT NULL,
   "passwordHash" TEXT,
+  "discordId" TEXT,
   "avatarUrl" TEXT,
   "bio" TEXT,
   "isGuest" BOOLEAN NOT NULL DEFAULT false,
@@ -191,6 +192,7 @@ const SCHEMA_DDL: string[] = [
 )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "Account_email_key" ON "Account"("email")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "Account_username_key" ON "Account"("username")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "Account_discordId_key" ON "Account"("discordId")`,
   `CREATE INDEX IF NOT EXISTS "Account_createdAt_idx" ON "Account"("createdAt")`,
   `CREATE TABLE IF NOT EXISTS "Session" (
   "id" TEXT NOT NULL PRIMARY KEY,
@@ -255,6 +257,7 @@ const SCHEMA_DDL: string[] = [
 async function migrateColumns(): Promise<void> {
   const needed = [
     { table: 'PlayHistory', column: 'username', ddl: 'ALTER TABLE "PlayHistory" ADD COLUMN "username" TEXT' },
+    { table: 'Account', column: 'discordId', ddl: 'ALTER TABLE "Account" ADD COLUMN "discordId" TEXT' },
   ] as const
   for (const { table, column, ddl } of needed) {
     try {
@@ -263,6 +266,16 @@ async function migrateColumns(): Promise<void> {
       )
       if (Array.isArray(rows) && !rows.some((row) => row.name === column)) {
         await db.$executeRawUnsafe(ddl)
+        if (table === 'Account' && column === 'discordId') {
+          // fresh column → every value is NULL → the unique index always builds
+          try {
+            await db.$executeRawUnsafe(
+              `CREATE UNIQUE INDEX IF NOT EXISTS "Account_discordId_key" ON "Account"("discordId")`,
+            )
+          } catch {
+            // index is an optimization only
+          }
+        }
         try {
           await db.$executeRawUnsafe(
             `CREATE INDEX IF NOT EXISTS "PlayHistory_username_idx" ON "PlayHistory"("username")`,

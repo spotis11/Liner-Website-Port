@@ -437,7 +437,14 @@
     "waiting_verification": "Warte auf Telegram-Verifizierung…",
     "welcome_back": "Willkommen zurück!",
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Mit Discord fortfahren",
+    "discord_hint": "Ein Tipp mit deinem Discord-Konto — dein Website-Konto wird automatisch erstellt oder verknüpft.",
+    "discord_signing_in": "Anmeldung mit Discord…",
+    "discord_error_title": "Discord-Anmeldung fehlgeschlagen",
+    "discord_error": "Bei der Kommunikation mit Discord ist etwas schiefgelaufen. Bitte versuche es erneut.",
+    "discord_error_denied": "Die Discord-Anmeldung wurde abgebrochen.",
+    "discord_back_to_login": "Zurück zur Anmeldung"
   },
   "player": {
     "autoplay_radio": "Autoplay-Radio",

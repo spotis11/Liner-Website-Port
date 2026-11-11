@@ -33,10 +33,23 @@ def main():
         tmp = p + ".real"
         if os.path.exists(tmp):
             shutil.rmtree(tmp, ignore_errors=True)
-        if os.path.isdir(target):
-            shutil.copytree(target, tmp, symlinks=False)
-        else:
-            shutil.copy2(target, tmp)
+        try:
+            if os.path.isdir(target):
+                shutil.copytree(target, tmp, symlinks=False)
+            else:
+                shutil.copy2(target, tmp)
+        except OSError as err:
+            # the target tree changed under us (volatile dev tooling — browser
+            # profiles, logs). The link's content is dev-only junk anyway:
+            # drop the link and move on instead of failing the whole deploy.
+            print(f"SKIP volatile: {p} ({err})")
+            try:
+                os.remove(p)
+                if os.path.isdir(tmp):
+                    shutil.rmtree(tmp, ignore_errors=True)
+            except OSError:
+                pass
+            continue
         os.remove(p)
         os.rename(tmp, p)
         print(f"DEREFERENCED: {p} (was -> {os.readlink(p) if os.path.islink(p) else target})")

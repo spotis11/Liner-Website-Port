@@ -346,7 +346,14 @@
     "error_passwords_no_match": "Паролі не збігаються",
     "error_wrong_password": "Невірний пароль",
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Продовжити з Discord",
+    "discord_hint": "Одне торкання через Discord — акаунт сайту створиться або прив'яжеться автоматично.",
+    "discord_signing_in": "Вхід через Discord…",
+    "discord_error_title": "Не вдалося увійти через Discord",
+    "discord_error": "Щось пішло не так під час зв'язку з Discord. Спробуйте ще раз.",
+    "discord_error_denied": "Вхід через Discord скасовано.",
+    "discord_back_to_login": "Повернутися до входу"
   },
   "player": {
     "mute": "Вимкнути звук",

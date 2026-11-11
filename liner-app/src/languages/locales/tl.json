@@ -346,7 +346,14 @@
       "logged_in": "Naka-log in!"
     },
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Magpatuloy gamit ang Discord",
+    "discord_hint": "Isang tap gamit ang Discord account — awtomatikong gagawin o ikakabit ang account mo sa site.",
+    "discord_signing_in": "Naglo-log in gamit ang Discord…",
+    "discord_error_title": "Hindi nakapag-log in sa Discord",
+    "discord_error": "May naganap na problema sa Discord. Subukan muli.",
+    "discord_error_denied": "Kanselado ang pag-log in sa Discord.",
+    "discord_back_to_login": "Bumalik sa pag-log in"
   },
   "player": {
     "repeat_off": "Repeat: naka-off",

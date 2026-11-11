@@ -483,7 +483,14 @@
     "waiting_verification": "Waiting for Telegram verification...",
     "welcome_back": "Welcome back",
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Continue with Discord",
+    "discord_hint": "One tap with your Discord account — your website account is created or linked automatically.",
+    "discord_signing_in": "Signing you in with Discord…",
+    "discord_error_title": "Discord sign-in failed",
+    "discord_error": "Something went wrong while talking to Discord. Please try again.",
+    "discord_error_denied": "Discord sign-in was cancelled.",
+    "discord_back_to_login": "Back to sign in"
   },
   "maintenance": {
     "title": "Currently on Maintenance!",

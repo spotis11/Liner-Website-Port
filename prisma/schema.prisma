@@ -179,6 +179,7 @@ model Account {
   username                String   @unique
   displayName             String
   passwordHash            String?
+  discordId               String?  @unique
   avatarUrl               String?
   bio                     String?
   isGuest                 Boolean  @default(false)

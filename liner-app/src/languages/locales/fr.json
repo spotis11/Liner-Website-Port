@@ -446,7 +446,14 @@
     "waiting_verification": "En attente de la vérification Telegram...",
     "welcome_back": "Bon retour",
     "btn_guest": "Continuer en invité",
-    "guest_hint": "Sans e-mail ni mot de passe — un compte invité privé est créé sur ce site et conservé pour votre prochaine visite."
+    "guest_hint": "Sans e-mail ni mot de passe — un compte invité privé est créé sur ce site et conservé pour votre prochaine visite.",
+    "btn_discord": "Continuer avec Discord",
+    "discord_hint": "Un appui avec votre compte Discord : votre compte du site est créé ou lié automatiquement.",
+    "discord_signing_in": "Connexion avec Discord…",
+    "discord_error_title": "Échec de la connexion Discord",
+    "discord_error": "Un problème est survenu avec Discord. Veuillez réessayer.",
+    "discord_error_denied": "La connexion Discord a été annulée.",
+    "discord_back_to_login": "Retour à la connexion"
   },
   "player": {
     "autoplay_radio": "Radio automatique",

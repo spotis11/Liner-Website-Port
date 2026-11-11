@@ -446,7 +446,14 @@
     "waiting_verification": "Aguardando verificação no Telegram...",
     "welcome_back": "Bem-vindo de volta",
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Continuar com Discord",
+    "discord_hint": "Um toque com sua conta Discord — sua conta do site é criada ou vinculada automaticamente.",
+    "discord_signing_in": "Entrando com Discord…",
+    "discord_error_title": "Falha ao entrar com Discord",
+    "discord_error": "Algo deu errado ao falar com o Discord. Tente novamente.",
+    "discord_error_denied": "Entrar com Discord foi cancelado.",
+    "discord_back_to_login": "Voltar para o login"
   },
   "player": {
     "autoplay_radio": "Rádio automática",

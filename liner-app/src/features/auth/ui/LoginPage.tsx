@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Button from "@/shared/ui/Button";
 import TextInput from "@/shared/ui/TextInput";
-import { EyeLine, EyeCloseLine, ArrowLeftLine } from "@mingcute/react";
+import { EyeLine, EyeCloseLine, ArrowLeftLine, DiscordFill } from "@mingcute/react";
 import WindowControls from "@/features/navigation/ui/WindowControls";
 import LoginBrandPanel from "./LoginBrandPanel";
 import LoginBackdrop from "./LoginBackdrop";
@@ -48,6 +48,14 @@ export default function LoginPage() {
     setRegisterStep(1);
     setError("");
     setConfirmPassword("");
+  };
+
+  // discord oauth: full-page navigation to the server route (it bounces the
+  // browser to Discord's authorize screen and back into #/auth/discord)
+  const handleDiscord = () => {
+    if (submitting) return;
+    setError("");
+    window.location.assign("/api/auth/discord/start");
   };
 
   // guest mode: one tap, no email/password — a real (permanent) account is
@@ -620,12 +628,28 @@ export default function LoginPage() {
                 </span>
                 <span className="h-px flex-1 bg-border-primary" />
               </div>
+              {/* discord oauth — a real website account, Discord as credential */}
+              <Button
+                type="button"
+                variant="outline"
+                disabled={submitting}
+                onClick={handleDiscord}
+                className="mt-[12px] w-full"
+              >
+                <span className="inline-flex" style={{ color: "#5865F2" }}>
+                  <DiscordFill className="h-4 w-4" />
+                </span>
+                <span>{t("login.btn_discord")}</span>
+              </Button>
+              <p className="m-0 mt-[8px] text-center text-[11px] leading-[1.5] text-text-tertiary">
+                {t("login.discord_hint")}
+              </p>
               <Button
                 type="button"
                 variant="outline"
                 disabled={submitting}
                 onClick={handleGuest}
-                className="mt-[12px] w-full"
+                className="mt-[10px] w-full"
               >
                 {submitting ? (
                   <span className="h-[14px] w-[14px] animate-spin rounded-full border-2 border-current border-t-transparent" />

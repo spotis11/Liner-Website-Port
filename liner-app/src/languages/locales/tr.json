@@ -344,7 +344,14 @@
       "logged_in": "Giriş yapıldı!"
     },
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Discord ile devam et",
+    "discord_hint": "Discord hesabınla tek dokunuş — site hesabın otomatik oluşturulur veya bağlanır.",
+    "discord_signing_in": "Discord ile giriş yapılıyor…",
+    "discord_error_title": "Discord girişi başarısız oldu",
+    "discord_error": "Discord ile bağlantıda bir sorun oluştu. Lütfen tekrar dene.",
+    "discord_error_denied": "Discord girişi iptal edildi.",
+    "discord_back_to_login": "Girişe dön"
   },
   "player": {
     "mute": "Sesi kapat",

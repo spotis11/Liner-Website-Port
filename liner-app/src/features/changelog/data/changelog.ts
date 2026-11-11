@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.14.0",
+    date: "2026-11-11",
+    title: "Sign in with Discord",
+    entries: [
+      {
+        type: "added",
+        text: "The login screen has a \"Continue with Discord\" button. One tap bounces you through Discord's own authorize screen and back — a website account is created automatically from your Discord profile (avatar, display name, username), or linked to your existing account when the emails match. The flow runs on Discord's official OAuth2 with a PKCE proof and a one-time state check, so nothing but Discord itself can complete a sign-in. Cancelled prompts and failures land back on a friendly error card with a way back to the sign-in form.",
+      },
+    ],
+  },
+  {
     version: "1.13.5",
     date: "2026-11-11",
     title: "Fullscreen player: vertical with lyrics, horizontal without",

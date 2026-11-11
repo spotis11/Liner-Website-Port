@@ -17,6 +17,12 @@ import { useWelcomeStore } from "@/features/welcome/store/welcomeStore";
 import { clearScreenCache } from "@/shared/cache/screenCache";
 
 export type AuthStatus = "initializing" | "authenticated" | "anonymous";
+export interface DiscordLoginPayload {
+  accessToken: string;
+  refreshToken: string;
+  accessTokenExpiresAt: string;
+  user: AuthUser;
+}
 export type AuthState = {
   status: AuthStatus;
   user: AuthUser | null;
@@ -29,6 +35,8 @@ export type AuthState = {
     username: string,
     displayName: string,
   ) => Promise<void>;
+  /** OAuth handoff: install a session already minted by /api/auth/discord/callback */
+  completeDiscordLogin: (payload: DiscordLoginPayload) => Promise<void>;
   updateProfile: (patch: UpdateProfileInput) => Promise<PublicUser>;
   logout: () => Promise<void>;
 };
@@ -145,6 +153,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     await enforceWebsiteBan(result.user).catch(() => {});
     set({ status: "authenticated", user: result.user });
     useWelcomeStore.getState().notifyLogin(result.user);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("library:changed"));
+    }
+  },
+  completeDiscordLogin: async (payload) => {
+    // the session was minted server-side by /api/auth/discord/callback and
+    // handed over in the URL fragment — install it, then run the same gates
+    // as every other sign-in (ban wall, welcome greeting, library refresh)
+    setAuthSession(payload);
+    await enforceWebsiteBan(payload.user).catch(() => {});
+    set({ status: "authenticated", user: payload.user });
+    useWelcomeStore.getState().notifyLogin(payload.user);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("library:changed"));
     }

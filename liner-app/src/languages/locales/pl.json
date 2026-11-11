@@ -442,7 +442,14 @@
     "waiting_verification": "Oczekiwanie na weryfikację w Telegramie...",
     "welcome_back": "Witaj ponownie",
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Kontynuuj z Discordem",
+    "discord_hint": "Jedno dotknięcie kontem Discord — konto na stronie zostanie automatycznie utworzone lub połączone.",
+    "discord_signing_in": "Logowanie przez Discord…",
+    "discord_error_title": "Logowanie przez Discord nie powiodło się",
+    "discord_error": "Coś poszło nie tak podczas łączenia z Discordem. Spróbuj ponownie.",
+    "discord_error_denied": "Logowanie przez Discord zostało anulowane.",
+    "discord_back_to_login": "Wróć do logowania"
   },
   "player": {
     "autoplay_radio": "Radio automatyczne",

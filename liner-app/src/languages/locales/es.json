@@ -441,7 +441,14 @@
     "waiting_verification": "Esperando verificación de Telegram...",
     "welcome_back": "Te damos la bienvenida",
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Continuar con Discord",
+    "discord_hint": "Un toque con tu cuenta de Discord: tu cuenta del sitio se crea o vincula automáticamente.",
+    "discord_signing_in": "Iniciando sesión con Discord…",
+    "discord_error_title": "Falló el inicio de sesión con Discord",
+    "discord_error": "Algo salió mal al hablar con Discord. Inténtalo de nuevo.",
+    "discord_error_denied": "Se canceló el inicio de sesión con Discord.",
+    "discord_back_to_login": "Volver a iniciar sesión"
   },
   "player": {
     "autoplay_radio": "Radio automática",

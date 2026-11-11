@@ -438,7 +438,14 @@
     "waiting_verification": "In attesa della verifica di Telegram...",
     "welcome_back": "Bentornato",
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Continua con Discord",
+    "discord_hint": "Un tocco con il tuo account Discord: l'account del sito viene creato o collegato automaticamente.",
+    "discord_signing_in": "Accesso con Discord…",
+    "discord_error_title": "Accesso con Discord non riuscito",
+    "discord_error": "Si è verificato un problema con Discord. Riprova.",
+    "discord_error_denied": "Accesso con Discord annullato.",
+    "discord_back_to_login": "Torna all'accesso"
   },
   "player": {
     "autoplay_radio": "Radio automatica",

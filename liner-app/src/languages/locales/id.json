@@ -437,7 +437,14 @@
     "waiting_verification": "Menunggu verifikasi Telegram...",
     "welcome_back": "Selamat datang kembali",
     "btn_guest": "Continue as guest",
-    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time."
+    "guest_hint": "No email or password needed — a private guest account is created on this site and kept for next time.",
+    "btn_discord": "Lanjutkan dengan Discord",
+    "discord_hint": "Sekali ketuk dengan akun Discord — akun situs Anda otomatis dibuat atau ditautkan.",
+    "discord_signing_in": "Masuk dengan Discord…",
+    "discord_error_title": "Masuk dengan Discord gagal",
+    "discord_error": "Terjadi kesalahan saat menghubungi Discord. Silakan coba lagi.",
+    "discord_error_denied": "Masuk dengan Discord dibatalkan.",
+    "discord_back_to_login": "Kembali ke halaman masuk"
   },
   "player": {
     "autoplay_radio": "Radio Otomatis",

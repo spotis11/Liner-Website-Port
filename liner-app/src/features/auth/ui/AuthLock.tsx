@@ -27,7 +27,8 @@ export function AuthLock({ children }: { children: React.ReactNode }) {
   }, [initialize]);
 
   useEffect(() => {
-    if (status === "anonymous" && pathname !== "/login") {
+    const anonymousAllowed = pathname === "/login" || pathname === "/auth/discord";
+    if (status === "anonymous" && !anonymousAllowed) {
       navigate("/login", { replace: true });
     }
     if (status === "authenticated" && pathname === "/login") {
@@ -37,7 +38,7 @@ export function AuthLock({ children }: { children: React.ReactNode }) {
 
   if (
     status === "initializing" ||
-    (status === "anonymous" && pathname !== "/login") ||
+    (status === "anonymous" && pathname !== "/login" && pathname !== "/auth/discord") ||
     (status === "authenticated" && pathname === "/login")
   ) {
     return (
@@ -47,7 +48,11 @@ export function AuthLock({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return pathname === "/login" ? children : <AppFrame>{children}</AppFrame>;
+  return pathname === "/login" || pathname === "/auth/discord" ? (
+    children
+  ) : (
+    <AppFrame>{children}</AppFrame>
+  );
 }
 
 export default AuthLock;
