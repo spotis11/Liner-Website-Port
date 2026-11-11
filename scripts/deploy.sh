@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 # Rebuild liner-app SPA and deploy to Next.js prod (:3000)
 set -euo pipefail
+
+# The website build must never inherit the Electron release CI's env vars.
+# release.yml sets VITE_API_URL=https://api.tryliner.fun for the desktop
+# builds; if that var leaks into this shell, `vite build` bakes the upstream
+# API into the web bundle, resolveApiBaseUrl short-circuits past the
+# same-origin branch, and every browser call cross-origins straight to
+# api.tryliner.fun -> CORS failures for every visitor. The website always
+# talks same-origin ("/v1/*"), so the var is simply unset here. Local dev
+# overrides keep working via liner-app/.env files, which vite loads itself.
+unset VITE_API_URL
+
 cd /home/z/my-project/liner-app
 
 echo "=== 1. typecheck ==="
