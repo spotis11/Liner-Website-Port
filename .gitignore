@@ -89,3 +89,6 @@ scripts/email-captures/
 # chromium e2e test profile: browser cache/cookies + dangling singleton symlinks
 # (breaks ripgrep/find with exit 2 on clones — must never be tracked)
 scripts/e2e-profile/
+
+# runtime full-database mirror (never ship, never commit)
+/db/db-mirror.json

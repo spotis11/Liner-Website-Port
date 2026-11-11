@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rotateSession, toPublicUser, WebsiteAuthError } from "@/lib/websiteAuth";
+import { scheduleDbMirror } from "@/lib/db";
 import { db, ensureDbReady } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
         { status: 401 },
       );
     }
+    scheduleDbMirror();
     return NextResponse.json({
       accessToken: rotated.session.accessToken,
       refreshToken: rotated.session.refreshToken,

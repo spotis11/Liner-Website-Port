@@ -5,6 +5,7 @@ import {
   toPublicUser,
 } from "@/lib/websiteAuth";
 import { issueWebsiteOwnerCookie } from "@/lib/websiteCookie";
+import { scheduleDbMirror } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
       user: toPublicUser(account),
     });
     issueWebsiteOwnerCookie(response, account.id, account.username);
+    scheduleDbMirror();
     return response;
   } catch (error) {
     if (error instanceof WebsiteAuthError) {

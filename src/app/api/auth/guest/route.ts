@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createGuestAccount, guestPublicUser } from "@/lib/websiteAuth";
 import { issueWebsiteOwnerCookie } from "@/lib/websiteCookie";
+import { scheduleDbMirror } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
       user: guestPublicUser(account),
     });
     issueWebsiteOwnerCookie(response, account.id, account.username);
+    scheduleDbMirror();
     return response;
   } catch (error) {
     console.error("[auth/guest]", error);

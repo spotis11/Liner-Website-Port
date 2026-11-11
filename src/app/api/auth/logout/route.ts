@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { destroySessionByRefreshToken } from "@/lib/websiteAuth";
+import { scheduleDbMirror } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   await destroySessionByRefreshToken(body?.refreshToken).catch(() => undefined);
+  scheduleDbMirror();
   const response = NextResponse.json({ ok: true });
   // best-effort marker cleanup
   try {

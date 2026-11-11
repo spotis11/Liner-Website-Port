@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.13.3",
+    date: "2026-11-11",
+    title: "Website updates no longer sign you out",
+    entries: [
+      {
+        type: "fixed",
+        text: "Every website update used to wipe the live database with the build machine's stale copy — every session died (everyone signed out) and guest accounts lost their library. The deploy package no longer carries a database file: your data now stays on the server across updates, backed by a continuously-written JSON mirror that the server restores automatically if the database ever comes up empty (the same self-healing the ban list already had). Signed in once, signed in for good — updates included.",
+      },
+    ],
+  },
+  {
     version: "1.13.2",
     date: "2026-11-11",
     title: "The Lyrics button is back",

@@ -424,6 +424,205 @@ async function restoreBansFromMirror(): Promise<void> {
   }
 }
 
+// --- Full-database mirror (auth + library survive republishes) --------------
+
+/**
+ * The site ships as a tarball that the platform unpacks OVER the previous
+ * container state — and the packaging used to include this workspace's
+ * db/custom.db, so every republish clobbered the live database with a stale
+ * copy: every Session row died (all users signed out), guest accounts and
+ * their libraries vanished. Two layers fix that:
+ *
+ *  1. The package no longer carries a db file. It carries a *seed mirror*
+ *     (db/db-mirror-seed.json) generated from the workspace db at build time.
+ *  2. At runtime the whole database is mirrored to db/db-mirror.json (never
+ *     shipped, never committed) and restored when the db comes up fresh.
+ *
+ * Restore rule: only when the db is genuinely fresh (no accounts AND no
+ * system keys) — a db that already has data always wins, so a surviving live
+ * db is never downgraded to a stale mirror.
+ */
+
+const MIRROR_TABLES = [
+  'account',
+  'session',
+  'playlist',
+  'playlistTrack',
+  'likedTrack',
+  'playHistory',
+  'announcement',
+  'ban',
+  'ipSeen',
+  'banIp',
+  'userSeen',
+  'systemKey',
+  'emailLog',
+  'accountTrack',
+  'accountPlaylist',
+  'accountPlaylistItem',
+] as const
+
+/** FK-safe restore order (children after their parents). */
+const RESTORE_ORDER: readonly string[] = [
+  'account',
+  'session',
+  'playlist',
+  'playlistTrack',
+  'likedTrack',
+  'playHistory',
+  'announcement',
+  'ban',
+  'ipSeen',
+  'banIp',
+  'userSeen',
+  'systemKey',
+  'emailLog',
+  'accountTrack',
+  'accountPlaylist',
+  'accountPlaylistItem',
+]
+
+function dbMirrorPath(): string | null {
+  if (!sqliteFilePath) return null
+  return resolve(dirname(sqliteFilePath), 'db-mirror.json')
+}
+
+function dbSeedMirrorPath(): string | null {
+  if (!sqliteFilePath) return null
+  return resolve(dirname(sqliteFilePath), 'db-mirror-seed.json')
+}
+
+interface DbMirror {
+  savedAt: string
+  tables: Record<string, unknown[]>
+}
+
+function parseDbMirror(raw: string): DbMirror | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<DbMirror> | null
+    if (!parsed || typeof parsed.savedAt !== 'string') return null
+    if (!parsed.tables || typeof parsed.tables !== 'object') return null
+    const tables: Record<string, unknown[]> = {}
+    for (const name of MIRROR_TABLES) {
+      const rows = (parsed.tables as Record<string, unknown>)[name]
+      tables[name] = Array.isArray(rows) ? rows : []
+    }
+    return { savedAt: parsed.savedAt, tables }
+  } catch {
+    return null
+  }
+}
+
+let mirrorTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * Debounced best-effort full-database mirror write (trailing 2s). Call after
+ * any mutation whose loss would hurt: auth (login/guest/register/refresh/
+ * logout), library changes, ban updates. A timer also flushes every 60s as a
+ * safety net for mutations without an explicit call.
+ */
+export function scheduleDbMirror(): void {
+  if (mirrorTimer) return
+  mirrorTimer = setTimeout(() => {
+    mirrorTimer = null
+    void refreshDbMirror()
+  }, 2_000)
+  if (typeof mirrorTimer.unref === 'function') mirrorTimer.unref()
+}
+
+/**
+ * Dump every table into db/db-mirror.json (atomic, best-effort). Skips the
+ * write when the db looks empty but an existing mirror holds accounts — a
+ * transient empty read must never downgrade a good mirror.
+ */
+export async function refreshDbMirror(): Promise<void> {
+  const target = dbMirrorPath()
+  if (!target) return
+  try {
+    const tables: Record<string, unknown[]> = {}
+    for (const name of MIRROR_TABLES) {
+      tables[name] = await (db as unknown as Record<string, { findMany: () => Promise<unknown[]> }>)[name].findMany()
+    }
+    const looksEmpty =
+      (tables.account as unknown[]).length === 0 &&
+      (tables.session as unknown[]).length === 0 &&
+      (tables.systemKey as unknown[]).length === 0
+    if (looksEmpty) {
+      const { existsSync } = await import('fs')
+      if (existsSync(target)) return
+    }
+    const mirror: DbMirror = {
+      savedAt: new Date().toISOString(),
+      tables,
+    }
+    await writeJsonAtomic(target, mirror)
+  } catch (err) {
+    console.warn('[db] db-mirror write failed (best-effort):', err)
+  }
+}
+
+/**
+ * Restore the whole database from the mirror when the db came up fresh
+ * (provisioned by the DDL self-healing, no accounts, no system keys).
+ * Prefers the runtime mirror; falls back to the package's seed mirror.
+ */
+async function restoreDbFromMirror(): Promise<void> {
+  const { existsSync, readFileSync } = await import('fs')
+  const [accounts, keys] = await Promise.all([
+    db.account.count(),
+    db.systemKey.count(),
+  ])
+  if (accounts > 0 || keys > 0) return
+
+  const candidates = [dbMirrorPath(), dbSeedMirrorPath()]
+  let mirror: DbMirror | null = null
+  let source = ''
+  for (const candidate of candidates) {
+    if (!candidate || !existsSync(candidate)) continue
+    try {
+      const parsed = parseDbMirror(readFileSync(candidate, 'utf8'))
+      if (parsed && (parsed.tables.account as unknown[]).length > 0) {
+        mirror = parsed
+        source = candidate
+        break
+      }
+    } catch {
+      // unreadable mirror — try the next candidate
+    }
+  }
+  if (!mirror) return
+
+  let restored = 0
+  for (const name of RESTORE_ORDER) {
+    const rows = mirror.tables[name]
+    if (!rows || rows.length === 0) continue
+    const delegate = (db as unknown as Record<string, { createMany: (a: { data: unknown[] }) => Promise<{ count: number }> }>)[name]
+    try {
+      const result = await delegate.createMany({ data: rows })
+      restored += result.count
+    } catch {
+      // batch rejected (shape drift / duplicate) — insert row by row so one
+      // bad row cannot drop the whole table
+      let ok = 0
+      for (const row of rows) {
+        try {
+          await delegate.createMany({ data: [row] })
+          ok += 1
+        } catch {
+          // skip malformed row
+        }
+      }
+      restored += ok
+    }
+  }
+  if (restored > 0) {
+    console.log(
+      `[db] restored ${restored} row(s) from the database mirror (${source}, savedAt ${mirror.savedAt}) after a fresh db`,
+    )
+    await refreshDbMirror()
+  }
+}
+
 // --- ensureDbReady ----------------------------------------------------------
 
 let readyPromise: Promise<boolean> | null = null
@@ -448,6 +647,7 @@ export function ensureDbReady(): Promise<boolean> {
         }
         await migrateColumns()
         await restoreBansFromMirror()
+        await restoreDbFromMirror()
         return true
       } catch (err) {
         console.warn('[db] ensure-schema failed:', err)
@@ -461,3 +661,12 @@ export function ensureDbReady(): Promise<boolean> {
 // Kick it off at import time so every route benefits from a provisioned db
 // without waiting for the moderation lib.
 void ensureDbReady()
+
+// safety net: flush the database mirror even for mutations that never call
+// scheduleDbMirror explicitly (library edits, play history, email logs...)
+if (typeof setInterval === 'function') {
+  const mirrorInterval = setInterval(() => {
+    void refreshDbMirror()
+  }, 60_000)
+  if (typeof mirrorInterval.unref === 'function') mirrorInterval.unref()
+}
