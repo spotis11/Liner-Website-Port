@@ -19,7 +19,6 @@ import { preloadCoverArt, useCoverSrc } from "@/features/covers";
 import KawarpWrapper from "./KawarpWrapper";
 import SoundWave, { useSoundWaveEnabled } from "./SoundWave";
 import { useTranslation } from "@/languages";
-import { useSettledLyricsLayout } from "../hooks/useSettledLyricsLayout";
 import { CanvasLyricsView } from "./CanvasLyricsView";
 import AmbientLayer from "./AmbientLayer";
 import { BetaVisualsWarning } from "./BetaVisualsWarning";
@@ -117,11 +116,6 @@ export function FullscreenPlayer({
     (instrumental || plainLyrics === "[INSTRUMENTAL]");
   const isLyricsLoading = !hasLyrics && lyricsLoading;
   const isLyricsMissing = isMatchingTrack && !hasLyrics && !lyricsLoading;
-  const isCompactLayout = useSettledLyricsLayout({
-    isMatchingTrack,
-    lyricsLoading,
-    hasLyrics,
-  });
 
   // live sound wave — Web Audio analyser tap on the master output bus
   // (only when enabled in Settings > Playback)
@@ -201,8 +195,10 @@ export function FullscreenPlayer({
       <FullscreenFrameGlass />
 
       <div className="absolute inset-1.5 z-10 flex">
-        {/* left: player UI — glides from half-width to centered while the
-            lyrics pane collapses (fork lyrics toggle choreography) */}
+        {/* left: player UI — horizontal column (cover art beside the title,
+            timeline and controls, like the reference layout — never the old
+            cover-on-top stack) that glides from half-width to centered while
+            the lyrics pane collapses (fork lyrics toggle choreography) */}
         <motion.div
           initial={false}
           animate={{ width: paneOpen ? "50%" : "100%" }}
@@ -211,7 +207,8 @@ export function FullscreenPlayer({
         >
           <PlayerUiElements
             onClose={onClose}
-            layout={isCompactLayout ? "horizontal" : "vertical"}
+            layout="horizontal"
+            fitPane={paneOpen}
           />
         </motion.div>
 

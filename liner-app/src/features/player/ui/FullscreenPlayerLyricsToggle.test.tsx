@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  *  - the lyrics status notch (provider island / missing status) only shows
  *    while lyrics are visible
  *  - the preference persists across remounts via localStorage
+ *  - the player UI column is horizontal (cover beside the controls, fork
+ *    reference layout) — never the old cover-on-top vertical stack
  *
  * framer-motion is stubbed to apply `animate` values as inline styles
  * synchronously so the width choreography is assertable without rAF.
@@ -68,7 +70,13 @@ vi.mock("@/features/lyrics", () => ({
 }));
 
 vi.mock("./PlayerUiElements", () => ({
-  PlayerUiElements: () => <div data-testid="player-ui" />,
+  PlayerUiElements: (props: { layout?: string; fitPane?: boolean }) => (
+    <div
+      data-testid="player-ui"
+      data-layout={props.layout}
+      data-fitpane={String(!!props.fitPane)}
+    />
+  ),
 }));
 
 vi.mock("@/features/covers", () => ({
@@ -115,10 +123,6 @@ vi.mock("./AmbientLayer", () => ({
 
 vi.mock("./BetaVisualsWarning", () => ({
   BetaVisualsWarning: () => <div data-testid="beta-warning" />,
-}));
-
-vi.mock("../hooks/useSettledLyricsLayout", () => ({
-  useSettledLyricsLayout: vi.fn(() => false),
 }));
 
 vi.mock("../store/visualModeStore", () => ({
@@ -288,5 +292,22 @@ describe("FullscreenPlayer lyrics toggle", () => {
     expect(pill.getAttribute("aria-pressed")).toBe("false");
     expect(findRightPane(container)!.style.width).toBe("0%");
     expect(findLeftPane(container)!.style.width).toBe("100%");
+  });
+
+  it("keeps the player UI horizontal (cover beside the controls), never vertical", () => {
+    ({ container, root } = renderFullscreen());
+    const ui = () =>
+      document.querySelector<HTMLElement>("[data-testid='player-ui']")!;
+    // pane open: horizontal layout, tightened to fit the half-width split
+    expect(ui().getAttribute("data-layout")).toBe("horizontal");
+    expect(ui().getAttribute("data-fitpane")).toBe("true");
+    const pill = findLyricsPill(container)!;
+    act(() => pill.click());
+    // pane closed: still horizontal — just centered at full width
+    expect(ui().getAttribute("data-layout")).toBe("horizontal");
+    expect(ui().getAttribute("data-fitpane")).toBe("false");
+    act(() => pill.click());
+    expect(ui().getAttribute("data-layout")).toBe("horizontal");
+    expect(ui().getAttribute("data-fitpane")).toBe("true");
   });
 });

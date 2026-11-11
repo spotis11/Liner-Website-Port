@@ -34,6 +34,10 @@ interface PlayerUiElementsProps {
   onDuration?: (duration: number) => void;
   onClose?: () => void;
   layout?: "vertical" | "horizontal";
+  /** fork: horizontal column squeezed into the half-width lyrics split —
+      keeps the info column at its base width and tightens the gap so the
+      cover + controls block never clips inside the pane */
+  fitPane?: boolean;
 }
 
 const LAYOUT_TRANSITION = {
@@ -44,17 +48,22 @@ const LAYOUT_TRANSITION = {
 export function PlayerUiElements({
   onClose,
   layout = "vertical",
+  fitPane = false,
 }: PlayerUiElementsProps) {
   const scale = useFullscreenColumnScale();
-  const scaled = scale > 1;
   const horizontal = layout === "horizontal";
+  // the scaled-up column only fits full-width — inside the half-width lyrics
+  // split it would overflow, so fitPane keeps the base unscaled column
+  const scaled = scale > 1 && !(horizontal && fitPane);
   const columnWidth = Math.round(BASE_COLUMN_WIDTH * scale);
   const columnStyle = scaled ? { width: columnWidth } : undefined;
   const columnClass = cn(
     "min-w-[240px]",
     !scaled &&
       (horizontal
-        ? "w-[min(360px,34vw,calc(100vh-200px))]"
+        ? fitPane
+          ? "w-[min(320px,26vw,calc(100vh-220px))]"
+          : "w-[min(360px,34vw,calc(100vh-200px))]"
         : "w-[min(340px,32vw,calc(100vh-340px))]"),
   );
 
@@ -64,7 +73,11 @@ export function PlayerUiElements({
       transition={LAYOUT_TRANSITION}
       className={cn(
         "flex",
-        horizontal ? "flex-row items-stretch gap-[56px]" : "flex-col",
+        horizontal
+          ? fitPane
+            ? "flex-row items-stretch gap-[40px]"
+            : "flex-row items-stretch gap-[56px]"
+          : "flex-col",
         !horizontal && columnClass,
       )}
       style={horizontal ? undefined : columnStyle}

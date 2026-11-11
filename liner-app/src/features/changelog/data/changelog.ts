@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.13.4",
+    date: "2026-11-11",
+    title: "Fullscreen player: horizontal layout",
+    entries: [
+      {
+        type: "changed",
+        text: "The fullscreen player no longer stacks the cover art on top of the controls while lyrics are open. It now always uses the horizontal layout — cover art on the left with the title, timeline and transport controls beside it — while the lyrics fill the right half, matching the reference look. The Lyrics toggle choreography (pill press, pane slide, remembered preference) is unchanged, and the no-lyrics \"No lyrics found\" state keeps its compact horizontal arrangement.",
+      },
+    ],
+  },
+  {
     version: "1.13.3",
     date: "2026-11-11",
     title: "Website updates no longer sign you out",
