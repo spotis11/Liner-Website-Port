@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.19.0",
+    date: "2026-11-12",
+    title: "Liner Pro",
+    entries: [
+      {
+        type: "added",
+        text: "A new Liner Pro tab in Settings presents the full Pro tier: doubled library limits with 5,000 liked tracks, an animated avatar and profile banner, avatar frames with the Web badge, the revamped full profile editor, listening rooms you can host for up to 50 friends, and the animated Pro sticker pack — each benefit with its own card, plus a gold Pro hero and a Get Liner Pro button that reaches the Liner team directly. Visible to every signed-in account under Settings → Liner Pro, searchable from the settings search bar, and translated into all 12 languages.",
+      },
+    ],
+  },
+  {
     version: "1.18.2",
     date: "2026-11-12",
     title: "Showcase covers the address bar with the bare domain",

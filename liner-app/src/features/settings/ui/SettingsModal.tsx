@@ -23,6 +23,7 @@ import {
   Widget5,
   Gallery,
   Translation,
+  Crown,
 } from "@solar-icons/react";
 import Dialog from "@/shared/ui/Dialog";
 import { UserAvatar } from "@/shared/ui";
@@ -42,6 +43,7 @@ import {
   DiscordTab,
   YoutubeTab,
   AccountTab,
+  ProTab,
   AnnouncementTab,
   UserFinderTab,
   ModerationTab,
@@ -51,6 +53,7 @@ import { isWebsiteAdmin } from "@/features/announcements";
 
 type TabId =
   | "Account"
+  | "Pro"
   | "Playback"
   | "Shortcuts"
   | "Overlay"
@@ -70,6 +73,7 @@ const navGroupClass =
 
 const TAB_ICONS: Record<TabId, React.ComponentType<any>> = {
   Account: User3Line,
+  Pro: Crown,
   Playback: Play,
   Shortcuts: KeyboardLine,
   Overlay: Widget5,
@@ -94,7 +98,7 @@ type TabGroupKey =
   | "website";
 
 const TAB_GROUPS: { labelKey: TabGroupKey; ids: TabId[] }[] = [
-  { labelKey: "account", ids: ["Account"] },
+  { labelKey: "account", ids: ["Account", "Pro"] },
   { labelKey: "player", ids: ["Playback", "Shortcuts"] },
   { labelKey: "interface", ids: ["Appearance", "Customization", "Overlay"] },
   { labelKey: "integrations", ids: ["Youtube", "AiTranslate", "Discord"] },
@@ -161,6 +165,42 @@ const SETTING_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
     tabId: "Account",
     titleKey: "settings.profile.change_password",
     descKey: "settings.profile.password_note",
+  },
+
+  // Liner Pro
+  {
+    tabId: "Pro",
+    titleKey: "settings.pro.tagline",
+  },
+  {
+    tabId: "Pro",
+    titleKey: "settings.pro.b1_title",
+    descKey: "settings.pro.b1_desc",
+  },
+  {
+    tabId: "Pro",
+    titleKey: "settings.pro.b2_title",
+    descKey: "settings.pro.b2_desc",
+  },
+  {
+    tabId: "Pro",
+    titleKey: "settings.pro.b3_title",
+    descKey: "settings.pro.b3_desc",
+  },
+  {
+    tabId: "Pro",
+    titleKey: "settings.pro.b4_title",
+    descKey: "settings.pro.b4_desc",
+  },
+  {
+    tabId: "Pro",
+    titleKey: "settings.pro.b5_title",
+    descKey: "settings.pro.b5_desc",
+  },
+  {
+    tabId: "Pro",
+    titleKey: "settings.pro.b6_title",
+    descKey: "settings.pro.b6_desc",
   },
 
   // Playback
@@ -475,6 +515,7 @@ export default function SettingsModal() {
 
   const tabLabels: Record<TabId, string> = {
     Account: t("settings.tabs.account") || "Account",
+    Pro: t("settings.tabs.pro") || "Liner Pro",
     Playback: t("settings.tabs.playback"),
     Shortcuts: t("settings.tabs.shortcuts") || "Shortcuts",
     Overlay: t("settings.tabs.overlay") || "Overlay",
@@ -494,6 +535,9 @@ export default function SettingsModal() {
     Account:
       t("settings.profile.description") ||
       "Update your public profile, avatar and privacy preferences.",
+    Pro:
+      t("settings.pro.description") ||
+      "The premium Liner experience — bigger library, animated profile and more.",
     Playback: t("settings.playback.description"),
     Shortcuts:
       t("settings.shortcuts.description") ||
@@ -532,6 +576,7 @@ export default function SettingsModal() {
 
     const TAB_LABEL_KEYS: Partial<Record<TabId, string>> = {
       Account: "settings.tabs.account",
+      Pro: "settings.tabs.pro",
       Playback: "settings.tabs.playback",
       Shortcuts: "settings.tabs.shortcuts",
       Overlay: "settings.tabs.overlay",
@@ -548,6 +593,7 @@ export default function SettingsModal() {
 
     const TAB_DESC_KEYS: Partial<Record<TabId, string>> = {
       Account: "settings.profile.description",
+      Pro: "settings.pro.description",
       Playback: "settings.playback.description",
       Shortcuts: "settings.shortcuts.description",
       Overlay: "settings.overlay.description",
@@ -862,6 +908,7 @@ export default function SettingsModal() {
               {activeTab === "Account" && (
                 <AccountTab searchQuery={searchQuery} />
               )}
+              {activeTab === "Pro" && <ProTab searchQuery={searchQuery} />}
               {activeTab === "Playback" && (
                 <PlaybackTab searchQuery={searchQuery} />
               )}

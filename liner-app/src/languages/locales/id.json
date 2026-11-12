@@ -1065,7 +1065,8 @@
       "shortcuts": "Pintasan",
       "storage": "Cache & Penyimpanan",
       "system": "Sistem",
-      "youtube": "YouTube"
+      "youtube": "YouTube",
+      "pro": "Liner Pro"
     },
     "telemetry": {
       "description": "Membantu mengidentifikasi dan memperbaiki error pemutaran, buffering macet, dan masalah jaringan. Tidak pernah mengumpulkan data pribadi, token, kata sandi, atau lokasi file lokal.",
@@ -1131,6 +1132,27 @@
         "description": "Tampilkan playlist dari akun YouTube-mu di pustaka, di samping playlist Liner.",
         "title": "Sinkronkan pustaka"
       }
+    },
+    "pro": {
+      "description": "Pengalaman premium Liner — perpustakaan lebih besar, profil animasi, dan lainnya.",
+      "title": "Liner Pro",
+      "tagline": "Semua yang kamu suka dari Liner, terbuka.",
+      "cta": "Dapatkan Liner Pro",
+      "benefits_title": "Termasuk dalam Pro",
+      "b1_title": "Batas perpustakaan dua kali lipat",
+      "b1_desc": "Simpan hingga 5.000 lagu favorit di perpustakaanmu.",
+      "b2_title": "Avatar dan banner profil animasi",
+      "b2_desc": "Hidupkan profilmu dengan animasi.",
+      "b3_title": "Bingkai avatar dan lencana Web",
+      "b3_desc": "Hias avatarmu dan menonjol.",
+      "b4_title": "Editor profil lengkap (diperbarui)",
+      "b4_desc": "Nama, avatar, bio, dan privasi dalam satu tempat.",
+      "b5_title": "Host ruang mendengarkan",
+      "b5_desc": "Dengarkan bersama hingga 50 teman.",
+      "b6_title": "Paket stiker animasi Pro",
+      "b6_desc": "Stiker animasi eksklusif untuk Pro.",
+      "support_title": "Ada pertanyaan tentang Pro?",
+      "support_desc": "Hubungi tim Liner."
     }
   },
   "toast": {

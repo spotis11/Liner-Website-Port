@@ -494,7 +494,8 @@
       "discord": "Discord RPC",
       "privacy": "Privacy",
       "customization": "Customization",
-      "announcement": "Anunsiyo"
+      "announcement": "Anunsiyo",
+      "pro": "Liner Pro"
     },
     "playback": {
       "description": "Gawi ng pila, aksyon sa pag-click at audio output."
@@ -1003,6 +1004,27 @@
     "sound_wave": {
       "title": "Sound wave visualizer",
       "description": "Magpakita ng live na sound wave na naka-sync sa musika sa fullscreen player."
+    },
+    "pro": {
+      "description": "Ang premium na karanasan ng Liner — mas malaking library, animated na profile, at marami pa.",
+      "title": "Liner Pro",
+      "tagline": "Lahat ng gusto mo sa Liner, naka-unlock.",
+      "cta": "Kunin ang Liner Pro",
+      "benefits_title": "Kasama sa Pro",
+      "b1_title": "Dobleng limitasyon ng library",
+      "b1_desc": "Mag-imbak ng hanggang 5,000 liked na kanta sa library mo.",
+      "b2_title": "Animated na avatar at profile banner",
+      "b2_desc": "Buhayin ang profile mo gamit ang animasyon.",
+      "b3_title": "Mga frame ng avatar at Web badge",
+      "b3_desc": "Damitan ang avatar mo at tumindig.",
+      "b4_title": "Kumpletong profile editor (binago)",
+      "b4_desc": "Pangalan, avatar, bio, at privacy — sa iisang lugar.",
+      "b5_title": "Mag-host ng listening rooms",
+      "b5_desc": "Makinig kasama ang hanggang 50 kaibigan.",
+      "b6_title": "Animated na Pro sticker pack",
+      "b6_desc": "Eksklusibong animated na stickers para sa Pro.",
+      "support_title": "May tanong tungkol sa Pro?",
+      "support_desc": "Makipag-ugnayan sa Liner team."
     }
   },
   "toast": {

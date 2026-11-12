@@ -1063,7 +1063,8 @@
       "privacy": "Privacidad",
       "shortcuts": "Atajos",
       "storage": "Caché y Almacenamiento",
-      "system": "Sistema"
+      "system": "Sistema",
+      "pro": "Liner Pro"
     },
     "telemetry": {
       "description": "Ayuda a identificar y corregir errores de reproducción, cortes de buffer y problemas de red. Nunca recopila datos personales, tokens, contraseñas ni rutas de archivos locales.",
@@ -1109,6 +1110,27 @@
       "follow_stats": "{followers} seguidores · {following} siguiendo",
       "source_live": "En vivo desde Liner",
       "source_cache": "De la caché del sitio"
+    },
+    "pro": {
+      "description": "La experiencia premium de Liner: biblioteca más grande, perfil animado y más.",
+      "title": "Liner Pro",
+      "tagline": "Todo lo que amas de Liner, desbloqueado.",
+      "cta": "Conseguir Liner Pro",
+      "benefits_title": "Incluido con Pro",
+      "b1_title": "Límites de biblioteca duplicados",
+      "b1_desc": "Guarda hasta 5 000 canciones favoritas en tu biblioteca.",
+      "b2_title": "Avatar y banner de perfil animados",
+      "b2_desc": "Da vida a tu perfil con animación.",
+      "b3_title": "Marcos de avatar e insignia Web",
+      "b3_desc": "Decora tu avatar y destaca.",
+      "b4_title": "Editor de perfil completo (renovado)",
+      "b4_desc": "Nombre, avatar, biografía y privacidad en un solo lugar.",
+      "b5_title": "Crea salas de escucha",
+      "b5_desc": "Escucha junto con hasta 50 amigos.",
+      "b6_title": "Paquete de stickers animados de Pro",
+      "b6_desc": "Stickers animados exclusivos de Pro.",
+      "support_title": "¿Preguntas sobre Pro?",
+      "support_desc": "Contacta con el equipo de Liner."
     }
   },
   "toast": {

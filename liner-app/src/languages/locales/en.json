@@ -1395,7 +1395,8 @@
       "shortcuts": "Shortcuts",
       "storage": "Cache & Storage",
       "system": "System",
-      "youtube": "YouTube"
+      "youtube": "YouTube",
+      "pro": "Liner Pro"
     },
     "telemetry": {
       "description": "Helps identify and fix playback errors, buffering stalls, and network issues. Never collects personal data, tokens, passwords, or local file paths.",
@@ -1491,6 +1492,27 @@
       "error": "Could not update website showcase. Try again.",
       "refresh": "Refresh status",
       "dedication": "Made for @jayzeyluna."
+    },
+    "pro": {
+      "description": "The premium Liner experience — bigger library, animated profile and more.",
+      "title": "Liner Pro",
+      "tagline": "Everything you love about Liner, unlocked.",
+      "cta": "Get Liner Pro",
+      "benefits_title": "Included with Pro",
+      "b1_title": "Doubled library limits",
+      "b1_desc": "Keep up to 5,000 liked tracks in your library.",
+      "b2_title": "Animated avatar and profile banner",
+      "b2_desc": "Bring your profile to life with motion.",
+      "b3_title": "Avatar frames and the Web badge",
+      "b3_desc": "Dress up your avatar and stand out.",
+      "b4_title": "Full profile editor (revamped)",
+      "b4_desc": "Name, avatar, bio and privacy in one place.",
+      "b5_title": "Host listening rooms",
+      "b5_desc": "Listen together with up to 50 friends.",
+      "b6_title": "Animated Pro sticker pack",
+      "b6_desc": "Animated stickers, exclusive to Pro.",
+      "support_title": "Questions about Pro?",
+      "support_desc": "Get in touch with the Liner team."
     }
   },
   "toast": {

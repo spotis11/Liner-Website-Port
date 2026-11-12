@@ -1012,7 +1012,8 @@
       "privacy": "Prywatność",
       "shortcuts": "Skróty",
       "storage": "Pamięć podręczna",
-      "system": "System"
+      "system": "System",
+      "pro": "Liner Pro"
     },
     "telemetry": {
       "description": "Pomaga wykrywać i naprawiać błędy odtwarzania, przestoje buforowania i problemy z siecią. Nigdy nie zbiera danych osobowych, tokenów, haseł ani ścieżek do plików lokalnych.",
@@ -1058,6 +1059,27 @@
       "follow_stats": "{followers} obserwujących · {following} obserwowanych",
       "source_live": "Na żywo z Liner",
       "source_cache": "Z pamięci podręcznej witryny"
+    },
+    "pro": {
+      "description": "Premiumowe doświadczenie Linera — większa biblioteka, animowany profil i więcej.",
+      "title": "Liner Pro",
+      "tagline": "Wszystko, co kochasz w Linerze, odblokowane.",
+      "cta": "Zdobądź Liner Pro",
+      "benefits_title": "W ramach Pro",
+      "b1_title": "Podwojone limity biblioteki",
+      "b1_desc": "Przechowuj do 5000 polubionych utworów w bibliotece.",
+      "b2_title": "Animowany awatar i baner profilu",
+      "b2_desc": "Ożyw swój profil animacją.",
+      "b3_title": "Ramki awatara i odznaka Web",
+      "b3_desc": "Udekoruj awatar i wyróżnij się.",
+      "b4_title": "Pełny edytor profilu (odświeżony)",
+      "b4_desc": "Nazwa, awatar, bio i prywatność w jednym miejscu.",
+      "b5_title": "Prowadź pokoje odsłuchowe",
+      "b5_desc": "Słuchaj razem z nawet 50 znajomymi.",
+      "b6_title": "Animowany pakiet naklejek Pro",
+      "b6_desc": "Animowane naklejki, tylko dla Pro.",
+      "support_title": "Pytania o Pro?",
+      "support_desc": "Skontaktuj się z zespołem Linera."
     }
   },
   "toast": {

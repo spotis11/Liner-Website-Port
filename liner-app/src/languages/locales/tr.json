@@ -484,7 +484,8 @@
       "overlay": "Katman",
       "privacy": "Gizlilik",
       "customization": "Özelleştirme",
-      "announcement": "Duyuru"
+      "announcement": "Duyuru",
+      "pro": "Liner Pro"
     },
     "playback": {
       "description": "Sıra davranışı, tıklama eylemleri ve ses çıkışı."
@@ -923,6 +924,27 @@
     "sound_wave": {
       "title": "Ses dalgasi gorsellestirici",
       "description": "Tam ekran oynaticida muzige senkronize canli bir ses dalgasi goster."
+    },
+    "pro": {
+      "description": "Premium Liner deneyimi — daha büyük kütüphane, animasyonlu profil ve daha fazlası.",
+      "title": "Liner Pro",
+      "tagline": "Liner'da sevdiğin her şeyin kilidi açık.",
+      "cta": "Liner Pro'yu al",
+      "benefits_title": "Pro'ya dahil",
+      "b1_title": "İkiye katlanan kütüphane limitleri",
+      "b1_desc": "Kütüphanende 5.000'e kadar beğenilen parça sakla.",
+      "b2_title": "Animasyonlu avatar ve profil kapak görseli",
+      "b2_desc": "Profilini animasyonla canlandır.",
+      "b3_title": "Avatar çerçeveleri ve Web rozeti",
+      "b3_desc": "Avatarını süsle ve öne çık.",
+      "b4_title": "Eksiksiz profil düzenleyici (yenilendi)",
+      "b4_desc": "İsim, avatar, bio ve gizlilik tek bir yerde.",
+      "b5_title": "Dinleme odaları aç",
+      "b5_desc": "50 arkadaşınla birlikte dinle.",
+      "b6_title": "Animasyonlu Pro sticker paketi",
+      "b6_desc": "Animasyonlu stickerlar, Pro'ya özel.",
+      "support_title": "Pro hakkında soruların mı var?",
+      "support_desc": "Liner ekibiyle iletişime geç."
     }
   },
   "toast": {

@@ -1,6 +1,6 @@
 {
   "name": "@liner/client",
-  "version": "1.18.2",
+  "version": "1.19.0",
   "type": "module",
   "private": true,
   "description": "Liner Music Player",

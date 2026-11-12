@@ -1131,7 +1131,8 @@
       "shortcuts": "Raccourcis",
       "storage": "Cache et stockage",
       "system": "Système",
-      "youtube": "YouTube"
+      "youtube": "YouTube",
+      "pro": "Liner Pro"
     },
     "telemetry": {
       "description": "Aide à repérer et corriger les erreurs de lecture, les blocages de mise en mémoire tampon et les problèmes réseau. Ne collecte jamais de données personnelles, jetons, mots de passe ni chemins de fichiers locaux.",
@@ -1198,6 +1199,27 @@
       "signed_out_title": "Non connecté",
       "signed_out_description": "Connectez-vous pour maintenir le bon fonctionnement de la lecture YouTube",
       "section_account": "Compte"
+    },
+    "pro": {
+      "description": "L'expérience Liner premium : bibliothèque plus grande, profil animé et plus encore.",
+      "title": "Liner Pro",
+      "tagline": "Tout ce que vous aimez dans Liner, débloqué.",
+      "cta": "Obtenir Liner Pro",
+      "benefits_title": "Inclus avec Pro",
+      "b1_title": "Limites de bibliothèque doublées",
+      "b1_desc": "Gardez jusqu'à 5 000 titres aimés dans votre bibliothèque.",
+      "b2_title": "Avatar et bannière de profil animés",
+      "b2_desc": "Donnez vie à votre profil.",
+      "b3_title": "Cadres d'avatar et badge Web",
+      "b3_desc": "Habillez votre avatar et distinguez-vous.",
+      "b4_title": "Éditeur de profil complet (repensé)",
+      "b4_desc": "Nom, avatar, bio et confidentialité au même endroit.",
+      "b5_title": "Animer des salles d'écoute",
+      "b5_desc": "Écoutez avec jusqu'à 50 amis.",
+      "b6_title": "Pack de stickers Pro animés",
+      "b6_desc": "Des stickers animés exclusifs pour Pro.",
+      "support_title": "Des questions sur Pro ?",
+      "support_desc": "Contactez l'équipe Liner."
     }
   },
   "toast": {
