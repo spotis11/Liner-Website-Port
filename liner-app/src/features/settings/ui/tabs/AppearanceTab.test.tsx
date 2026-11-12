@@ -5,6 +5,7 @@ import { AppearanceTab } from "./AppearanceTab";
 import { useAppearanceStore } from "../../store/appearanceStore";
 import { useCustomizationStore } from "../../store/customizationStore";
 import { applyColorThemeToDocument } from "../../store/appearanceStore";
+import { useLiquidGlassStore } from "@/features/liquid-glass";
 
 const mockSetTheme = vi.fn();
 let mockTheme = "dark";
@@ -163,14 +164,35 @@ describe("AppearanceTab color themes", () => {
     expect(useAppearanceStore.getState().sameAsDevice).toBe(false);
   });
 
-  it("renders no Liquid Glass section and no legacy glass attributes", () => {
+  it("renders the real Liquid Glass toggle and no legacy glass attributes", () => {
+    useLiquidGlassStore.getState().setEnabled(false);
     mount();
-    expect(container!.textContent).not.toContain("Liquid Glass");
+    const toggle = container!.querySelector<HTMLButtonElement>(
+      'button[aria-label="Liquid glass"]',
+    );
+    expect(toggle).toBeTruthy();
+    expect(container!.textContent).toContain("Liquid glass");
     expect(
       container!.querySelector('button[aria-label="Liquid glass mode: Glass"]'),
     ).toBeNull();
     expect(
       document.documentElement.getAttribute("data-liquid-glass"),
     ).toBeNull();
+  });
+
+  it("toggles the liquid glass store from the Appearance tab", () => {
+    useLiquidGlassStore.getState().setEnabled(false);
+    mount();
+    const toggle = container!.querySelector<HTMLButtonElement>(
+      'button[aria-label="Liquid glass"]',
+    )!;
+    act(() => {
+      toggle.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(useLiquidGlassStore.getState().enabled).toBe(true);
+    act(() => {
+      toggle.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(useLiquidGlassStore.getState().enabled).toBe(false);
   });
 });

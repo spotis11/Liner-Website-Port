@@ -18,6 +18,7 @@ import {
 import { useListReorder } from "@/shared/hooks";
 import RightDrawerHeader from "./RightDrawerHeader";
 import { useBlockCustomizationStyle } from "@/features/settings/store/customizationStore";
+import { useLiquidGlassEnabled, LiquidGlassPane } from "@/features/liquid-glass";
 
 const QUEUE_ITEM_HEIGHT = 68;
 const REMOVE_FADE_MS = 180;
@@ -380,11 +381,17 @@ function RightDrawer({ onClose }: RightDrawerProps) {
     prevQueueTrackIdRef.current = currentId;
   }, [player.currentTrack?.id, scrollQueueToCurrent]);
 
+  const liquidGlass = useLiquidGlassEnabled();
+
   return (
     <div
-      className="relative flex flex-col h-full w-full overflow-hidden rounded-[14px] select-none bg-bg-glass backdrop-blur-[48px]"
+      data-liquid-ignore={liquidGlass ? "" : undefined}
+      className={`relative flex flex-col h-full w-full overflow-hidden rounded-[14px] select-none ${
+        liquidGlass ? "" : "bg-bg-glass backdrop-blur-[48px]"
+      }`}
       style={drawerStyle}
     >
+      {liquidGlass && <LiquidGlassPane />}
       <RightDrawerHeader
         trackCount={player.queue.length}
         shuffle={player.shuffle}

@@ -1,6 +1,6 @@
 {
   "name": "@liner/client",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "type": "module",
   "private": true,
   "description": "Liner Music Player",
@@ -126,6 +126,7 @@
     "googlevideo": "5.0.1",
     "gsap": "^3.15.0",
     "hash-wasm": "4.12.0",
+    "liquid-gl": "^3.0.0",
     "lottie-web": "^5.13.0",
     "meriyah": "7.4.0",
     "morphicons": "^1.7.1",

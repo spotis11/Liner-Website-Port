@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>liquidGL probe</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #101018; color: #eee; min-height: 100vh; }
+  .scroller { height: 200vh; padding: 40px; }
+  .card { display:inline-block; margin: 24px; width: 260px; height: 160px; border-radius: 18px;
+    background: linear-gradient(135deg, #ff5f6d, #ffc371); }
+  .card.blue { background: linear-gradient(135deg, #36d1dc, #5b86e5); }
+  .card.green { background: linear-gradient(135deg, #11998e, #38ef7d); }
+  #bar { position: fixed; left: 24px; right: 24px; bottom: 24px; height: 84px; border-radius: 22px;
+    display: flex; align-items: center; gap: 16px; padding: 0 24px; z-index: 55;
+    background: rgba(20,20,30,0.55); backdrop-filter: blur(20px); }
+  #bar .content { display: flex; align-items: center; gap: 16px; position: relative; z-index: 3; width: 100%; }
+  button { font-size: 15px; padding: 10px 18px; border-radius: 10px; border: 0; cursor: pointer;
+    background: #ffffff22; color: #fff; }
+  button:hover { background: #ffffff44; }
+  #probe { position: fixed; top: 10px; left: 10px; z-index: 99; background:#000a; color:#7f7;
+    padding: 4px 8px; border-radius: 6px; font-size: 12px; font-family: monospace; }
+</style>
+</head>
+<body>
+<div id="probe">boot</div>
+<div class="scroller">
+<div class="card"></div><div class="card blue"></div><div class="card green"></div><div class="card blue"></div><div class="card blue blue"></div><div class="card green blue"></div><div class="card green"></div><div class="card blue green"></div><div class="card green green"></div><div class="card"></div><div class="card blue"></div><div class="card green"></div><div class="card blue"></div><div class="card blue blue"></div><div class="card green blue"></div><div class="card green"></div><div class="card blue green"></div><div class="card green green"></div><div class="card"></div><div class="card blue"></div><div class="card green"></div><div class="card blue"></div><div class="card blue blue"></div><div class="card green blue"></div><div class="card green"></div><div class="card blue green"></div><div class="card green green"></div>
+  <p>Scroll me — the bar should refract live content.</p>
+</div>
+
+<div id="bar">
+  <div class="content">
+    <span style="font-weight:600">Test Bar</span>
+    <button id="btnA">Click A</button>
+    <button id="btnB">Click B</button>
+    <span id="count" style="margin-left:auto;font-variant-numeric:tabular-nums">clicks: 0</span>
+  </div>
+</div>
+
+<script type="module">
+  import liquidGL from "./liquidGL.js";
+  window.__clicks = 0;
+  const probe = document.getElementById("probe");
+  const count = document.getElementById("count");
+  for (const id of ["btnA", "btnB"]) {
+    document.getElementById(id).addEventListener("click", () => {
+      window.__clicks++;
+      count.textContent = "clicks: " + window.__clicks;
+    });
+  }
+  try {
+    const lenses = liquidGL({
+      target: "#bar",
+      snapshot: "body",
+      zIndex: 40,
+      refraction: 0.05,
+      aberration: 0.12,
+      bevelDepth: 0.12,
+      bevelWidth: 0.22,
+      frost: 1.5,
+      tint: "rgba(10, 12, 22, 0.18)",
+      on: { init: () => { probe.textContent = "init fired"; } },
+    });
+    window.__lenses = lenses;
+    probe.textContent = "liquidGL() returned " + (Array.isArray(lenses) ? lenses.length + " lenses" : typeof lenses);
+    window.liquidGL = liquidGL;
+  } catch (e) {
+    probe.textContent = "ERR: " + e.message;
+  }
+</script>
+</body>
+</html>

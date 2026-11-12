@@ -760,3 +760,17 @@ html[data-hover-reset] [data-window-controls] button:hover {
   height: 100%;
   display: block;
 }
+
+/* Liquid Glass — geometry bridge for the real liquidGL panes.
+   <LiquidGlassPane> renders the (React-managed) fixed pane skeleton; the
+   runtime controller then writes ONLY these custom properties each frame.
+   React never manages --lg-* so reconciliation and the controller cannot
+   clobber each other. Values default to an invisible zero-size pane until
+   the first measurement lands. */
+[data-liquid-glass-pane] {
+  left: var(--lg-left, -9999px);
+  top: var(--lg-top, -9999px);
+  width: var(--lg-width, 0px);
+  height: var(--lg-height, 0px);
+  border-radius: var(--lg-radius, 0px);
+}

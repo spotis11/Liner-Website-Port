@@ -174,15 +174,22 @@ function searchable(hint: LyricsHint): boolean {
   return Boolean(hint.title.trim() && hint.artist.trim());
 }
 
+export interface RankedLrcHit {
+  hit: LrcLibHit;
+  content: string;
+  syncLevel: LyricsSyncLevel;
+  rank: number;
+}
+
 /**
- * Returns the best lrclib candidate (synced preferred over plain) for the
- * hint, or null when the provider has nothing usable.
+ * Returns every usable lrclib hit for the hint, ranked best-first (synced
+ * preferred over plain, closest title/artist/duration wins ties).
  */
-export async function lrclibCandidate(
+export async function lrclibRanked(
   hint: LyricsHint,
   signal?: AbortSignal,
-): Promise<LyricsCandidate | null> {
-  if (!searchable(hint)) return null;
+): Promise<RankedLrcHit[]> {
+  if (!searchable(hint)) return [];
 
   const params = new URLSearchParams({
     track_name: hint.title.trim(),
@@ -207,7 +214,7 @@ export async function lrclibCandidate(
       (typeof hit.plainLyrics === "string" && hit.plainLyrics.trim()) ||
       (typeof hit.syncedLyrics === "string" && hit.syncedLyrics.trim()),
   );
-  if (pool.length === 0) return null;
+  if (pool.length === 0) return [];
 
   const ranked = pool
     .map((hit) => {
@@ -234,8 +241,20 @@ export async function lrclibCandidate(
     })
     .sort((a, b) => b.rank - a.rank);
 
+  return ranked.filter((entry) => entry.content.trim());
+}
+
+/**
+ * Returns the best lrclib candidate (synced preferred over plain) for the
+ * hint, or null when the provider has nothing usable.
+ */
+export async function lrclibCandidate(
+  hint: LyricsHint,
+  signal?: AbortSignal,
+): Promise<LyricsCandidate | null> {
+  const ranked = await lrclibRanked(hint, signal);
   const best = ranked[0];
-  if (!best.content.trim()) return null;
+  if (!best) return null;
   return buildCandidate("lrclib", best.hit, hint, best.syncLevel, best.content);
 }
 
@@ -246,8 +265,25 @@ export interface LyricsProviderOutcome {
 }
 
 /**
+ * How many selectable lyrics the stream offers in total: the best hit as
+ * "lrclib" plus the next-most-distinct search hits as "lrclib alt N" — the
+ * upstream provider-switcher island lists each one, so the user picks
+ * between genuinely different lyrics versions, not only a single match.
+ */
+export const LYRICS_ALTERNATES_MAX = 3;
+
+/**
  * Runs every provider in order (each failure just means the next one is
  * tried; errors are surfaced per provider the way the desktop stream does).
+ *
+ * Providers, in order (2026-11-12 re-verified from this server):
+ *  - lrclib        — the only open one; alternates extend it.
+ *  - musixmatch    — the anonymous desktop token endpoint
+ *                    (apic-desktop.musixmatch.com/ws/1.1/token.json) is
+ *                    retired (404 for GET/POST/alternate paths).
+ *  - kugou (krcs)  — search works, the /download endpoint answers 20010
+ *                    for every key scheme (md5(hash+clienttime) et al).
+ *  - netease       — /api/search/pc returns 0 songs from server IPs.
  */
 export async function collectLyricsCandidates(
   hint: LyricsHint,
@@ -255,10 +291,34 @@ export async function collectLyricsCandidates(
 ): Promise<LyricsProviderOutcome[]> {
   const outcomes: LyricsProviderOutcome[] = [];
   try {
-    outcomes.push({
-      provider: "lrclib",
-      candidate: await lrclibCandidate(hint, signal),
-    });
+    const ranked = await lrclibRanked(hint, signal);
+    // Dedupe by content so the same text is never offered twice under a
+    // different label — alternates must be genuinely different lyrics.
+    const seen = new Set<string>();
+    for (const entry of ranked) {
+      if (outcomes.length >= LYRICS_ALTERNATES_MAX) break;
+      const key = entry.content.replace(/\s+/g, " ").trim().slice(0, 512);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      // "lrclib" for the best hit, then "lrclib alt 2", "lrclib alt 3"…
+      const provider =
+        outcomes.length === 0
+          ? "lrclib"
+          : `lrclib alt ${outcomes.length + 1}`;
+      outcomes.push({
+        provider,
+        candidate: buildCandidate(
+          provider,
+          entry.hit,
+          hint,
+          entry.syncLevel,
+          entry.content,
+        ),
+      });
+    }
+    if (outcomes.length === 0) {
+      outcomes.push({ provider: "lrclib", candidate: null });
+    }
   } catch (error) {
     outcomes.push({
       provider: "lrclib",

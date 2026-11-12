@@ -1366,7 +1366,32 @@
       "b6_title": "Анимированный набор стикеров Pro",
       "b6_desc": "Анимированные стикеры — только для Pro.",
       "support_title": "Вопросы о Pro?",
-      "support_desc": "Свяжитесь с командой Liner."
+      "support_desc": "Свяжитесь с командой Liner.",
+      "active_title": "Liner Pro активен",
+      "active_desc": "Все преимущества Pro открыты на этом аккаунте — навсегда. Спасибо, что создаёте Liner вместе с нами.",
+      "approval_title": "Как получить Liner Pro",
+      "approval_desc": "Напишите thearchyexpunged в Discord, чтобы получить одобрение — без оплаты, только одобрение. Назовите ему своё имя пользователя Liner.",
+      "approval_button": "Написать thearchyexpunged"
+    },
+    "appearance": {
+      "liquid_glass_title": "Жидкое стекло",
+      "liquid_glass_description": "Настоящее преломляющее стекло на панели плеера и очереди — страница за ним изгибается сквозь стекло. На старых устройствах используется матовое размытие."
+    },
+    "moderation": {
+      "pro_section_title": "Выдача Liner Pro",
+      "pro_section_subtitle": "Раздавайте Liner Pro бесплатно — уровень только по одобрению, без оплаты. Pro владельца постоянно и не может быть отозвано.",
+      "pro_list_title": "Аккаунты с Liner Pro",
+      "pro_list_empty": "Пока нет Pro-аккаунтов.",
+      "pro_owner_pill": "Владелец",
+      "pro_owner_hint": "Постоянно — активировано навсегда.",
+      "pro_granted_by": "Выдано: {by}",
+      "pro_revoke": "Отозвать",
+      "pro_grant_title": "Выдать Liner Pro",
+      "pro_grant_button": "Выдать",
+      "pro_grant_hint": "Введите имя пользователя Liner аккаунта. Pro активируется при следующем обновлении сессии.",
+      "pro_toast_granted": "Liner Pro выдан @{username}.",
+      "pro_toast_revoked": "Liner Pro отозван у @{username}.",
+      "pro_error_owner": "Liner Pro владельца постоянно — его нельзя отозвать."
     }
   },
   "toast": {

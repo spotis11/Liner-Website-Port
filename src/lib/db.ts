@@ -258,6 +258,10 @@ async function migrateColumns(): Promise<void> {
   const needed = [
     { table: 'PlayHistory', column: 'username', ddl: 'ALTER TABLE "PlayHistory" ADD COLUMN "username" TEXT' },
     { table: 'Account', column: 'discordId', ddl: 'ALTER TABLE "Account" ADD COLUMN "discordId" TEXT' },
+    // Liner Pro grants (v1.21): plain columns, additive only.
+    { table: 'Account', column: 'isPro', ddl: 'ALTER TABLE "Account" ADD COLUMN "isPro" BOOLEAN NOT NULL DEFAULT 0' },
+    { table: 'Account', column: 'proGrantedBy', ddl: 'ALTER TABLE "Account" ADD COLUMN "proGrantedBy" TEXT' },
+    { table: 'Account', column: 'proGrantedAt', ddl: 'ALTER TABLE "Account" ADD COLUMN "proGrantedAt" DATETIME' },
   ] as const
   for (const { table, column, ddl } of needed) {
     try {

@@ -11,6 +11,7 @@ import {
 } from "../../store/appearanceStore";
 import { themeSwatchGradient } from "../../store/colorThemes";
 import { useCustomizationStore } from "../../store/customizationStore";
+import { useLiquidGlassStore } from "@/features/liquid-glass";
 import { ColorThemeCard } from "./ColorThemeCard";
 
 export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
@@ -174,6 +175,18 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
           <CoverGlowToggle />
         }
       />
+
+      <SettingRow
+        title={t("settings.appearance.liquid_glass_title") || "Liquid glass"}
+        description={
+          t("settings.appearance.liquid_glass_description") ||
+          "Real refracting glass on the player bar and queue drawer."
+        }
+        titleKey="settings.appearance.liquid_glass_title"
+        descKey="settings.appearance.liquid_glass_description"
+        searchQuery={searchQuery}
+        control={<LiquidGlassToggle />}
+      />
     </SettingSection>
   );
 }
@@ -190,6 +203,20 @@ function CoverGlowToggle() {
       onChange={setCoverGlow}
       disabled={Boolean(wallpaperImage)}
       ariaLabel={t("settings.cover_glow.title") || "Cover glow"}
+    />
+  );
+}
+
+function LiquidGlassToggle() {
+  const enabled = useLiquidGlassStore((s) => s.enabled);
+  const setEnabled = useLiquidGlassStore((s) => s.setEnabled);
+  const { t } = useTranslation();
+
+  return (
+    <ToggleSwitch
+      checked={enabled}
+      onChange={setEnabled}
+      ariaLabel={t("settings.appearance.liquid_glass_title") || "Liquid glass"}
     />
   );
 }

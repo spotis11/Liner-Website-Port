@@ -1079,7 +1079,32 @@
       "b6_title": "Animowany pakiet naklejek Pro",
       "b6_desc": "Animowane naklejki, tylko dla Pro.",
       "support_title": "Pytania o Pro?",
-      "support_desc": "Skontaktuj się z zespołem Linera."
+      "support_desc": "Skontaktuj się z zespołem Linera.",
+      "active_title": "Liner Pro jest aktywne",
+      "active_desc": "Wszystkie korzyści Pro są odblokowane na tym koncie — na zawsze. Dzięki, że tworzysz Liner z nami.",
+      "approval_title": "Jak zdobyć Liner Pro",
+      "approval_desc": "Napisz do thearchyexpunged na Discordzie, aby uzyskać aprobatę — bez płatności, tylko aprobata. Podaj swoją nazwę użytkownika Liner.",
+      "approval_button": "Napisz do thearchyexpunged"
+    },
+    "appearance": {
+      "liquid_glass_title": "Płynne szkło",
+      "liquid_glass_description": "Prawdziwe załamujące szkło na pasku odtwarzacza i panelu kolejki — strona za nim ugina się przez szybę. Na starszych urządzeniach używane jest rozmycie mleczne."
+    },
+    "moderation": {
+      "pro_section_title": "Przyznawanie Liner Pro",
+      "pro_section_subtitle": "Rozdaj Liner Pro za darmo — poziom wyłącznie na aprobatę, bez płatności. Pro właściciela jest stałe i nie można go cofnąć.",
+      "pro_list_title": "Konta z Liner Pro",
+      "pro_list_empty": "Nie ma jeszcze kont Pro.",
+      "pro_owner_pill": "Właściciel",
+      "pro_owner_hint": "Stałe — aktywowane na zawsze.",
+      "pro_granted_by": "Przyznane przez {by}",
+      "pro_revoke": "Cofnij",
+      "pro_grant_title": "Przyznaj Liner Pro",
+      "pro_grant_button": "Przyznaj",
+      "pro_grant_hint": "Wpisz nazwę użytkownika Liner konta. Pro aktywuje się przy następnym odświeżeniu sesji.",
+      "pro_toast_granted": "Liner Pro przyznane dla @{username}.",
+      "pro_toast_revoked": "Liner Pro cofnięte dla @{username}.",
+      "pro_error_owner": "Liner Pro właściciela jest stałe — nie można go cofnąć."
     }
   },
   "toast": {

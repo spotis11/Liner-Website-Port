@@ -944,7 +944,32 @@
       "b6_title": "Animasyonlu Pro sticker paketi",
       "b6_desc": "Animasyonlu stickerlar, Pro'ya özel.",
       "support_title": "Pro hakkında soruların mı var?",
-      "support_desc": "Liner ekibiyle iletişime geç."
+      "support_desc": "Liner ekibiyle iletişime geç.",
+      "active_title": "Liner Pro etkin",
+      "active_desc": "Tüm Pro avantajları bu hesapta açıldı — sonsuza dek. Liner'i bizimle inşa ettiğin için teşekkürler.",
+      "approval_title": "Liner Pro nasıl alınır",
+      "approval_desc": "Onay almak için Discord'da thearchyexpunged'a yaz — ödeme yok, sadece onay. Liner kullanıcı adını ona söyle.",
+      "approval_button": "thearchyexpunged'a yaz"
+    },
+    "appearance": {
+      "liquid_glass_title": "Sıvı cam",
+      "liquid_glass_description": "Oynatıcı çubuğunda ve kuyruk panelinde gerçek kırıcı cam — arkasındaki sayfa camın içinden bükülür. Eski cihazlarda buzlu cam bulanıklığı kullanılır."
+    },
+    "moderation": {
+      "pro_section_title": "Liner Pro atamaları",
+      "pro_section_subtitle": "Liner Pro'yu ücretsiz dağıt — yalnızca onaylı kademe, ödeme yok. Sahibin kendi Pro'su kalıcıdır ve asla geri alınamaz.",
+      "pro_list_title": "Liner Pro'lu hesaplar",
+      "pro_list_empty": "Henüz Pro hesabı yok.",
+      "pro_owner_pill": "Sahip",
+      "pro_owner_hint": "Kalıcı — sonsuza dek etkin.",
+      "pro_granted_by": "{by} tarafından atandı",
+      "pro_revoke": "Geri al",
+      "pro_grant_title": "Liner Pro ata",
+      "pro_grant_button": "Ata",
+      "pro_grant_hint": "Hesabın Liner kullanıcı adını yaz. Pro, bir sonraki oturum yenilemesinde etkinleşir.",
+      "pro_toast_granted": "Liner Pro @{username} hesabına atandı.",
+      "pro_toast_revoked": "Liner Pro @{username} hesabından geri alındı.",
+      "pro_error_owner": "Sahibin Liner Pro'su kalıcıdır — geri alınamaz."
     }
   },
   "toast": {

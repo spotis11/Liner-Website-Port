@@ -375,6 +375,11 @@ const SETTING_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
     descKey: "settings.cover_glow.description",
   },
   {
+    tabId: "Appearance",
+    titleKey: "settings.appearance.liquid_glass_title",
+    descKey: "settings.appearance.liquid_glass_description",
+  },
+  {
     tabId: "Customization",
     titleKey: "settings.customization.wallpaper_title",
     descKey: "settings.customization.wallpaper_description",

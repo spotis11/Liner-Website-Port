@@ -1075,7 +1075,32 @@
       "b6_title": "Pacchetto di sticker Pro animati",
       "b6_desc": "Sticker animati esclusivi per Pro.",
       "support_title": "Domande su Pro?",
-      "support_desc": "Contatta il team di Liner."
+      "support_desc": "Contatta il team di Liner.",
+      "active_title": "Liner Pro è attivo",
+      "active_desc": "Tutti i vantaggi Pro sono sbloccati su questo account — per sempre. Grazie per costruire Liner con noi.",
+      "approval_title": "Come ottenere Liner Pro",
+      "approval_desc": "Scrivi a thearchyexpunged su Discord per ottenere l'approvazione — nessun pagamento, solo approvazione. Digli il tuo nome utente Liner.",
+      "approval_button": "Scrivi a thearchyexpunged"
+    },
+    "appearance": {
+      "liquid_glass_title": "Vetro liquido",
+      "liquid_glass_description": "Vetro reale con rifrazione sulla barra del riproduttore e sulla coda — la pagina dietro si curva attraverso il pannello. Sui dispositivi più vecchi si usa una sfumatura satinata."
+    },
+    "moderation": {
+      "pro_section_title": "Assegnazioni Liner Pro",
+      "pro_section_subtitle": "Regala Liner Pro — livello solo su approvazione, nessun pagamento. Il Pro del proprietario è permanente e non revocabile.",
+      "pro_list_title": "Account con Liner Pro",
+      "pro_list_empty": "Nessun account Pro per ora.",
+      "pro_owner_pill": "Proprietario",
+      "pro_owner_hint": "Permanente — attivato per sempre.",
+      "pro_granted_by": "Assegnato da {by}",
+      "pro_revoke": "Revoca",
+      "pro_grant_title": "Assegna Liner Pro",
+      "pro_grant_button": "Assegna",
+      "pro_grant_hint": "Digita il nome utente Liner dell'account. Pro si attiva al prossimo aggiornamento della sessione.",
+      "pro_toast_granted": "Liner Pro assegnato a @{username}.",
+      "pro_toast_revoked": "Liner Pro revocato a @{username}.",
+      "pro_error_owner": "Il Liner Pro del proprietario è permanente — non può essere revocato."
     }
   },
   "toast": {

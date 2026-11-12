@@ -49,6 +49,7 @@ import {
 import { ArtistAvatar, ArtistLink } from "@/features/artist";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import { useSongMenuItems } from "../hooks/useSongMenuItems";
+import { useLiquidGlassEnabled, LiquidGlassPane } from "@/features/liquid-glass";
 
 const PROGRESS_STEP_MS = 1000;
 // anything other than the regular one-step tick (a new track, a seek, a
@@ -588,6 +589,7 @@ function MiniPlayer({
 
   const [scrubRatio, setScrubRatio] = useState<number | null>(null);
   const activeProgress = scrubRatio !== null ? scrubRatio : secondProgress;
+  const liquidGlass = useLiquidGlassEnabled();
 
   return (
     <div
@@ -653,16 +655,27 @@ function MiniPlayer({
       </AnimatePresence>
 
       <div
+        data-liquid-ignore={liquidGlass ? "" : undefined}
         className={`relative h-[64px] w-full overflow-hidden cursor-pointer ${
           usesRoundedStyle
-            ? "rounded-full border-[0.5px] border-border-tertiary bg-bg-primary"
+            ? `rounded-full ${
+                liquidGlass
+                  ? ""
+                  : "border-[0.5px] border-border-tertiary bg-bg-primary"
+              }`
             : embedded
               ? `rounded-[12px] ${
-                  hasPageBackdrop
-                    ? "bg-bg-glass dark:bg-black/20 backdrop-blur-[48px] backdrop-saturate-150"
-                    : "bg-bg-primary"
+                  liquidGlass
+                    ? ""
+                    : hasPageBackdrop
+                      ? "bg-bg-glass dark:bg-black/20 backdrop-blur-[48px] backdrop-saturate-150"
+                      : "bg-bg-primary"
                 }`
-              : "rounded-3xl border-[0.5px] border-border-tertiary bg-bg-primary"
+              : `rounded-3xl ${
+                  liquidGlass
+                    ? ""
+                    : "border-[0.5px] border-border-tertiary bg-bg-primary"
+                }`
         }`}
         style={miniplayerCustomStyle}
         onPointerDown={(e) => {
@@ -705,6 +718,7 @@ function MiniPlayer({
           window.addEventListener("pointercancel", onUp);
         }}
       >
+        {liquidGlass && <LiquidGlassPane />}
         {usesBackgroundProgress && (
           <div
             className="absolute inset-0 z-0 pointer-events-none origin-left"

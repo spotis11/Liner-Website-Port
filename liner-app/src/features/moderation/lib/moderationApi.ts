@@ -106,8 +106,9 @@ async function adminRequestOnce<T>(
   init: { method: "GET" | "POST" | "DELETE"; body?: unknown },
   accessToken: string | null,
   timeoutMs: number,
+  path: string = "/api/moderation/bans",
 ): Promise<T> {
-  const res = await fetch("/api/moderation/bans", {
+  const res = await fetch(path, {
     method: init.method,
     headers: {
       ...(init.body !== undefined ? { "content-type": "application/json" } : {}),
@@ -153,20 +154,24 @@ async function adminRequestOnce<T>(
  * browser on its own. `accessToken` may be null — the website cookie is
  * then the only credential, which is exactly the "Liner session died but
  * the owner is still the owner" state this exists to rescue.
+ *
+ * Shared with the Liner Pro grants API (proApi.ts) so both moderation
+ * surfaces heal identically.
  */
-async function adminRequest<T>(
+export async function adminRequest<T>(
   init: { method: "GET" | "POST" | "DELETE"; body?: unknown },
   accessToken: string | null,
   timeoutMs: number,
+  path: string = "/api/moderation/bans",
 ): Promise<T> {
   try {
-    return await adminRequestOnce<T>(init, accessToken, timeoutMs);
+    return await adminRequestOnce<T>(init, accessToken, timeoutMs, path);
   } catch (err) {
     if (err instanceof ModerationError && err.code === "unauthorized") {
       const refreshed = await refreshAuthSession().catch(() => null);
       const nextToken = refreshed?.accessToken ?? accessToken;
       if (nextToken) {
-        return adminRequestOnce<T>(init, nextToken, timeoutMs);
+        return adminRequestOnce<T>(init, nextToken, timeoutMs, path);
       }
     }
     throw err;

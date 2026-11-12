@@ -14,6 +14,8 @@ export interface PublicUser {
   hasPassword?: boolean;
   /** throwaway guest account (no email, no password) */
   isGuest?: boolean;
+  /** Liner Pro — the site owner is Pro forever; others by owner grant. */
+  isPro?: boolean;
 }
 
 export type AuthUser = PublicUser;

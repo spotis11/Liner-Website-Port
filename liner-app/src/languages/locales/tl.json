@@ -1024,7 +1024,32 @@
       "b6_title": "Animated na Pro sticker pack",
       "b6_desc": "Eksklusibong animated na stickers para sa Pro.",
       "support_title": "May tanong tungkol sa Pro?",
-      "support_desc": "Makipag-ugnayan sa Liner team."
+      "support_desc": "Makipag-ugnayan sa Liner team.",
+      "active_title": "Aktibo ang Liner Pro",
+      "active_desc": "Naka-unlock na ang lahat ng benepisyo ng Pro sa account na ito — magpakailanman. Salamat sa pagbuo ng Liner kasama namin.",
+      "approval_title": "Paano makakuha ng Liner Pro",
+      "approval_desc": "I-DM si thearchyexpunged sa Discord para sa approval — walang bayad, approval lang. Sabihin sa kanya ang Liner username mo.",
+      "approval_button": "I-DM si thearchyexpunged"
+    },
+    "appearance": {
+      "liquid_glass_title": "Liquid na salamin",
+      "liquid_glass_description": "Tunay na sumasalamin na salamin sa player bar at queue drawer — yumuyuko ang page sa likod sa pamamagitan ng salamin. Sa lumang device, ginagamit ang malabong frosted blur."
+    },
+    "moderation": {
+      "pro_section_title": "Pagbibigay ng Liner Pro",
+      "pro_section_subtitle": "Magbigay ng Liner Pro nang libre — approval-only tier, walang bayad. Ang Pro ng may-ari ay permanente at hindi maibabalik.",
+      "pro_list_title": "Mga account na may Liner Pro",
+      "pro_list_empty": "Wala pang Pro account.",
+      "pro_owner_pill": "May-ari",
+      "pro_owner_hint": "Permanente — aktibo magpakailanman.",
+      "pro_granted_by": "Ibinigay ni {by}",
+      "pro_revoke": "Bawiin",
+      "pro_grant_title": "Bigyan ng Liner Pro",
+      "pro_grant_button": "Ibigay",
+      "pro_grant_hint": "I-type ang Liner username ng account. Gaganahin ang Pro sa susunod na session refresh.",
+      "pro_toast_granted": "Naibigay ang Liner Pro kay @{username}.",
+      "pro_toast_revoked": "Binawi ang Liner Pro kay @{username}.",
+      "pro_error_owner": "Ang Liner Pro ng may-ari ay permanente — hindi mababawi."
     }
   },
   "toast": {

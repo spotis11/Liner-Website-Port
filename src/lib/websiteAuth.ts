@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { db, ensureDbReady } from "@/lib/db";
+import { isOwnerPro } from "@/lib/pro";
 
 /**
  * Website-port accounts — OUR OWN login system, upstream-independent.
@@ -147,6 +148,7 @@ export function toPublicUser(account: {
   participateLeaderboards: boolean;
   passwordHash?: string | null;
   isGuest?: boolean | null;
+  isPro?: boolean | null;
 }) {
   return {
     id: account.id,
@@ -164,6 +166,8 @@ export function toPublicUser(account: {
     // to show "add password" (Discord accounts) vs "change password".
     hasPassword: Boolean(account.passwordHash),
     isGuest: Boolean(account.isGuest),
+    // Liner Pro — the owner is Pro forever regardless of the db flag.
+    isPro: Boolean(account.isPro) || isOwnerPro(account.username),
   };
 }
 

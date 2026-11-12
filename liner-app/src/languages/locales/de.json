@@ -1019,7 +1019,32 @@
       "b6_title": "Animiertes Pro-Sticker-Paket",
       "b6_desc": "Animierte Sticker, exklusiv für Pro.",
       "support_title": "Fragen zu Pro?",
-      "support_desc": "Kontaktiere das Liner-Team."
+      "support_desc": "Kontaktiere das Liner-Team.",
+      "active_title": "Liner Pro ist aktiv",
+      "active_desc": "Alle Pro-Vorteile sind für dieses Konto freigeschaltet — für immer. Danke, dass du Liner mit uns baust.",
+      "approval_title": "So bekommst du Liner Pro",
+      "approval_desc": "Schreibe thearchyexpunged auf Discord an, um eine Freigabe zu bekommen — keine Zahlung, nur die Freigabe. Nenne ihm deinen Liner-Benutzernamen.",
+      "approval_button": "thearchyexpunged anschreiben"
+    },
+    "appearance": {
+      "liquid_glass_title": "Flüssigglas",
+      "liquid_glass_description": "Echtes lichtbrechendes Glas auf Player-Leiste und Warteschlange — die Seite dahinter krümmt sich durch die Scheibe. Auf älteren Geräten wird ein Milchglas-Effekt verwendet."
+    },
+    "moderation": {
+      "pro_section_title": "Liner Pro-Verleihungen",
+      "pro_section_subtitle": "Liner Pro kostenlos vergeben — nur Freigabe, keine Zahlung. Das eigene Pro des Owners ist dauerhaft und kann nicht widerrufen werden.",
+      "pro_list_title": "Konten mit Liner Pro",
+      "pro_list_empty": "Noch keine Pro-Konten.",
+      "pro_owner_pill": "Owner",
+      "pro_owner_hint": "Dauerhaft — für immer aktiviert.",
+      "pro_granted_by": "Vergeben von {by}",
+      "pro_revoke": "Widerrufen",
+      "pro_grant_title": "Liner Pro vergeben",
+      "pro_grant_button": "Vergeben",
+      "pro_grant_hint": "Liner-Benutzernamen des Kontos eingeben. Pro wird beim nächsten Sitzungs-Refresh aktiv.",
+      "pro_toast_granted": "Liner Pro an @{username} vergeben.",
+      "pro_toast_revoked": "Liner Pro von @{username} widerrufen.",
+      "pro_error_owner": "Das Liner Pro des Owners ist dauerhaft — es kann nicht widerrufen werden."
     }
   },
   "toast": {

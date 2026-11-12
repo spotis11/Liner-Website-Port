@@ -188,6 +188,11 @@ model Account {
   showHistory             Boolean  @default(true)
   showLikedTracks         Boolean  @default(true)
   participateLeaderboards Boolean  @default(true)
+  // Liner Pro — granted by the site owner (or boot-provisioned for the
+  // owner's own account, which is permanent by definition).
+  isPro                   Boolean  @default(false)
+  proGrantedBy            String?
+  proGrantedAt            DateTime?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

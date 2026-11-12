@@ -9,13 +9,18 @@ import {
   StickerLine,
   TelegramFill,
   DiscordFill,
+  CheckCircleFill,
 } from "@mingcute/react";
 import { useTranslation, getTranslationsForAllLocales } from "@/languages";
+import { useAuthStore } from "@/features/auth";
 
 const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
 
 const openUrl = (url: string) =>
   window.open(url, "_blank", "noopener,noreferrer");
+
+/** Discord profile of thearchyexpunged — the approval contact for Pro. */
+const PRO_APPROVAL_DISCORD_URL = "https://discord.com/users/1083656421964513331";
 
 interface ProBenefit {
   id: string;
@@ -66,6 +71,7 @@ const BENEFITS: ProBenefit[] = [
 
 export function ProTab({ searchQuery }: { searchQuery?: string }) {
   const { t } = useTranslation();
+  const isPro = useAuthStore((s) => s.user?.isPro === true);
 
   const isMatch = useMemo(() => {
     if (!searchQuery?.trim()) return true;
@@ -76,6 +82,9 @@ export function ProTab({ searchQuery }: { searchQuery?: string }) {
       "settings.pro.tagline",
       "settings.pro.benefits_title",
       "settings.pro.cta",
+      "settings.pro.approval_title",
+      "settings.pro.approval_desc",
+      "settings.pro.active_title",
       ...BENEFITS.flatMap((b) => [b.titleKey, b.descKey]),
     ];
     return searchableKeys.some((k) =>
@@ -122,16 +131,83 @@ export function ProTab({ searchQuery }: { searchQuery?: string }) {
         </div>
 
         <div className="relative mt-auto flex items-center gap-[10px] pt-[24px]">
-          <button
-            type="button"
-            onClick={() => openUrl("https://t.me/liner_app?direct")}
-            className="flex h-[42px] cursor-pointer items-center gap-[10px] rounded-[12px] border-0 bg-gradient-to-r from-amber-400 to-amber-500 px-[20px] text-[15px] font-[600] text-[#201700] transition-[filter] hover:brightness-[1.07]"
-          >
-            <Crown size={18} weight="Bold" />
-            {t("settings.pro.cta")}
-          </button>
+          {isPro ? (
+            <div
+              data-testid="pro-active-badge"
+              className="flex h-[42px] items-center gap-[10px] rounded-[12px] border border-amber-400/40 bg-amber-400/[0.12] px-[20px] text-amber-600 dark:text-amber-300"
+            >
+              <CheckCircleFill size={19} />
+              <span className="text-[15px] font-[600]">
+                {t("settings.pro.active_title")}
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openUrl(PRO_APPROVAL_DISCORD_URL)}
+              data-testid="pro-approval-cta"
+              className="flex h-[42px] cursor-pointer items-center gap-[10px] rounded-[12px] border-0 bg-gradient-to-r from-amber-400 to-amber-500 px-[20px] text-[15px] font-[600] text-[#201700] transition-[filter] hover:brightness-[1.07]"
+            >
+              <DiscordFill size={18} />
+              {t("settings.pro.approval_button")}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* ── Active note / How to get Pro ── */}
+      {isPro ? (
+        <div
+          data-testid="pro-active-note"
+          className="flex items-start gap-[12px] rounded-[16px] border border-amber-400/30 bg-amber-400/[0.08] p-[16px]"
+        >
+          <span className="flex size-[36px] shrink-0 items-center justify-center rounded-[11px] bg-amber-400/[0.18] text-amber-500 dark:text-amber-300">
+            <CheckCircleFill size={20} />
+          </span>
+          <span className="flex min-w-0 flex-col gap-[3px]">
+            <span
+              className="text-[13.5px] font-[600] leading-snug text-text-primary"
+              style={font}
+            >
+              {t("settings.pro.active_title")}
+            </span>
+            <span
+              className="text-[12.5px] leading-snug text-text-secondary"
+              style={font}
+            >
+              {t("settings.pro.active_desc")}
+            </span>
+          </span>
+        </div>
+      ) : (
+        <div
+          data-testid="pro-approval-note"
+          className="flex flex-col gap-[10px] rounded-[16px] border border-amber-400/30 bg-amber-400/[0.08] p-[16px]"
+        >
+          <span
+            className="text-[13px] font-[600] text-text-primary"
+            style={font}
+          >
+            {t("settings.pro.approval_title")}
+          </span>
+          <span
+            className="text-[12.5px] leading-snug text-text-secondary"
+            style={font}
+          >
+            {t("settings.pro.approval_desc")}
+          </span>
+          <div>
+            <button
+              type="button"
+              onClick={() => openUrl(PRO_APPROVAL_DISCORD_URL)}
+              className="flex h-[36px] cursor-pointer items-center gap-[8px] rounded-[11px] border-0 bg-black/[0.06] px-[14px] text-[13.5px] font-[500] text-text-primary transition-colors hover:bg-black/[0.1] dark:bg-white/[0.1] dark:hover:bg-white/[0.15]"
+            >
+              <DiscordFill size={16} />
+              {t("settings.pro.approval_button")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Benefits ── */}
       <div className="flex flex-col gap-[10px]">

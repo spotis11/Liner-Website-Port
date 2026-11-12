@@ -26,6 +26,7 @@ import DeeplinkHandler from "./DeeplinkHandler";
 import EnvironmentWarning from "./EnvironmentWarning";
 import { ConnectionIssueModal } from "@/features/connectivity";
 import { useThemeCustomizationSync, useAppearanceSync } from "@/features/settings";
+import { useLiquidGlassSync } from "@/features/liquid-glass";
 import "./globals.css";
 
 function AppIconSync() {
@@ -69,6 +70,11 @@ function AiTranslatePrefetch() {
   return null;
 }
 
+function LiquidGlassSync() {
+  useLiquidGlassSync();
+  return null;
+}
+
 export default function App() {
   useWindowDrag();
 
@@ -84,6 +90,7 @@ export default function App() {
         <GlobalTooltip />
         <ThemeSync />
         <AppearanceSync />
+        <LiquidGlassSync />
         <AppIconSync />
         <PresenceSync />
         <TouchBarSync />

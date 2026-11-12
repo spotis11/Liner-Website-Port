@@ -1052,7 +1052,32 @@
       "b6_title": "Анімований набір стікерів Pro",
       "b6_desc": "Анімовані стікери — лише для Pro.",
       "support_title": "Питання про Pro?",
-      "support_desc": "Зв'яжіться з командою Liner."
+      "support_desc": "Зв'яжіться з командою Liner.",
+      "active_title": "Liner Pro активний",
+      "active_desc": "Усі переваги Pro відкрито на цьому акаунті — назавжди. Дякуємо, що створюєте Liner разом з нами.",
+      "approval_title": "Як отримати Liner Pro",
+      "approval_desc": "Напишіть thearchyexpunged у Discord, щоб отримати схвалення — без оплати, лише схвалення. Назвіть йому своє ім'я користувача Liner.",
+      "approval_button": "Написати thearchyexpunged"
+    },
+    "appearance": {
+      "liquid_glass_title": "Рідке скло",
+      "liquid_glass_description": "Справжнє заломлювальне скло на панелі програвача та черги — сторінка за ним згинається крізь скло. На старих пристроях використовується матове розмиття."
+    },
+    "moderation": {
+      "pro_section_title": "Надання Liner Pro",
+      "pro_section_subtitle": "Роздавайте Liner Pro безкоштовно — рівень лише за схваленням, без оплати. Pro власника постійне і не може бути відкликане.",
+      "pro_list_title": "Акаунти з Liner Pro",
+      "pro_list_empty": "Ще немає Pro-акаунтів.",
+      "pro_owner_pill": "Власник",
+      "pro_owner_hint": "Постійне — активоване назавжди.",
+      "pro_granted_by": "Видано: {by}",
+      "pro_revoke": "Відкликати",
+      "pro_grant_title": "Видати Liner Pro",
+      "pro_grant_button": "Видати",
+      "pro_grant_hint": "Введіть ім'я користувача Liner акаунта. Pro активується при наступному оновленні сесії.",
+      "pro_toast_granted": "Liner Pro видано @{username}.",
+      "pro_toast_revoked": "Liner Pro відкликано в @{username}.",
+      "pro_error_owner": "Liner Pro власника постійне — його не можна відкликати."
     }
   },
   "toast": {

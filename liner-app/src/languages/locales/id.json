@@ -1152,7 +1152,32 @@
       "b6_title": "Paket stiker animasi Pro",
       "b6_desc": "Stiker animasi eksklusif untuk Pro.",
       "support_title": "Ada pertanyaan tentang Pro?",
-      "support_desc": "Hubungi tim Liner."
+      "support_desc": "Hubungi tim Liner.",
+      "active_title": "Liner Pro aktif",
+      "active_desc": "Semua manfaat Pro terbuka di akun ini — selamanya. Terima kasih telah membangun Liner bersama kami.",
+      "approval_title": "Cara mendapatkan Liner Pro",
+      "approval_desc": "DM thearchyexpunged di Discord untuk mendapat persetujuan — tanpa pembayaran, cukup persetujuan. Beritahu nama pengguna Liner-mu.",
+      "approval_button": "DM thearchyexpunged"
+    },
+    "appearance": {
+      "liquid_glass_title": "Kaca cair",
+      "liquid_glass_description": "Kaca refraksi nyata pada bilah pemutar dan panel antrean — halaman di belakangnya melengkung melewati kacanya. Perangkat lama memakai efek buram susu."
+    },
+    "moderation": {
+      "pro_section_title": "Pemberian Liner Pro",
+      "pro_section_subtitle": "Beri Liner Pro secara gratis — tier persetujuan saja, tanpa pembayaran. Pro pemilik bersifat permanen dan tidak dapat dicabut.",
+      "pro_list_title": "Akun dengan Liner Pro",
+      "pro_list_empty": "Belum ada akun Pro.",
+      "pro_owner_pill": "Pemilik",
+      "pro_owner_hint": "Permanen — diaktifkan selamanya.",
+      "pro_granted_by": "Diberikan oleh {by}",
+      "pro_revoke": "Cabut",
+      "pro_grant_title": "Beri Liner Pro",
+      "pro_grant_button": "Beri",
+      "pro_grant_hint": "Ketik nama pengguna Liner akun tersebut. Pro aktif pada penyegaran sesi berikutnya.",
+      "pro_toast_granted": "Liner Pro diberikan ke @{username}.",
+      "pro_toast_revoked": "Liner Pro dicabut dari @{username}.",
+      "pro_error_owner": "Liner Pro pemilik bersifat permanen — tidak dapat dicabut."
     }
   },
   "toast": {

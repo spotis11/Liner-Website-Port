@@ -16,6 +16,12 @@ import {
   type BanInfo,
   type BanType,
 } from "@/features/moderation/lib/moderationApi";
+import {
+  grantProUser,
+  listProUsers,
+  revokeProUser,
+  type ProUserInfo,
+} from "@/features/moderation/lib/proApi";
 import { isWebsiteAdmin } from "@/features/announcements";
 import {
   fetchMaintenanceStatus,
@@ -68,6 +74,12 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
 
   const [unbanUsername, setUnbanUsername] = useState("");
 
+  // Liner Pro grants (approval-only tier — the owner hands Pro out free)
+  const [proUsers, setProUsers] = useState<ProUserInfo[]>([]);
+  const [proGrantUsername, setProGrantUsername] = useState("");
+  const [proLoading, setProLoading] = useState(true);
+  const [proBusy, setProBusy] = useState(false);
+
   // maintenance switch state
   const [maintOn, setMaintOn] = useState(false);
   const [maintBusy, setMaintBusy] = useState(false);
@@ -107,6 +119,30 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
       setLoading(false);
     }
   }, [t, toast]);
+
+  const refreshPro = useCallback(async () => {
+    setProLoading(true);
+    try {
+      const accessToken = await getValidAccessToken().catch(() => null);
+      const data = await listProUsers(accessToken);
+      setProUsers(data.users);
+    } catch (err) {
+      if (
+        err instanceof ModerationError &&
+        err.code === "unauthorized"
+      ) {
+        toast(t("settings.moderation.error_unauthorized"), "error");
+      } else {
+        toast(t("settings.moderation.error_generic"), "error");
+      }
+    } finally {
+      setProLoading(false);
+    }
+  }, [t, toast]);
+
+  useEffect(() => {
+    if (isAdmin) void refreshPro();
+  }, [isAdmin, refreshPro]);
 
   useEffect(() => {
     if (isAdmin) void refresh();
@@ -217,6 +253,7 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
     presetHours === -1 ? (customHoursValid ? parsedCustomHours : null) : presetHours;
   const canBan = normalizeUsername(trimmed) !== null && durationValid && !busy;
   const canUnban = normalizeUsername(unbanUsername.trim()) !== null && !busy;
+  const canGrantPro = normalizeUsername(proGrantUsername.trim()) !== null && !proBusy;
 
   const handleError = (err: unknown) => {
     if (err instanceof ModerationError) {
@@ -297,6 +334,65 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleGrantPro = async () => {
+    const normalized = normalizeUsername(proGrantUsername.trim());
+    if (!normalized) {
+      toast(t("settings.moderation.error_username"), "error");
+      return;
+    }
+    setProBusy(true);
+    try {
+      const accessToken = await getValidAccessToken().catch(() => null);
+      const data = await grantProUser(normalized, accessToken);
+      setProUsers(data.users);
+      setProGrantUsername("");
+      toast(t("settings.moderation.pro_toast_granted", { username: normalized }), "success");
+    } catch (err) {
+      handleProError(err);
+    } finally {
+      setProBusy(false);
+    }
+  };
+
+  const handleRevokePro = async (username: string) => {
+    const normalized = normalizeUsername(username);
+    if (!normalized) {
+      toast(t("settings.moderation.error_username"), "error");
+      return;
+    }
+    setProBusy(true);
+    try {
+      const accessToken = await getValidAccessToken().catch(() => null);
+      const data = await revokeProUser(normalized, accessToken);
+      setProUsers(data.users);
+      toast(t("settings.moderation.pro_toast_revoked", { username: normalized }), "success");
+    } catch (err) {
+      handleProError(err);
+    } finally {
+      setProBusy(false);
+    }
+  };
+
+  const handleProError = (err: unknown) => {
+    if (err instanceof ModerationError) {
+      switch (err.code) {
+        case "unauthorized":
+          toast(t("settings.moderation.error_unauthorized"), "error");
+          return;
+        case "forbidden":
+          toast(t("settings.moderation.pro_error_owner"), "error");
+          return;
+        case "invalid_username":
+          toast(t("settings.moderation.error_username"), "error");
+          return;
+        default:
+          toast(t("settings.moderation.error_generic"), "error");
+          return;
+      }
+    }
+    toast(t("settings.moderation.error_generic"), "error");
   };
 
   const durationOptions = BAN_DURATION_PRESETS.map((preset) => ({
@@ -483,6 +579,113 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
             </div>
             <span className="text-[12px] text-text-tertiary" style={font}>
               {t("settings.moderation.unban_hint")}
+            </span>
+          </div>
+        </div>
+      </SettingSection>
+
+      {/* ── Liner Pro grants ── */}
+      <SettingSection label={t("settings.moderation.pro_section_title")}>
+        <div className="flex flex-col gap-[12px] rounded-[12px] bg-black/[0.04] px-[16px] py-[16px] dark:bg-white/[0.08]">
+          <p className="m-0 text-[13px] leading-[1.5] text-text-secondary" style={font}>
+            {t("settings.moderation.pro_section_subtitle")}
+          </p>
+
+          <div className="flex flex-col gap-[8px]">
+            <div className="flex items-center justify-between">
+              <span className="text-[14px] font-[500] leading-snug text-text-primary">
+                {t("settings.moderation.pro_list_title")}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void refreshPro()}
+                disabled={proLoading}
+              >
+                {t("settings.moderation.refresh")}
+              </Button>
+            </div>
+            {proLoading ? (
+              <p className="m-0 text-[12px] text-text-tertiary" style={font}>
+                {t("settings.moderation.loading")}
+              </p>
+            ) : proUsers.length === 0 ? (
+              <p className="m-0 text-[12px] text-text-tertiary" style={font}>
+                {t("settings.moderation.pro_list_empty")}
+              </p>
+            ) : (
+              <ul className="m-0 flex max-h-[220px] list-none flex-col gap-[6px] overflow-y-auto p-0">
+                {proUsers.map((pro) => (
+                  <li
+                    key={pro.username}
+                    className="flex items-center justify-between gap-[10px] rounded-[10px] border border-border-primary/60 bg-bg-primary/60 px-[12px] py-[8px]"
+                  >
+                    <div className="flex min-w-0 flex-col">
+                      <span className="flex items-center gap-[8px]">
+                        <span
+                          className="truncate font-montserrat text-[13px] font-[700] text-text-primary"
+                          style={font}
+                        >
+                          @{pro.username}
+                        </span>
+                        {pro.isOwner ? (
+                          <span className="rounded-full bg-gradient-to-r from-amber-300 to-amber-500 px-[8px] py-[1px] text-[10px] font-[600] uppercase tracking-wide text-[#201700]">
+                            {t("settings.moderation.pro_owner_pill")}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="truncate text-[11px] text-text-tertiary" style={font}>
+                        {pro.isOwner
+                          ? t("settings.moderation.pro_owner_hint")
+                          : t("settings.moderation.pro_granted_by", {
+                              by: pro.grantedBy ?? "—",
+                            })}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={proBusy || pro.isOwner}
+                      title={
+                        pro.isOwner
+                          ? t("settings.moderation.pro_error_owner")
+                          : undefined
+                      }
+                      onClick={() => void handleRevokePro(pro.username)}
+                    >
+                      {t("settings.moderation.pro_revoke")}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-[8px] border-t border-border-primary/50 pt-[12px]">
+            <span className="text-[14px] font-[500] leading-snug text-text-primary">
+              {t("settings.moderation.pro_grant_title")}
+            </span>
+            <div className="flex items-center gap-[8px]">
+              <TextInput
+                size="sm"
+                value={proGrantUsername}
+                placeholder={t("settings.moderation.username_placeholder")}
+                onChange={(e) => setProGrantUsername(e.target.value)}
+                disabled={proBusy}
+                className="flex-1"
+              />
+              <Button
+                size="sm"
+                disabled={!canGrantPro}
+                onClick={() => void handleGrantPro()}
+              >
+                {proBusy
+                  ? t("settings.moderation.working")
+                  : t("settings.moderation.pro_grant_button")}
+              </Button>
+            </div>
+            <span className="text-[12px] text-text-tertiary" style={font}>
+              {t("settings.moderation.pro_grant_hint")}
             </span>
           </div>
         </div>

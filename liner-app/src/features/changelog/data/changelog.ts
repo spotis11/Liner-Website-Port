@@ -19,6 +19,25 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.20.0",
+    date: "2026-11-12",
+    title: "Liquid glass, Liner Pro grants, alternate lyrics",
+    entries: [
+      {
+        type: "added",
+        text: "A new Liquid glass option in Settings → Appearance turns the player bar and the queue drawer into real refracting glass, rendered by the liquidGL WebGPU engine (with automatic WebGL and frosted-blur fallbacks): the page behind the glass bends and shifts through the pane, with bevelled edges, chromatic dispersion and moving specular highlights. Everything on the glass keeps working — buttons, the seek bar, the queue — because the live controls ride on top of the glass instead of being drawn into it, and the snapshot refreshes as you scroll or navigate so the refraction always tracks the page underneath. Off by default; one switch in Appearance, translated into all 12 languages.",
+      },
+      {
+        type: "added",
+        text: "Liner Pro is now a real tier on the website: the site owner's account (jayzeyluna) holds Pro forever — enforced in code and re-applied by a boot sweep, so no deploy or database wipe can take it away — and the owner can hand Pro to any account for free from a new Liner Pro grants section in the Moderation settings tab (grant by Liner username, revoke any non-owner, the whole list visible at a glance). Pro accounts show a gold PRO badge on their profile card and a Liner Pro is active state on the Pro tab. For everyone else there is a new way in: the Pro tab now says exactly how to get Pro — DM thearchyexpunged on Discord (link included) for approval, no payment, and tell him your Liner username.",
+      },
+      {
+        type: "added",
+        text: "Multiple lyrics per track: the lyrics stream now offers up to three genuinely different matches from LRCLIB (the best match plus distinct alternates, deduplicated) instead of a single one — the provider switcher island in the fullscreen player lists each one, so you can flip between lyric versions like the original Liner desktop app.",
+      },
+    ],
+  },
+  {
     version: "1.19.0",
     date: "2026-11-12",
     title: "Liner Pro",
