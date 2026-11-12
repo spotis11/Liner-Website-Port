@@ -1176,6 +1176,7 @@
     "profile": {
       "avatar_change": "Upload photo",
       "avatar_failed": "Couldn't process this image. Please try another one.",
+      "avatar_gif_too_large": "This animated GIF is too large to keep it moving. Please choose one under 290 KB.",
       "avatar_invalid": "Please choose a PNG, JPEG, WebP or GIF image.",
       "avatar_remove": "Remove photo",
       "avatar_removed": "Profile photo removed",

@@ -884,6 +884,7 @@
     "profile": {
       "avatar_change": "Subir foto",
       "avatar_failed": "No se pudo procesar esta imagen. Prueba con otra.",
+      "avatar_gif_too_large": "Este GIF animado es demasiado grande para conservar la animación. Elige uno de menos de 290 KB.",
       "avatar_invalid": "Elige una imagen PNG, JPEG, WebP o GIF.",
       "avatar_remove": "Eliminar foto",
       "avatar_removed": "Foto de perfil eliminada",

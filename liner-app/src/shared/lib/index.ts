@@ -6,3 +6,4 @@ export {
 } from "./pageBackdrop";
 export { revealThemeChange, type RevealOrigin } from "./themeReveal";
 export { isWeakDevice } from "./deviceTier";
+export { isAnimatedGif } from "./animatedGif";

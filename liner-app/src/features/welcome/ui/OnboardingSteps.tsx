@@ -9,6 +9,7 @@ import { useAuthStore } from "@/features/auth";
 import { useAppearanceStore } from "@/features/settings/store/appearanceStore";
 import { useCustomizationStore } from "@/features/settings/store/customizationStore";
 import {
+  AVATAR_ACCEPTED_TYPES,
   AvatarProcessException,
   fileToAvatarDataUrl,
   isAcceptableAvatarFile,
@@ -55,9 +56,11 @@ export function ProfilePictureStep() {
     } catch (error) {
       if (error instanceof AvatarProcessException) {
         toast(
-          error.reason === "too_large"
-            ? t("settings.profile.avatar_too_large")
-            : t("settings.profile.avatar_invalid"),
+          error.reason === "gif_too_large"
+            ? t("settings.profile.avatar_gif_too_large")
+            : error.reason === "too_large"
+              ? t("settings.profile.avatar_too_large")
+              : t("settings.profile.avatar_invalid"),
           "error",
         );
       } else {
@@ -76,7 +79,7 @@ export function ProfilePictureStep() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept={AVATAR_ACCEPTED_TYPES}
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];

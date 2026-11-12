@@ -157,11 +157,13 @@ export function AccountTab({ searchQuery }: { searchQuery?: string }) {
     } catch (error) {
       if (error instanceof AvatarProcessException) {
         const key =
-          error.reason === "too_large"
-            ? "settings.profile.avatar_too_large"
-            : error.reason === "invalid_type"
-              ? "settings.profile.avatar_invalid"
-              : "settings.profile.avatar_failed";
+          error.reason === "gif_too_large"
+            ? "settings.profile.avatar_gif_too_large"
+            : error.reason === "too_large"
+              ? "settings.profile.avatar_too_large"
+              : error.reason === "invalid_type"
+                ? "settings.profile.avatar_invalid"
+                : "settings.profile.avatar_failed";
         toast(t(key), "error");
       } else if (!applyUsernameError(error)) {
         toast(t("settings.profile.save_failed"), "error");

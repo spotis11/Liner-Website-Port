@@ -3,6 +3,11 @@
 // the Liner API has no image upload endpoint, but PATCH /v1/users/me accepts
 // avatarUrl as a data URL (verified: round-trips fully, body limit ~500KB).
 // we downscale + recompress locally so a photo stays far under that limit.
+// animated GIFs are the exception: the canvas re-encode below would flatten
+// them to their first frame, so they are stored byte-for-byte instead — the
+// same bypass custom playlist covers use.
+
+import { isAnimatedGif } from "@/shared/lib/animatedGif";
 
 const AVATAR_MAX_EDGE = 256;
 const AVATAR_INPUT_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -15,7 +20,8 @@ export const AVATAR_ACCEPTED_TYPES =
 export type AvatarProcessError =
   | "invalid_type"
   | "too_large"
-  | "decode_failed";
+  | "decode_failed"
+  | "gif_too_large";
 
 export class AvatarProcessException extends Error {
   readonly reason: AvatarProcessError;
@@ -94,10 +100,41 @@ function canvasToDataUrl(canvas: HTMLCanvasElement): string {
   return dataUrl;
 }
 
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function fileToAvatarDataUrl(file: File): Promise<string> {
   if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
     throw new AvatarProcessException("invalid_type");
   }
+
+  // animated GIFs skip the canvas entirely: createImageBitmap decodes only
+  // frame 1, so re-encoding would freeze the animation. They are returned as
+  // a raw data URL instead. The server slices avatarUrl to 400_000 chars
+  // (src/app/api/auth/profile/route.ts) — a longer value would be silently
+  // corrupted, so an oversized animation fails loudly with gif_too_large
+  // instead of quietly saving a still image.
+  if (file.type === "image/gif") {
+    try {
+      if (await isAnimatedGif(file)) {
+        const gifDataUrl = await blobToDataUrl(file);
+        if (gifDataUrl.length > AVATAR_DATA_URL_LIMIT) {
+          throw new AvatarProcessException("gif_too_large");
+        }
+        return gifDataUrl;
+      }
+    } catch (error) {
+      if (error instanceof AvatarProcessException) throw error;
+      throw new AvatarProcessException("decode_failed");
+    }
+  }
+
   if (file.size > AVATAR_INPUT_LIMIT_BYTES) {
     throw new AvatarProcessException("too_large");
   }
