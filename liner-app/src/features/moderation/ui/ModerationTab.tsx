@@ -23,6 +23,7 @@ import {
   MaintenanceError,
 } from "@/features/maintenance";
 import {
+  applyShowcaseStatus,
   fetchShowcaseStatus,
   setShowcaseRemote,
   ShowcaseError,
@@ -151,6 +152,10 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
       const accessToken = await getValidAccessToken().catch(() => null);
       const next = await setShowcaseRemote(!showcaseOn, accessToken);
       setShowcaseOn(next.enabled);
+      // apply the answer to this tab right away — the scramble and the
+      // address-bar cover start (or stop) on the spot, no refresh needed;
+      // every other open client picks it up via its 15s probe
+      applyShowcaseStatus(next);
       toast(
         t(next.enabled ? "settings.showcase.started_toast" : "settings.showcase.stopped_toast"),
         "success",

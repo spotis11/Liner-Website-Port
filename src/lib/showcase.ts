@@ -3,8 +3,11 @@
  *
  * A single server-side switch that, when enabled, makes every visitor's
  * client scramble the website's name (browser tab title, login wordmark)
- * with random letters every few milliseconds. Purely cosmetic and fun —
- * sign-in, playback and data APIs are untouched. Dedicated to @jayzeyluna.
+ * with random letters every few milliseconds and cover the address bar
+ * down to the bare domain (history.replaceState — the SPA keeps running,
+ * and a refresh on the covered "/" URL just boots the site again).
+ * Purely cosmetic and fun — sign-in, playback and data APIs are untouched.
+ * Dedicated to @jayzeyluna.
  *
  * State lives in the SystemKey table (key "web_showcase_v1") so it survives
  * restarts and republishes, exactly like the maintenance switch. Reads are

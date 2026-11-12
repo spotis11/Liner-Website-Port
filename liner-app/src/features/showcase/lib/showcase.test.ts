@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  SHOWCASE_COVER_PATH,
   SHOWCASE_MAX_LENGTH,
   SHOWCASE_MIN_LENGTH,
   randomLetter,
   randomSiteName,
-  randomUrlJunk,
+  realHrefForLocation,
+  shouldCoverUrl,
 } from "./showcaseName";
-import { createShowcaseStore, decideShowcaseAction } from "../store/showcaseStore";
+import {
+  applyShowcaseStatus,
+  createShowcaseStore,
+  decideShowcaseAction,
+  useShowcaseStore,
+} from "../store/showcaseStore";
 import type { ShowcaseStatus } from "./showcaseApi";
 
 const on: ShowcaseStatus = {
@@ -43,20 +50,27 @@ describe("randomSiteName", () => {
   });
 });
 
-describe("randomUrlJunk", () => {
-  it("always produces URL-safe alphanumeric junk within the length bounds", () => {
-    for (let i = 0; i < 500; i += 1) {
-      const junk = randomUrlJunk();
-      expect(junk.length).toBeGreaterThanOrEqual(6);
-      expect(junk.length).toBeLessThanOrEqual(10);
-      expect(junk).toMatch(/^[a-zA-Z0-9]+$/);
-    }
+describe("the address-bar cover", () => {
+  it("covers to the bare domain root", () => {
+    expect(SHOWCASE_COVER_PATH).toBe("/");
   });
 
-  it("re-rolls every call (two draws are different)", () => {
-    const draws = new Set<string>();
-    for (let i = 0; i < 50; i += 1) draws.add(randomUrlJunk());
-    expect(draws.size).toBeGreaterThan(45);
+  it("wants a cover whenever anything readable is visible", () => {
+    // any query, any hash, any path — all readable, all covered
+    expect(shouldCoverUrl("/", "", "")).toBe(false);
+    expect(shouldCoverUrl("/", "?liner=xk2", "")).toBe(true);
+    expect(shouldCoverUrl("/", "", "#/library")).toBe(true);
+    expect(shouldCoverUrl("/", "?liner=xk2", "#/library")).toBe(true);
+    expect(shouldCoverUrl("/library", "", "")).toBe(true);
+  });
+
+  it("rebuilds the real URL for the router location when uncovered", () => {
+    expect(realHrefForLocation("/", "")).toBe("/");
+    expect(realHrefForLocation("/library", "")).toBe("/#/library");
+    expect(realHrefForLocation("/library/playlist", "?id=42")).toBe(
+      "/#/library/playlist?id=42",
+    );
+    expect(realHrefForLocation("/", "?q=x")).toBe("/#/?q=x");
   });
 });
 
@@ -89,5 +103,13 @@ describe("showcaseStore", () => {
     store.getState().setActive(on);
     // transport failures never call setActive/clearActive — still on
     expect(store.getState().active).toBe(true);
+  });
+
+  it("applyShowcaseStatus drives the global store both ways", () => {
+    // the shared entry point for the probe loop and the Moderation toggle
+    applyShowcaseStatus(on);
+    expect(useShowcaseStore.getState().active).toBe(true);
+    applyShowcaseStatus(off);
+    expect(useShowcaseStore.getState().active).toBe(false);
   });
 });

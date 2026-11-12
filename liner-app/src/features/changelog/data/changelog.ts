@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.18.2",
+    date: "2026-11-12",
+    title: "Showcase covers the address bar with the bare domain",
+    entries: [
+      {
+        type: "changed",
+        text: "The showcase address-bar trick is now a full cover: instead of mutating a ?liner=... query, it sweeps everything after the domain — query string and #/route fragment alike — so the bar shows nothing but the bare domain (e.g. liner-music.space-z.ai/). It is all history.replaceState: no reload, the app keeps running on its current view, in-app navigation and back/forward are re-covered on the spot, and a refresh on the covered URL simply boots the site again (the server serves the app at /). Flipping the Moderation toggle now applies to the owner's own tab instantly — no refresh needed — and switching the mode off hands the real URL back to the router. Honest limits: while covered, a refresh lands on the app's home view instead of the hidden route, and the devtools network panel still shows the real requests.",
+      },
+    ],
+  },
+  {
     version: "1.18.1",
     date: "2026-11-12",
     title: "Showcase scrambles the address bar too",

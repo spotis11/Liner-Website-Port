@@ -1,14 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { fetchShowcaseStatus } from "../lib/showcaseApi";
 import {
   REAL_SITE_NAME,
+  SHOWCASE_COVER_PATH,
+  SHOWCASE_COVER_TICK_MS,
   SHOWCASE_TICK_MS,
-  SHOWCASE_URL_PARAM,
-  SHOWCASE_URL_TICK_MS,
   randomSiteName,
-  randomUrlJunk,
+  realHrefForLocation,
+  shouldCoverUrl,
 } from "../lib/showcaseName";
-import { decideShowcaseAction, useShowcaseStore } from "../store/showcaseStore";
+import { applyShowcaseStatus, useShowcaseStore } from "../store/showcaseStore";
 
 /** How often an open client re-checks the showcase switch. */
 const CHECK_INTERVAL_MS = 15 * 1000;
@@ -20,16 +22,27 @@ const CHECK_INTERVAL_MS = 15 * 1000;
  * says showcase mode is on:
  *   - the browser tab title re-rolls into random letters every few
  *     milliseconds,
- *   - the address bar's query string re-rolls too (history.replaceState,
- *     ?liner=<junk>) so the visible URL keeps mutating — the domain
- *     itself is browser chrome no website can ever touch, and the #/route
- *     hash is the app's own navigation state, so it is left alone.
- * When it says off, the real name comes back and the junk query is
- * stripped. React text nodes hooked via useShowcaseName() scramble in
- * step with the same tick.
+ *   - the address bar is COVERED: everything after the domain (query
+ *     string and the #/route fragment) is swept away via
+ *     history.replaceState so the bar shows nothing but the bare domain —
+ *     e.g. https://liner-music.space-z.ai/. replaceState never fires
+ *     hashchange/popstate, so the HashRouter keeps its in-memory view and
+ *     the app keeps running exactly where it is; a refresh on the covered
+ *     URL simply boots the site again (the server serves the SPA at "/").
+ *     The domain itself is browser chrome no website can ever touch.
+ * When it says off, the real name comes back and the address bar is
+ * handed back to the router. React text nodes hooked via useShowcaseName()
+ * scramble in step with the same tick.
  */
 export function ShowcaseSync() {
   const active = useShowcaseStore((s) => s.active);
+  const location = useLocation();
+
+  // the freshest router location for the off-switch cleanup below (the
+  // restore effect must not depend on `location`, or every navigation
+  // would flip the bar to the real URL for a frame before re-covering)
+  const locationRef = useRef(location);
+  locationRef.current = location;
 
   // probe loop — keeps every open client in sync with the owner's switch
   useEffect(() => {
@@ -40,12 +53,7 @@ export function ShowcaseSync() {
       try {
         const status = await fetchShowcaseStatus().catch(() => null);
         if (disposed || !status) return; // probe failed → keep current state
-        const decision = decideShowcaseAction(status);
-        if (decision.action === "start") {
-          useShowcaseStore.getState().setActive(status);
-        } else if (useShowcaseStore.getState().active) {
-          useShowcaseStore.getState().clearActive();
-        }
+        applyShowcaseStatus(status);
       } catch {
         // the controller must never crash the app
       }
@@ -80,39 +88,68 @@ export function ShowcaseSync() {
     return () => window.clearInterval(timer);
   }, [active]);
 
-  // the address-bar scramble: junk query only — hash (router state) and
-  // path stay put, so navigation and refreshes keep working
+  // the address-bar cover: sweep the URL down to the bare domain while
+  // showcase is on. The router's own navigation and any history move are
+  // re-covered on the spot; the interval is the backstop for anyone else
+  // who writes to the URL.
   useEffect(() => {
     if (!active) return;
-    const tick = () => {
+
+    const cover = () => {
       try {
+        const { pathname, search, hash } = window.location;
+        if (!shouldCoverUrl(pathname, search, hash)) return;
         // pass the router's own history state through untouched — React
         // Router bookkeeping rides in history.state and must survive
         window.history.replaceState(
           window.history.state,
           "",
-          `?${SHOWCASE_URL_PARAM}=${randomUrlJunk()}${window.location.hash}`,
+          SHOWCASE_COVER_PATH,
         );
       } catch {
-        // rate-limited (Safari) or transient — skip this tick
+        // rate-limited (Safari) or transient — the next tick re-covers
       }
     };
-    tick();
-    const timer = window.setInterval(tick, SHOWCASE_URL_TICK_MS);
+
+    cover();
+    const timer = window.setInterval(cover, SHOWCASE_COVER_TICK_MS);
+    window.addEventListener("popstate", cover);
+    window.addEventListener("hashchange", cover);
     return () => {
       window.clearInterval(timer);
-      // restore a clean URL: drop the junk query, keep path + hash
+      window.removeEventListener("popstate", cover);
+      window.removeEventListener("hashchange", cover);
+      // hand the real URL back: rebuild it from the router's own location
+      // so the address bar matches the view the app is actually on
       try {
+        const { pathname, search } = locationRef.current;
         window.history.replaceState(
           window.history.state,
           "",
-          `${window.location.pathname}${window.location.hash}`,
+          realHrefForLocation(pathname, search),
         );
       } catch {
-        // nothing sensible to do — the next navigation cleans it anyway
+        // nothing sensible to do — the next navigation writes a real URL
       }
     };
   }, [active]);
+
+  // navigation while covered: the HashRouter just wrote "#/route" into the
+  // bar — sweep it away immediately instead of waiting for the tick
+  useEffect(() => {
+    if (!active) return;
+    try {
+      const { pathname, search, hash } = window.location;
+      if (!shouldCoverUrl(pathname, search, hash)) return;
+      window.history.replaceState(
+        window.history.state,
+        "",
+        SHOWCASE_COVER_PATH,
+      );
+    } catch {
+      // rate-limited (Safari) — the backstop interval re-covers shortly
+    }
+  }, [active, location]);
 
   return null;
 }

@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
  *
  * GET  /api/showcase → public probe the SPA makes on boot, every 15s while
  *      open and when the tab becomes visible again. Always answers 200 and
- *      is never gated (cosmetic mode; also stays answerable while the
+ *      is never gated (cosmetic mode — the name scramble + bare-domain
+ *      address-bar cover; also stays answerable while the
  *      maintenance wall is up so the owner can still flip things off).
  *
  * POST /api/showcase → site owner only (same admin gate as moderation and
