@@ -330,13 +330,43 @@ export async function deliverTransactionalEmail(input: {
   }
 }
 
-/** Build + deliver the welcome mail (fire-and-forget safe — never throws). */
+/**
+ * Build + deliver the welcome mail (fire-and-forget safe — never throws).
+ *
+ * Two dedupe layers:
+ *  1. per-username (refKey) — the classic "one welcome per account ever";
+ *  2. per-INBOX — an email address that already received a welcome mail
+ *     (any username, successfully sent) never gets another one. Why: when a
+ *     deploy cycle wipes the database, the same person re-registers under a
+ *     fresh username each time and the inbox was flooded with one identical
+ *     "Welcome to Liner" per cycle (the owner measured 5+ in one day).
+ *     Same inbox ⇒ same human ⇒ one welcome mail, ever.
+ */
 export async function deliverWelcomeEmail(input: {
   username: string;
   displayName?: string | null;
   email: string;
   accountCreatedAt: Date;
 }): Promise<DeliveryOutcome> {
+  try {
+    const email = input.email.trim();
+    const prior = await db.emailLog.findFirst({
+      where: {
+        type: "welcome",
+        status: "sent",
+        OR: [{ email }, { email: email.toLowerCase() }],
+      },
+      select: { username: true },
+    });
+    if (prior) {
+      console.log(
+        `[mailer] welcome email to ${input.username} skipped: inbox already welcomed (as ${prior.username})`,
+      );
+      return { sent: false, detail: "duplicate_email" };
+    }
+  } catch {
+    // dedupe pre-check must never block the mail itself — fall through
+  }
   const content = renderWelcomeEmail(input);
   return deliverTransactionalEmail({
     type: "welcome",

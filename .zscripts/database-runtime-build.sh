@@ -130,20 +130,67 @@ if [ "$FETCHED" = "0" ]; then
 fi
 
 if [ "$FETCHED" = "0" ]; then
+    # Last resort: the WORKSPACE mirror (or the workspace db itself). The
+    # workspace db is a LOCAL TESTING database — its account rows can never
+    # be real production users, yet shipping them has historically wiped
+    # real accounts and echoed test junk into production (v1.15.1, v1.18.0:
+    # the user was signed out on every deploy and re-welcomed by mail each
+    # time). The seed is therefore SANITIZED before packaging: only the
+    # owner's system keys (showcase/maintenance switches, admin cookie
+    # secret) survive; every account-scoped table is stripped. Worst case
+    # the new container boots as a fresh site (one Discord re-login), never
+    # as a polluted one.
+    RAW_SEED="$TARGET_DB_DIR/db-mirror-raw.json"
     if [ -f "$SOURCE_DB_DIR/db-mirror.json" ]; then
-        echo "🚨  FALLING BACK TO THE WORKSPACE MIRROR ($SOURCE_DB_DIR/db-mirror.json)"
-        echo "    This file reflects the LOCAL workspace db, not production. If local"
-        echo "    or E2E testing ran against :3000, its test accounts ship to"
-        echo "    production with this package. Prefer fixing the live fetch first!"
-        cp "$SOURCE_DB_DIR/db-mirror.json" "$SEED_PATH"
+        echo "🚨  LIVE FETCH AND CACHE BOTH UNAVAILABLE — falling back to the workspace mirror"
+        echo "    ($SOURCE_DB_DIR/db-mirror.json — local test state, will be SANITIZED)"
+        cp "$SOURCE_DB_DIR/db-mirror.json" "$RAW_SEED"
     else
-        echo "🗄️  Generating the package mirror from the workspace database..."
+        echo "🚨  LIVE FETCH AND CACHE BOTH UNAVAILABLE — generating from the workspace database"
+        echo "    (local test state, will be SANITIZED)"
         (
             cd "$PROJECT_DIR"
             DATABASE_URL="file:$SOURCE_DB_PATH" \
-                node scripts/gen_db_mirror_seed.mjs --out "$SEED_PATH"
+                node scripts/gen_db_mirror_seed.mjs --out "$RAW_SEED"
         )
     fi
+
+    python3 - "$RAW_SEED" "$SEED_PATH" << 'PYEOF'
+import json, sys, time
+
+# Tables the last-resort seed may carry: site-owner config only.
+KEEP = {"systemKey"}
+# Everything account-scoped (accounts, sessions, library, audit, moderation
+# history) is stripped: workspace rows of those tables are by definition
+# local/E2E test data, never production state.
+STRIPPED = {
+    "account", "session", "userSeen", "ipSeen", "emailLog",
+    "playlist", "playlistTrack", "likedTrack", "playHistory",
+    "accountTrack", "accountPlaylist", "accountPlaylistItem",
+    "announcement", "ban", "banIp",
+}
+
+try:
+    with open(sys.argv[1]) as f:
+        data = json.load(f)
+except Exception as exc:
+    print(f"sanitize: raw seed unreadable ({exc}) — shipping an empty-config seed")
+    data = {"savedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "tables": {}}
+
+tables = data.get("tables") if isinstance(data.get("tables"), dict) else {}
+clean = {name: ([] if name not in KEEP else (tables.get(name) or []))
+         for name in set(KEEP) | set(tables) | STRIPPED}
+kept = sum(len(v) for v in clean.values())
+stripped_rows = sum(len(tables.get(name) or []) for name in STRIPPED)
+
+mirror = {"savedAt": data.get("savedAt") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+          "tables": clean}
+with open(sys.argv[2], "w") as f:
+    json.dump(mirror, f)
+print(f"sanitize: kept {kept} systemKey row(s); stripped {stripped_rows} local row(s) "
+      f"(accounts/sessions/library/audit can never ship from the workspace)")
+PYEOF
+    rm -f "$RAW_SEED"
 fi
 
 if [ ! -s "$SEED_PATH" ]; then
