@@ -48,6 +48,9 @@ local-*
 # never committed — an environment reset then wiped the only copy (Task 26).
 !liner-app/src/features/local-music/
 !liner-app/src/features/local-music/**
+# same trap: the official local-files cover (from tryliner/desktop) matched
+# local-* and was lost to a reset — keep the source asset tracked
+!liner-app/src/assets/local-files-cover.svg
 .claude
 .z-ai-config
 *.log
