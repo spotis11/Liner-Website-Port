@@ -1,5 +1,6 @@
 import { MenuSelect } from "@/shared/ui";
 import { useTranslation, LOCALE_OPTIONS } from "@/languages";
+import { useShowcaseName } from "@/features/showcase";
 import logo from "@/assets/logo.svg";
 import loginMark from "@/assets/login-mark.svg";
 
@@ -10,6 +11,8 @@ export interface LoginBrandPanelProps {
 
 export function LoginBrandPanel({ title, subtitle }: LoginBrandPanelProps) {
   const { locale, setLocale, t } = useTranslation();
+  // Website Showcase mode: scrambles into random letters while it is on
+  const siteName = useShowcaseName();
 
   return (
     <aside className="relative flex min-h-[340px] flex-col overflow-hidden rounded-[14px] bg-black/[0.03] p-[24px] dark:bg-white/[0.035]">
@@ -34,7 +37,7 @@ export function LoginBrandPanel({ title, subtitle }: LoginBrandPanelProps) {
           className="theme-logo h-[22px] w-auto object-contain select-none"
         />
         <span className="text-[18px] font-[650] tracking-[-0.03em] text-text-primary">
-          Liner
+          {siteName}
         </span>
       </div>
 

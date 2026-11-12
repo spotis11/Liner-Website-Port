@@ -1477,6 +1477,20 @@
       "stopped_toast": "Maintenance ended — the site is open again.",
       "error": "Could not update maintenance mode. Try again.",
       "refresh": "Refresh status"
+    },
+    "showcase": {
+      "section_title": "Website showcase",
+      "section_subtitle": "The party trick: while it is on, the website's name — the browser tab title and the login wordmark — re-rolls into random letters every 40 milliseconds for every visitor, live. Nothing else changes: sign-in, playback and data all keep working. Flip it off and every tab snaps back to the real name.",
+      "status_on": "Website showcase is ON right now — every tab is glitching out.",
+      "status_off": "Website showcase is off — the site shows its normal name.",
+      "start": "Randomize website",
+      "stop": "Stop randomizing",
+      "apply_busy": "Applying...",
+      "started_toast": "Website showcase is ON — every visitor's tab is now random letters.",
+      "stopped_toast": "Website showcase stopped — the real name is back everywhere.",
+      "error": "Could not update website showcase. Try again.",
+      "refresh": "Refresh status",
+      "dedication": "Made for @jayzeyluna."
     }
   },
   "toast": {

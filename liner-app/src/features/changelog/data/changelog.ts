@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.18.0",
+    date: "2026-11-12",
+    title: "Website showcase",
+    entries: [
+      {
+        type: "added",
+        text: "Website showcase — the randomize-website mode, made for @jayzeyluna. From Moderation → Website showcase the site owner can flip it on and every visitor's browser tab title, plus the login wordmark, re-rolls into random letters every 40 milliseconds, live, until it is switched off again. Purely cosmetic: sign-in, playback, downloads and data all keep working normally while the name is glitching out.",
+      },
+    ],
+  },
+  {
     version: "1.17.0",
     date: "2026-11-11",
     title: "Desktop chrome removed",

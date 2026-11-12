@@ -13,6 +13,7 @@ import { I18nProvider } from "@/languages";
 import { AuthLock } from "@/features/auth";
 import { BanGate } from "@/features/moderation";
 import { MaintenanceGate } from "@/features/maintenance";
+import { ShowcaseSync } from "@/features/showcase";
 import { WelcomeGate } from "@/features/welcome";
 import { CoverSwRegistrar } from "@/features/covers";
 import { usePresenceSync } from "@/shared/presence";
@@ -99,6 +100,7 @@ export default function App() {
                   <ConnectionIssueModal />
                   <BanGate />
                   <MaintenanceGate />
+                  <ShowcaseSync />
                   <WelcomeGate />
                   <AuthLock>
                     <AppRoutes />

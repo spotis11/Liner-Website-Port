@@ -22,6 +22,11 @@ import {
   setMaintenanceRemote,
   MaintenanceError,
 } from "@/features/maintenance";
+import {
+  fetchShowcaseStatus,
+  setShowcaseRemote,
+  ShowcaseError,
+} from "@/features/showcase";
 
 const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
 
@@ -33,6 +38,8 @@ const SEARCH_KEYS = [
   "settings.moderation.unban_title",
   "settings.maintenance.section_title",
   "settings.maintenance.section_subtitle",
+  "settings.showcase.section_title",
+  "settings.showcase.section_subtitle",
 ];
 
 type DurationChoice = (typeof BAN_DURATION_PRESETS)[number]["value"];
@@ -65,6 +72,11 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
   const [maintBusy, setMaintBusy] = useState(false);
   const [maintLoaded, setMaintLoaded] = useState(false);
   const [maintReasons, setMaintReasons] = useState("");
+
+  // website showcase (randomize website) state
+  const [showcaseOn, setShowcaseOn] = useState(false);
+  const [showcaseBusy, setShowcaseBusy] = useState(false);
+  const [showcaseLoaded, setShowcaseLoaded] = useState(false);
 
   const isAdmin = isWebsiteAdmin(user?.username);
 
@@ -116,6 +128,43 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
   useEffect(() => {
     if (isAdmin) void refreshMaintenance();
   }, [isAdmin, refreshMaintenance]);
+
+  // keep the showcase switch in sync with the backend
+  const refreshShowcase = useCallback(async () => {
+    try {
+      const status = await fetchShowcaseStatus();
+      setShowcaseOn(status.enabled);
+    } catch {
+      // the switch just stays where it is; the status line says unknown
+    } finally {
+      setShowcaseLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAdmin) void refreshShowcase();
+  }, [isAdmin, refreshShowcase]);
+
+  const handleShowcaseToggle = async () => {
+    setShowcaseBusy(true);
+    try {
+      const accessToken = await getValidAccessToken().catch(() => null);
+      const next = await setShowcaseRemote(!showcaseOn, accessToken);
+      setShowcaseOn(next.enabled);
+      toast(
+        t(next.enabled ? "settings.showcase.started_toast" : "settings.showcase.stopped_toast"),
+        "success",
+      );
+    } catch (err) {
+      if (err instanceof ShowcaseError && (err.code === "unauthorized" || err.code === "forbidden")) {
+        toast(t("settings.moderation.error_unauthorized"), "error");
+      } else {
+        toast(t("settings.showcase.error"), "error");
+      }
+    } finally {
+      setShowcaseBusy(false);
+    }
+  };
 
   const handleMaintenanceToggle = async () => {
     setMaintBusy(true);
@@ -492,6 +541,53 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
                 : maintOn
                   ? t("settings.maintenance.stop")
                   : t("settings.maintenance.start")}
+            </Button>
+          </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection label={t("settings.showcase.section_title")}>
+        <div className="flex flex-col gap-[12px] rounded-[12px] bg-black/[0.04] px-[16px] py-[16px] dark:bg-white/[0.08]">
+          <p className="m-0 text-[13px] leading-[1.5] text-text-secondary" style={font}>
+            {t("settings.showcase.section_subtitle")}
+          </p>
+
+          <div className="flex items-center justify-between gap-[10px]">
+            <span
+              className="text-[13px] font-[600]"
+              style={{
+                ...font,
+                color: showcaseOn ? "var(--color-accent-primary, #7c5cff)" : undefined,
+              }}
+            >
+              {showcaseOn
+                ? t("settings.showcase.status_on")
+                : t("settings.showcase.status_off")}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void refreshShowcase()}
+            >
+              {t("settings.showcase.refresh")}
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between gap-[10px] border-t border-border-primary/50 pt-[12px]">
+            <span className="text-[12px] text-text-tertiary" style={font}>
+              {t("settings.showcase.dedication")}
+            </span>
+            <Button
+              size="sm"
+              variant={showcaseOn ? "outline" : "primary"}
+              disabled={showcaseBusy || (!showcaseLoaded && !showcaseOn)}
+              onClick={() => void handleShowcaseToggle()}
+            >
+              {showcaseBusy
+                ? t("settings.showcase.apply_busy")
+                : showcaseOn
+                  ? t("settings.showcase.stop")
+                  : t("settings.showcase.start")}
             </Button>
           </div>
         </div>
