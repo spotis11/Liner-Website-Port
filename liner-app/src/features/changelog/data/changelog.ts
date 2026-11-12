@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.18.1",
+    date: "2026-11-12",
+    title: "Showcase scrambles the address bar too",
+    entries: [
+      {
+        type: "added",
+        text: "Website showcase now also mutates everything after the domain in the browser's address bar: a ?liner=... query re-rolls into random junk every 400 milliseconds via history.replaceState — no reload, no navigation, refreshes and the back/forward buttons keep working, and turning the mode off restores a clean URL. The domain itself (liner-music.space-z.ai) can never change: browsers forbid every website from rewriting it, so the visible scramble covers everything a site is allowed to touch. Honest limits: a screenshot frame or the network panel still reveals the real address, and a copied link still opens the site.",
+      },
+    ],
+  },
+  {
     version: "1.18.0",
     date: "2026-11-12",
     title: "Website showcase",

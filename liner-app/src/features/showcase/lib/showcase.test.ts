@@ -4,6 +4,7 @@ import {
   SHOWCASE_MIN_LENGTH,
   randomLetter,
   randomSiteName,
+  randomUrlJunk,
 } from "./showcaseName";
 import { createShowcaseStore, decideShowcaseAction } from "../store/showcaseStore";
 import type { ShowcaseStatus } from "./showcaseApi";
@@ -39,6 +40,23 @@ describe("randomSiteName", () => {
     for (let i = 0; i < 200; i += 1) {
       expect(randomLetter()).toMatch(/^[a-zA-Z]$/);
     }
+  });
+});
+
+describe("randomUrlJunk", () => {
+  it("always produces URL-safe alphanumeric junk within the length bounds", () => {
+    for (let i = 0; i < 500; i += 1) {
+      const junk = randomUrlJunk();
+      expect(junk.length).toBeGreaterThanOrEqual(6);
+      expect(junk.length).toBeLessThanOrEqual(10);
+      expect(junk).toMatch(/^[a-zA-Z0-9]+$/);
+    }
+  });
+
+  it("re-rolls every call (two draws are different)", () => {
+    const draws = new Set<string>();
+    for (let i = 0; i < 50; i += 1) draws.add(randomUrlJunk());
+    expect(draws.size).toBeGreaterThan(45);
   });
 });
 

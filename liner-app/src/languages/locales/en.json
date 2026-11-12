@@ -1480,7 +1480,7 @@
     },
     "showcase": {
       "section_title": "Website showcase",
-      "section_subtitle": "The party trick: while it is on, the website's name — the browser tab title and the login wordmark — re-rolls into random letters every 40 milliseconds for every visitor, live. Nothing else changes: sign-in, playback and data all keep working. Flip it off and every tab snaps back to the real name.",
+      "section_subtitle": "The party trick: while it is on, the browser tab title and the login wordmark re-roll into random letters every 40 milliseconds, and the address bar's text after the domain (?liner=...) keeps mutating every 400 milliseconds — nothing anyone can readably copy. The domain itself can never change: browsers forbid any website from touching it. Purely cosmetic — sign-in, playback and data all keep working, and the page still survives refreshes.",
       "status_on": "Website showcase is ON right now — every tab is glitching out.",
       "status_off": "Website showcase is off — the site shows its normal name.",
       "start": "Randomize website",

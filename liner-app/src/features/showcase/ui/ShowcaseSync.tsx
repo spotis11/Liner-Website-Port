@@ -3,7 +3,10 @@ import { fetchShowcaseStatus } from "../lib/showcaseApi";
 import {
   REAL_SITE_NAME,
   SHOWCASE_TICK_MS,
+  SHOWCASE_URL_PARAM,
+  SHOWCASE_URL_TICK_MS,
   randomSiteName,
+  randomUrlJunk,
 } from "../lib/showcaseName";
 import { decideShowcaseAction, useShowcaseStore } from "../store/showcaseStore";
 
@@ -14,9 +17,15 @@ const CHECK_INTERVAL_MS = 15 * 1000;
  * Website Showcase controller. Runs the status probe on boot, every 15
  * seconds while the app is open and whenever the tab becomes visible
  * again (same rhythm as the ban and maintenance gates). While the backend
- * says showcase mode is on, the browser tab title re-rolls into random
- * letters every few milliseconds; when it says off, the real name is
- * restored. React text nodes hooked via useShowcaseName() scramble in
+ * says showcase mode is on:
+ *   - the browser tab title re-rolls into random letters every few
+ *     milliseconds,
+ *   - the address bar's query string re-rolls too (history.replaceState,
+ *     ?liner=<junk>) so the visible URL keeps mutating — the domain
+ *     itself is browser chrome no website can ever touch, and the #/route
+ *     hash is the app's own navigation state, so it is left alone.
+ * When it says off, the real name comes back and the junk query is
+ * stripped. React text nodes hooked via useShowcaseName() scramble in
  * step with the same tick.
  */
 export function ShowcaseSync() {
@@ -69,6 +78,40 @@ export function ShowcaseSync() {
       document.title = randomSiteName();
     }, SHOWCASE_TICK_MS);
     return () => window.clearInterval(timer);
+  }, [active]);
+
+  // the address-bar scramble: junk query only — hash (router state) and
+  // path stay put, so navigation and refreshes keep working
+  useEffect(() => {
+    if (!active) return;
+    const tick = () => {
+      try {
+        // pass the router's own history state through untouched — React
+        // Router bookkeeping rides in history.state and must survive
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `?${SHOWCASE_URL_PARAM}=${randomUrlJunk()}${window.location.hash}`,
+        );
+      } catch {
+        // rate-limited (Safari) or transient — skip this tick
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, SHOWCASE_URL_TICK_MS);
+    return () => {
+      window.clearInterval(timer);
+      // restore a clean URL: drop the junk query, keep path + hash
+      try {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${window.location.pathname}${window.location.hash}`,
+        );
+      } catch {
+        // nothing sensible to do — the next navigation cleans it anyway
+      }
+    };
   }, [active]);
 
   return null;
