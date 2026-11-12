@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the committed non-secret runtime config (survives sandbox resets;
+# credentials stay in the gitignored .env)
+!.env.production
 
 # vercel
 .vercel
