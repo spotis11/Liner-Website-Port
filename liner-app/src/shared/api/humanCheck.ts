@@ -30,7 +30,12 @@ export function humanCheckPageUrl(action: HumanCheckAction): string {
 }
 
 export function humanCheckOrigin(): string {
-  return new URL(getApiBaseUrl()).origin;
+  const base = getApiBaseUrl();
+  if (base) return new URL(base).origin;
+  // website port: same-origin relay — the iframe is served by our own /v1
+  // backend, so the postMessage origin is this document's origin
+  if (typeof window !== "undefined") return window.location.origin;
+  return "https://api.tryliner.fun";
 }
 
 export function isHumanCheckMode(value: unknown): value is HumanCheckMode {

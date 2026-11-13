@@ -619,7 +619,9 @@ export default function LoginPage() {
                 </AnimatePresence>
               </form>
 
-              {/* guest mode — separated from the credential forms by a hairline */}
+              {/* UPSTREAM-PARITY TEST (v1.25): the real api.tryliner.fun has
+                  no Discord-OAuth or guest tier — website-only options hidden
+                  for this test. Revert = restore this block (git revert).
               <div className="mt-[16px] flex items-center gap-[12px]">
                 <span className="h-px flex-1 bg-border-primary" />
                 <span className="text-[11px] font-[500] uppercase tracking-wide text-text-tertiary">
@@ -627,7 +629,6 @@ export default function LoginPage() {
                 </span>
                 <span className="h-px flex-1 bg-border-primary" />
               </div>
-              {/* discord oauth — a real website account, Discord as credential */}
               <Button
                 type="button"
                 variant="outline"
@@ -659,6 +660,7 @@ export default function LoginPage() {
               <p className="m-0 mt-[8px] text-center text-[11px] leading-[1.5] text-text-tertiary">
                 {t("login.guest_hint")}
               </p>
+              end UPSTREAM-PARITY TEST block */}
             </div>
           </div>
 

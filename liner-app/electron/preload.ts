@@ -98,6 +98,9 @@ export interface LinerElectronApi {
   getServerTimeOffset: () => Promise<number>;
   signCoverUrl: (payload: string) => Promise<string>;
   signRawPayload: (payload: number[] | Uint8Array) => Promise<string>;
+  // edge key handoff to the desktop shell (renderer-side only in the web
+  // port; the desktop main process owns the real store — see edgeKey.ts)
+  setEdgeKey?: (key: string | null) => void;
   authSession?: {
     get: () => StoredAuthSession | null;
     set: (

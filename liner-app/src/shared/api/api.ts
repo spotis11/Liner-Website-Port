@@ -13,6 +13,19 @@ import {
   signLinerRequest,
   syncLinerServerTime,
 } from "./linerSession";
+import {
+  PowTimeoutError,
+  SUPPORTED_POW_ALGORITHM,
+  type PowChallenge,
+  type PowSolution,
+} from "./proofOfWork";
+import { solvePow } from "./proofOfWorkRunner";
+import { refreshEdgeKey, type EdgeKeyAnswer } from "./edgeKey";
+import {
+  isHumanCheckMode,
+  runHumanCheck,
+  type HumanCheckAction,
+} from "./humanCheck";
 import { clientCatalog } from "./clientCatalog";
 import { getLocalImportHandler } from "./localImports";
 import type { Track } from "@/shared/contracts";
@@ -204,21 +217,46 @@ export function toMaxQualityAvatarUrl(url: string | undefined): string {
 
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
 
+type EdgeRefusal = "challenge" | "blocked";
+
+function edgeRefusal(res: Response): EdgeRefusal | null {
+  if (res.status !== 403) return null;
+  if (res.headers?.get?.("cf-mitigated") === "challenge") return "challenge";
+  return res.headers?.get?.("x-instance") ? null : "blocked";
+}
+
+let edgeRecovery: Promise<boolean> | null = null;
+
+function recoverFromEdge(refusal: EdgeRefusal): Promise<boolean> {
+  if (!edgeRecovery) {
+    const attempt =
+      refusal === "challenge"
+        ? runHumanCheck("login", "required").then(() => true)
+        : refreshEdgeKey();
+    edgeRecovery = attempt
+      .catch(() => false)
+      .finally(() => {
+        edgeRecovery = null;
+      });
+  }
+  return edgeRecovery;
+}
+
 async function executeRequest<T>(
   path: string,
   init?: RequestInit,
   allowRefresh = true,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   onResponse?: (res: Response) => void,
+  edgeRetry = true,
 ): Promise<T> {
   const startTime = performance.now();
   const method = (init?.method ?? "GET").toUpperCase();
   const rawBody = typeof init?.body === "string" ? init.body : null;
-  // website-port routes ("/api/…") are same-origin and signed with the browser
-  // session cookie instead of the upstream HMAC signer
-  const signedHeaders = path.startsWith("/api/")
-    ? {}
-    : await signApiRequest(method, path, rawBody);
+  // every request now goes to the Liner upstream (api.tryliner.fun) through
+  // the same-origin /v1 relay — the HMAC signature is computed over the
+  // upstream path and relayed byte-for-byte, so it stays valid end to end
+  const signedHeaders = await signApiRequest(method, path, rawBody);
   const currentSession = getAuthSession();
   let accessToken = allowRefresh ? await getValidAccessToken() : null;
 
@@ -226,8 +264,7 @@ async function executeRequest<T>(
     allowRefresh &&
     currentSession?.accessToken &&
     !accessToken &&
-    !path.startsWith("/v1/auth/") &&
-    !path.startsWith("/api/auth/")
+    !path.startsWith("/v1/auth/")
   ) {
     const expiryMs = getSessionExpiryMs(currentSession);
     if (expiryMs && expiryMs > Date.now()) {
@@ -280,10 +317,8 @@ async function executeRequest<T>(
 
   let res: Response;
   try {
-    // website-port routes live on this same origin — never prefix them with
-    // the upstream base url
     res = await fetchWithTimeout(
-      path.startsWith("/api/") ? path : getApiBaseUrl() + path,
+      getApiBaseUrl() + path,
       {
         ...init,
         headers: {
@@ -319,12 +354,7 @@ async function executeRequest<T>(
     syncServerTime(dateHeader);
   }
 
-  if (
-    res.status === 401 &&
-    allowRefresh &&
-    !path.startsWith("/v1/auth/") &&
-    !path.startsWith("/api/auth/")
-  ) {
+  if (res.status === 401 && allowRefresh && !path.startsWith("/v1/auth/")) {
     const currentSession = getAuthSession();
     // If the token in session store was already rotated by another parallel request,
     // retry immediately with the rotated token without firing duplicate refresh requests
@@ -396,6 +426,20 @@ async function executeRequest<T>(
       }
       throw err;
     }
+  }
+
+  // edge (Cloudflare) refusal recovery — desktop parity: a CF challenge or a
+  // rotated edge key is retried once after the human check / key refresh
+  const refusal = edgeRetry ? edgeRefusal(res) : null;
+  if (refusal && (await recoverFromEdge(refusal))) {
+    return executeRequest<T>(
+      path,
+      init,
+      allowRefresh,
+      timeoutMs,
+      onResponse,
+      false,
+    );
   }
 
   const durationMs = Math.round(performance.now() - startTime);
@@ -686,17 +730,101 @@ async function* parseLyricsSSE(
   }
 }
 
+const RETRYABLE_POW_CODES = new Set(["POW_EXPIRED", "POW_REUSED"]);
+
+interface AuthProof {
+  pow?: PowSolution;
+  turnstile?: string;
+}
+
+function authBody(proof: AuthProof) {
+  return { pow: proof.pow, turnstile: proof.turnstile };
+}
+
+function authInit(proof: AuthProof, body: unknown): RequestInit {
+  return {
+    method: "POST",
+    body: JSON.stringify(body),
+  };
+}
+
+async function humanCheck(
+  challenge: PowChallenge,
+  purpose: HumanCheckAction,
+): Promise<string | undefined> {
+  const requested = challenge.turnstile?.mode;
+  const mode = isHumanCheckMode(requested) ? requested : "off";
+  if (mode === "off" && !challenge.turnstile?.edge) return undefined;
+  return runHumanCheck(purpose, mode === "off" ? "optional" : mode);
+}
+
+async function authProofFor(
+  purpose: HumanCheckAction,
+  email: string,
+): Promise<AuthProof> {
+  let challenge: PowChallenge;
+  try {
+    challenge = await request<PowChallenge>(
+      "/v1/auth/challenge",
+      { method: "POST", body: JSON.stringify({ purpose, email }) },
+      false,
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return {};
+    throw error;
+  }
+  const work =
+    challenge.mode === "off" || challenge.algorithm !== SUPPORTED_POW_ALGORITHM
+      ? undefined
+      : solvePow(challenge);
+  void work?.catch(() => undefined);
+  const turnstile = await humanCheck(challenge, purpose);
+  return {
+    pow: await work,
+    turnstile,
+  };
+}
+
+async function withAuthProof<T>(
+  purpose: HumanCheckAction,
+  email: string,
+  send: (proof: AuthProof) => Promise<T>,
+): Promise<T> {
+  let proof: AuthProof | undefined;
+  try {
+    proof = await authProofFor(purpose, email);
+    return await send(proof);
+  } catch (error) {
+    const retryable =
+      error instanceof PowTimeoutError ||
+      (error instanceof ApiError &&
+        !!error.code &&
+        RETRYABLE_POW_CODES.has(error.code));
+    if (!retryable) throw error;
+    return send(await authProofFor(purpose, email));
+  }
+}
+
 export const api = {
+  fetchEdgeKey(): Promise<EdgeKeyAnswer> {
+    return request<EdgeKeyAnswer>("/v1/edge/key");
+  },
+
   async login(email: string, password: string): Promise<AuthTokens> {
-    // website accounts: same-origin /api/auth — our own database, no proof-of-work
-    const result = await request<AuthTokens>("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    }, false);
+    // real Liner upstream accounts (api.tryliner.fun) — proof-of-work signed
+    // login, relayed same-origin so the WAF/CORS can never touch the browser
+    const result = await withAuthProof("login", email, (proof) =>
+      request<AuthTokens>(
+        "/v1/auth/login",
+        authInit(proof, { email, password, ...authBody(proof) }),
+        false,
+      ),
+    );
     setAuthSession(result);
     return result;
   },
 
+  /** Upstream has no guest tier — kept for store compatibility, UI hides it. */
   async guestLogin(): Promise<AuthTokens> {
     const result = await request<AuthTokens>("/api/auth/guest", {
       method: "POST",
@@ -711,31 +839,39 @@ export const api = {
     username: string,
     displayName: string,
   ): Promise<AuthTokens> {
-    const result = await request<AuthTokens>("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify({
-        email,
-        password,
-        username: username.trim().toLowerCase(),
-        displayName: displayName.trim(),
-      }),
-    }, false);
+    const result = await withAuthProof("register", email, (proof) =>
+      request<AuthTokens>(
+        "/v1/auth/register",
+        authInit(proof, {
+          email,
+          password,
+          username: username.trim().toLowerCase(),
+          displayName: displayName.trim(),
+          ...authBody(proof),
+        }),
+        false,
+      ),
+    );
     setAuthSession(result);
     return result;
   },
 
   getMe(): Promise<AuthUser> {
-    return request<AuthUser>("/api/auth/me");
+    return request<AuthUser>("/v1/me");
   },
 
   updateProfile(data: UpdateProfileInput): Promise<PublicUser> {
-    return request<PublicUser>("/api/auth/profile", {
+    return request<PublicUser>("/v1/users/me", {
       method: "PATCH",
       body: JSON.stringify(data),
     });
   },
 
-  /** Set (Discord accounts) or change (password accounts) the account password. */
+  /**
+   * Website-shell only (Discord-linked website accounts): never used by
+   * upstream sessions. Kept so Settings compiles; upstream profiles are
+   * edited via updateProfile -> PATCH /v1/users/me.
+   */
   setPassword(data: {
     password: string;
     currentPassword?: string;
@@ -884,17 +1020,20 @@ export const api = {
   listLikedTracks(limit = 100, cursor?: string): Promise<ApiLikedTracksPage> {
     const params = new URLSearchParams({ limit: String(limit) });
     if (cursor) params.set("cursor", cursor);
-    return request<ApiLikedTracksPage>(`/api/library/tracks?${params}`);
+    return request<ApiLikedTracksPage>(`/v1/me/library/tracks?${params}`);
   },
 
   async likeTrack(id: string): Promise<void> {
     const track = await clientCatalog.resolveSnapshot(id);
-    return request<void>("/api/library/tracks", {
-      method: "PUT",
-      ...(track
-        ? { body: JSON.stringify({ track, trackSnapshot: track }) }
-        : {}),
-    });
+    return request<void>(
+      `/v1/me/library/tracks/${encodeURIComponent(id)}`,
+      {
+        method: "PUT",
+        ...(track
+          ? { body: JSON.stringify({ track, trackSnapshot: track }) }
+          : {}),
+      },
+    );
   },
 
   /**
@@ -907,15 +1046,18 @@ export const api = {
   likeTrackSnapshot(
     track: { id: string; title: string } & Record<string, unknown>,
   ): Promise<void> {
-    return request<void>("/api/library/tracks", {
-      method: "PUT",
-      body: JSON.stringify({ track, trackSnapshot: track }),
-    });
+    return request<void>(
+      `/v1/me/library/tracks/${encodeURIComponent(track.id)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ track, trackSnapshot: track }),
+      },
+    );
   },
 
   unlikeTrack(id: string): Promise<void> {
     return request<void>(
-      `/api/library/tracks?trackId=${encodeURIComponent(id)}`,
+      `/v1/me/library/tracks/${encodeURIComponent(id)}`,
       { method: "DELETE" },
     );
   },
@@ -949,30 +1091,42 @@ export const api = {
   },
 
   listPlaylists(): Promise<{ items: ApiUserPlaylist[] }> {
-    return request<{ items: ApiUserPlaylist[] }>("/api/library/playlists");
+    return request<{ items: ApiUserPlaylist[] }>("/v1/me/playlists");
   },
 
   async readUserPlaylist(
     id: string,
     options: { limit?: number; etag?: string } = {},
   ): Promise<UserPlaylistRead> {
-    // the website database has no etag support — every read is a full body
-    void options;
-    const body = await executeRequest<{
-      playlist: ApiUserPlaylist;
-      items: ApiUserPlaylistItem[];
-      trackCount?: number;
-      durationMs?: number;
-      partial?: boolean;
-    }>(
-      `/api/library/playlists/${encodeURIComponent(id)}`,
-      undefined,
+    const params = new URLSearchParams({ compact: "true" });
+    if (options.limit) params.set("limit", String(options.limit));
+    let status = 200;
+    let etag: string | undefined;
+    const body = await executeRequest<
+      | {
+          playlist: ApiUserPlaylist;
+          items: ApiUserPlaylistItem[];
+          trackCount?: number;
+          durationMs?: number;
+          partial?: boolean;
+        }
+      | undefined
+    >(
+      `/v1/me/playlists/${encodeURIComponent(id)}?${params}`,
+      options.etag
+        ? { headers: { "If-None-Match": options.etag } }
+        : undefined,
       true,
       DEFAULT_TIMEOUT_MS,
+      (res) => {
+        status = res.status;
+        etag = res.headers?.get?.("etag") ?? undefined;
+      },
     );
+    if (status === 304 || !body) return { notModified: true };
     return {
       notModified: false,
-      etag: undefined,
+      etag,
       partial: body.partial === true,
       trackCount: body.trackCount ?? body.items.length,
       durationMs:
@@ -992,7 +1146,7 @@ export const api = {
     return request<{
       playlist: ApiUserPlaylist;
       items: ApiUserPlaylistItem[];
-    }>(`/api/library/playlists/${encodeURIComponent(id)}`);
+    }>(`/v1/me/playlists/${encodeURIComponent(id)}`);
   },
 
   createPlaylist(input: {
@@ -1000,7 +1154,7 @@ export const api = {
     description?: string;
     isPublic?: boolean;
   }): Promise<ApiUserPlaylist> {
-    return request<ApiUserPlaylist>("/api/library/playlists", {
+    return request<ApiUserPlaylist>("/v1/me/playlists", {
       method: "POST",
       body: JSON.stringify(input),
     });
@@ -1011,13 +1165,13 @@ export const api = {
     input: { title?: string; description?: string | null; isPublic?: boolean },
   ): Promise<ApiUserPlaylist> {
     return request<ApiUserPlaylist>(
-      `/api/library/playlists/${encodeURIComponent(id)}`,
+      `/v1/me/playlists/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify(input) },
     );
   },
 
   deletePlaylist(id: string): Promise<void> {
-    return request<void>(`/api/library/playlists/${encodeURIComponent(id)}`, {
+    return request<void>(`/v1/me/playlists/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   },
@@ -1029,7 +1183,7 @@ export const api = {
   ): Promise<ApiUserPlaylistItem> {
     const track = snapshot ?? (await clientCatalog.resolveSnapshot(trackId));
     return request<ApiUserPlaylistItem>(
-      `/api/library/playlists/${encodeURIComponent(playlistId)}/tracks/${encodeURIComponent(trackId)}`,
+      `/v1/me/playlists/${encodeURIComponent(playlistId)}/tracks/${encodeURIComponent(trackId)}`,
       {
         method: "POST",
         ...(track
@@ -1052,7 +1206,7 @@ export const api = {
       added: number;
       rejected: number;
     }>(
-      `/api/library/playlists/${encodeURIComponent(playlistId)}/tracks`,
+      `/v1/me/playlists/${encodeURIComponent(playlistId)}/tracks`,
       { method: "POST", body: JSON.stringify({ tracks }) },
       true,
       60_000,
@@ -1061,7 +1215,7 @@ export const api = {
 
   removePlaylistItem(playlistId: string, itemId: string): Promise<void> {
     return request<void>(
-      `/api/library/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(itemId)}`,
+      `/v1/me/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(itemId)}`,
       { method: "DELETE" },
     );
   },
@@ -1076,7 +1230,7 @@ export const api = {
       playlist: ApiUserPlaylist;
       items: ApiUserPlaylistItem[];
     }>(
-      `/api/library/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(itemId)}/move`,
+      `/v1/me/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(itemId)}/move`,
       {
         method: "POST",
         body: JSON.stringify({ beforeItemId, revision }),

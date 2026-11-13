@@ -1,5 +1,5 @@
 import type { AuthTokens, AuthUser } from "../contracts";
-import { syncServerTime } from "./requestSigner";
+import { signApiRequest, syncServerTime } from "./requestSigner";
 import { rememberRecovery } from "./recovery";
 
 export type { AuthTokens, AuthUser };
@@ -328,11 +328,14 @@ async function refreshHere(current: AuthTokens): Promise<AuthTokens | null> {
 
 async function postRefresh(refreshToken: string): Promise<Response> {
   const body = JSON.stringify({ refreshToken });
-  // website accounts refresh against the same-origin /api/auth plane
-  const response = await fetch("/api/auth/refresh", {
+  // upstream refresh, relayed same-origin with the desktop HMAC signature
+  // (signature covers the upstream path; the relay forwards it byte-for-byte)
+  const signedHeaders = await signApiRequest("POST", "/v1/auth/refresh", body);
+  const response = await fetch(`${getApiBaseUrl()}/v1/auth/refresh`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...signedHeaders,
     },
     body,
   });
@@ -372,11 +375,14 @@ export async function clearAuthSession(): Promise<void> {
   setAuthSession(null);
   if (!current?.refreshToken) return;
   const body = JSON.stringify({ refreshToken: current.refreshToken });
-  const response = await fetch("/api/auth/logout", {
+  // upstream logout, relayed same-origin (desktop parity, signed like refresh)
+  const signedHeaders = await signApiRequest("POST", "/v1/auth/logout", body);
+  const response = await fetch(`${getApiBaseUrl()}/v1/auth/logout`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${current.accessToken}`,
+      ...signedHeaders,
     },
     body,
   }).catch(() => undefined);

@@ -1,57 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { maintenanceGate } from "@/lib/maintenance";
-import { verifyAccessToken } from "@/lib/websiteAuth";
-import { db } from "@/lib/db";
 import { collectLyricsCandidates, type LyricsHint } from "@/lib/lyricsProviders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Same-origin backend for the Liner SPA's remaining upstream-shaped endpoints
- * (`/v1/...`). The SPA never talks to api.tryliner.fun from the browser any
- * more — its api base is same-origin — so nothing can be CORS-blocked:
- * same-origin requests have no preflight and no Access-Control rules.
+ * Same-origin backend for the Liner SPA's ENTIRE upstream surface (`/v1/...`).
  *
- * Endpoint map:
- *  - /v1/me/recommendations/daily-mixes  built from the signed-in account's
- *                                          liked tracks (artist clusters)
- *  - /v1/explore/popular                 community popular = most-liked tracks
- *                                          across the site's accounts
- *  - /v1/me/history, /v1/me/library/...  clean empty collections for now
- *  - /v1/tracks/:id/lyrics              real lyrics, streamed as SSE from
- *                                        this server's own provider pool
- *                                        (LRCLIB — open, no auth) in the
- *                                        exact event shape the desktop
- *                                        backend uses, so the SPA's
- *                                        streamLyrics() parser consumes it
- *                                        unchanged; /v1/me/lyrics/search
- *                                        stays a clean 404 (the client
- *                                        falls over to its own providers)
- *  - /v1/presence/heartbeat              accepted, client keeps its interval
- *  - everything else                     forwarded server-side to
- *                                          api.tryliner.fun (no preflight, no
- *                                          cookies, no website tokens leave
- *                                          the server); upstream failures
- *                                          surface as plain JSON statuses the
- *                                          client already handles.
+ * UPSTREAM-PARITY TEST (v1.25): everything — auth, catalog, library,
+ * playlists, playback, history, explore, presence — is served by the real
+ * Liner API (api.tryliner.fun). The SPA never talks to it from the browser:
+ * its api base is same-origin, this handler relays. Same-origin requests have
+ * no preflight and no Access-Control rules, so nothing can be CORS-blocked.
+ *
+ * The browser signs METHOD\npath\nts\nnonce\nsha256(body) over the UPSTREAM
+ * path (desktop's native signer constants); this relay forwards path +
+ * x-liner-* headers byte-for-byte, so the signature stays valid end to end.
+ * Every relayed request presents the desktop's Electron UA — the client the
+ * upstream's Cloudflare WAF expects (their README warns about the WAF; the
+ * browser's cross-origin calls can be challenged, this server's relay passes).
+ *
+ * Kept local (not upstream):
+ *  - /v1/tracks/:id/lyrics  WITHOUT ?upstream=1 — this server's own provider
+ *    pool (LRCLIB), the signed-out fallback; WITH ?upstream=1 — relayed SSE
+ *  - /v1/health — connectivity probe answer for the SPA's offline-mode logic
+ * Revert: git revert of the v1.25 commits restores the website-account stubs.
  */
 
 const UPSTREAM = "https://api.tryliner.fun";
-const FORWARD_TIMEOUT_MS = 6_000;
+const FORWARD_TIMEOUT_MS = 20_000;
 
-// Word-level lyrics proxy: the upstream sits behind Cloudflare WAF rules
-// (their README warns about it), so the browser's cross-origin GET can be
-// CORS-blocked or challenged. The client therefore asks OUR same-origin
-// /v1/tracks/:id/lyrics?upstream=1 and this server relays it — same-origin
-// means no CORS at all, and the relay presents the desktop's Electron UA
-// (the client the upstream expects, verified to pass the WAF).
 const UPSTREAM_CLIENT_UA =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) liner-desktop/0.2.12 Chrome/134.0.0.0 Electron/44.0.0 Safari/537.36";
 
-// headers the signed upstream protocol needs (signature stays browser-side:
-// the browser signs METHOD\npath\nts\nnonce\nsha256(body) over the UPSTREAM
-// path, we relay path + headers byte-for-byte, so the signature is valid)
+// signed upstream protocol + correlation headers (signature stays
+// browser-side: the browser signs over the UPSTREAM path, we relay path +
+// headers byte-for-byte, so the signature is valid)
 const UPSTREAM_FORWARD_HEADERS = [
   "authorization",
   "x-liner-signature",
@@ -61,6 +46,10 @@ const UPSTREAM_FORWARD_HEADERS = [
   "x-client-version",
   "x-platform",
   "x-session-id",
+  "x-user-id",
+  "x-user-name",
+  "content-type",
+  "if-none-match",
   "accept",
 ] as const;
 
@@ -74,6 +63,91 @@ function upstreamHeaders(req: NextRequest): Headers {
   return headers;
 }
 
+async function forward(req: NextRequest, path: string): Promise<Response> {
+  const url = `${UPSTREAM}${path}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
+  // buffer the body: undici requires `duplex` for stream bodies and a
+  // ReadableStream from NextRequest can be flaky across the relay — bytes
+  // are small (JSON) and always safe
+  const hasBody = !["GET", "HEAD"].includes(req.method);
+  const bodyBytes = hasBody ? await req.arrayBuffer().catch(() => null) : null;
+  try {
+    const upstream = await fetch(url, {
+      method: req.method,
+      headers: upstreamHeaders(req),
+      body: bodyBytes && bodyBytes.byteLength > 0 ? bodyBytes : undefined,
+      signal: controller.signal,
+      // never forward upstream cookies to the browser
+      redirect: "manual",
+    });
+    const body = await upstream.arrayBuffer();
+    const contentType = upstream.headers.get("content-type");
+    // upstream 403s come back as a Cloudflare HTML challenge — hand the
+    // client a clean JSON error instead so it degrades gracefully
+    if (contentType?.includes("text/html")) {
+      return NextResponse.json(
+        { error: "Upstream unavailable.", code: "UPSTREAM_BLOCKED" },
+        { status: upstream.status === 403 ? 503 : upstream.status },
+      );
+    }
+    const res = new NextResponse(body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+    });
+    if (contentType) res.headers.set("content-type", contentType);
+    // let the browser sync its signing clock from the upstream Date header
+    for (const name of ["date", "x-request-id", "retry-after"] as const) {
+      const value = upstream.headers.get(name);
+      if (value) res.headers.set(name, value);
+    }
+    return res;
+  } catch {
+    return NextResponse.json(
+      { error: "Upstream unreachable.", code: "UPSTREAM_UNREACHABLE" },
+      { status: 503 },
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// /v1/auth/verify — the human-check page (Turnstile) is HTML by design and
+// talks to the SPA via postMessage; it must pass through unwrapped
+async function passthrough(req: NextRequest, path: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(`${UPSTREAM}${path}`, {
+      method: req.method,
+      headers: upstreamHeaders(req),
+      body: ["GET", "HEAD"].includes(req.method) ? undefined : req.body,
+      signal: controller.signal,
+      redirect: "manual",
+    });
+    const headers = new Headers();
+    const contentType = upstream.headers.get("content-type");
+    if (contentType) headers.set("content-type", contentType);
+    headers.set("cache-control", "no-store");
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Upstream unreachable.", code: "UPSTREAM_UNREACHABLE" },
+      { status: 503 },
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Word-level lyrics proxy: the upstream sits behind Cloudflare WAF rules
+// (their README warns about it), so the browser's cross-origin GET can be
+// CORS-blocked or challenged. The client asks OUR same-origin
+// /v1/tracks/:id/lyrics?upstream=1 and this server relays it.
 async function upstreamLyrics(
   req: NextRequest,
   route: string,
@@ -120,174 +194,12 @@ async function upstreamLyrics(
   }
 }
 
-const STRIP_AUTH = new Set(["authorization", "cookie", "host"]);
-
-function forwardableHeaders(req: NextRequest): Headers {
-  const headers = new Headers();
-  req.headers.forEach((value, name) => {
-    if (!STRIP_AUTH.has(name.toLowerCase())) headers.set(name, value);
-  });
-  return headers;
-}
-
-async function forward(req: NextRequest, path: string): Promise<Response> {
-  const url = `${UPSTREAM}${path}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
-  try {
-    const upstream = await fetch(url, {
-      method: req.method,
-      headers: forwardableHeaders(req),
-      body: ["GET", "HEAD"].includes(req.method) ? undefined : req.body,
-      signal: controller.signal,
-      // never forward upstream cookies to the browser
-      redirect: "manual",
-    });
-    const body = await upstream.arrayBuffer();
-    const contentType = upstream.headers.get("content-type");
-    // upstream 403s come back as a Cloudflare HTML challenge — hand the
-    // client a clean JSON error instead so it degrades gracefully
-    if (contentType?.includes("text/html")) {
-      return NextResponse.json(
-        { error: "Upstream unavailable.", code: "UPSTREAM_BLOCKED" },
-        { status: upstream.status === 403 ? 503 : upstream.status },
-      );
-    }
-    const res = new NextResponse(body, {
-      status: upstream.status,
-      statusText: upstream.statusText,
-    });
-    if (contentType) res.headers.set("content-type", contentType);
-    return res;
-  } catch {
-    return NextResponse.json(
-      { error: "Upstream unreachable.", code: "UPSTREAM_UNREACHABLE" },
-      { status: 503 },
-    );
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function accountIdOf(req: NextRequest): Promise<string | null> {
-  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  const identity = await verifyAccessToken(bearer);
-  return identity?.accountId ?? null;
-}
-
-interface LikedSnapshot {
-  trackId: string;
-  artist: string;
-  snapshot: string | null;
-  likedAt: Date;
-}
-
-async function likedTracksOf(accountId: string | null): Promise<LikedSnapshot[]> {
-  if (!accountId) return [];
-  const rows = await db.accountTrack.findMany({
-    where: { accountId },
-    orderBy: { likedAt: "desc" },
-    take: 500,
-    select: { trackId: true, artist: true, snapshot: true, likedAt: true },
-  });
-  return rows;
-}
-
-/**
- * GET /v1/me/recommendations/daily-mixes — daily mixes built from the
- * account's liked tracks, clustered by primary artist (up to 4 mixes).
- */
-async function dailyMixes(req: NextRequest): Promise<NextResponse> {
-  const accountId = await accountIdOf(req);
-  const liked = await likedTracksOf(accountId);
-  const clusters = new Map<string, LikedSnapshot[]>();
-  for (const row of liked) {
-    const artist = (row.artist || "Unknown artist").trim() || "Unknown artist";
-    const list = clusters.get(artist) ?? [];
-    list.push(row);
-    clusters.set(artist, list);
-  }
-  const ordered = [...clusters.entries()].sort(
-    (a, b) => b[1].length - a[1].length,
-  );
-  const mixes = ordered.slice(0, 4).map(([artist, rows], index) => {
-    const tracks = rows
-      .slice(0, 10)
-      .map((row) => (row.snapshot ? JSON.parse(row.snapshot) : null))
-      .filter(Boolean);
-    return {
-      id: `daily-mix-${index + 1}`,
-      title: `Daily Mix ${index + 1}`,
-      description: `Made for you — more like ${artist}`,
-      clusterArtists: [artist],
-      trackCount: tracks.length,
-      tracks,
-    };
-  });
-  return NextResponse.json({
-    items: mixes,
-    generatedAt: new Date().toISOString(),
-  });
-}
-
-/**
- * GET /v1/explore/popular — community popular: tracks most liked across all
- * accounts on this site (real, playable catalog tracks).
- */
-async function popularTracks(window: string): Promise<NextResponse> {
-  const rows = await db.accountTrack.groupBy({
-    by: ["trackId"],
-    _count: { trackId: true },
-    orderBy: { _count: { trackId: "desc" } },
-    take: 40,
-  });
-  if (rows.length === 0) {
-    return NextResponse.json({
-      window,
-      generatedAt: new Date().toISOString(),
-      items: [],
-    });
-  }
-  const ids = rows.map((row) => row.trackId);
-  const liked = await db.accountTrack.findMany({
-    where: { trackId: { in: ids } },
-    orderBy: { likedAt: "desc" },
-  });
-  const byId = new Map<string, string | null>();
-  for (const row of liked) {
-    if (!byId.has(row.trackId)) byId.set(row.trackId, row.snapshot);
-  }
-  const items = rows
-    .map((row, index) => {
-      const snapshot = byId.get(row.trackId);
-      const track = snapshot ? JSON.parse(snapshot) : null;
-      if (!track) return null;
-      const likeCount = row._count.trackId;
-      return {
-        rank: index + 1,
-        track,
-        playCount: likeCount,
-        uniqueListeners: likeCount,
-        score: likeCount,
-      };
-    })
-    .filter(Boolean)
-    .slice(0, 20);
-  return NextResponse.json({
-    window,
-    generatedAt: new Date().toISOString(),
-    items,
-  });
-}
-
 /**
  * GET /v1/tracks/:id/lyrics?title=&artist=&durationMs= — lyrics as an SSE
- * stream, exactly the contract the SPA's api.streamLyrics() parses (the
- * desktop backend's event shape). The track id itself is ignored: the SPA
- * always sends searchable title/artist hints alongside it. A known
- * instrumental is answered as plain JSON (the client checks content-type
- * before reading the stream) — we cannot know that server-side, so the
- * stream simply ends with status "not_found" instead.
+ * stream from this server's own provider pool (LRCLIB — open, no auth), in
+ * the exact event shape the desktop backend uses. This is the signed-out
+ * fallback; signed-in users are served upstream-first (?upstream=1) and only
+ * land here when the upstream fails.
  */
 function lyricsStream(url: URL): Response {
   const hint: LyricsHint = {
@@ -356,26 +268,20 @@ function lyricsStream(url: URL): Response {
   });
 }
 
-export async function GET(
+async function handle(
   req: NextRequest,
   ctx: { params: Promise<{ path: string[] }> },
-) {
+): Promise<Response> {
   const gate = await maintenanceGate();
   if (gate) return gate;
   const { path } = await ctx.params;
   const route = path.join("/");
   const url = new URL(req.url);
 
-  if (route === "me/recommendations/daily-mixes") return dailyMixes(req);
-  if (route === "me/history") {
-    return NextResponse.json({ items: [], nextCursor: null });
-  }
-  if (route.startsWith("me/library/")) {
-    return NextResponse.json({ items: [] });
-  }
-  if (route === "me/lyrics/search") {
-    // the client catches this 404 and moves on to its remaining providers
-    return NextResponse.json({ status: "not_found" }, { status: 404 });
+  if (route === "health") {
+    // connectivity probe for the SPA's offline logic — same-origin answer,
+    // no upstream round-trip
+    return NextResponse.json({ status: "ok", upstream: true });
   }
   if (route.startsWith("tracks/") && route.endsWith("/lyrics")) {
     if (url.searchParams.get("upstream") === "1") {
@@ -383,77 +289,50 @@ export async function GET(
     }
     return lyricsStream(url);
   }
-  if (route === "explore/popular") {
-    const raw = url.searchParams.get("window") ?? "all";
-    const window = ["12h", "24h", "7d", "30d", "all"].includes(raw)
-      ? raw
-      : "all";
-    return popularTracks(window);
+  if (route === "auth/verify") {
+    return passthrough(req, `/v1/${route}${url.search}`);
   }
-  if (route === "explore/popular/albums") {
-    return NextResponse.json({
-      window: url.searchParams.get("window") ?? "7d",
-      items: [],
-    });
-  }
-  if (route === "explore/most-saved") {
-    return NextResponse.json({
-      type: url.searchParams.get("type") ?? "all",
-      items: [],
-    });
-  }
-  if (route === "health") {
-    return NextResponse.json({ status: "ok", upstream: false });
-  }
-  return forward(req, `/${route}${url.search}`);
+  return forward(req, `/v1/${route}${url.search}`);
+}
+
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
+  return handle(req, ctx);
 }
 
 export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ path: string[] }> },
 ) {
-  const gate = await maintenanceGate();
-  if (gate) return gate;
-  const { path } = await ctx.params;
-  const route = path.join("/");
-  if (route === "me/playback/events") {
-    // accepted but not persisted yet (upstream-shaped ack, no error)
-    return new NextResponse(null, { status: 204 });
-  }
-  if (route === "presence/heartbeat") {
-    // same-origin presence: keep the client on its default cadence
-    return new NextResponse(null, {
-      status: 204,
-      headers: { "x-liner-heartbeat-interval": "60" },
-    });
-  }
-  return forward(req, `/${route}${new URL(req.url).search}`);
+  return handle(req, ctx);
 }
 
 export async function PUT(
   req: NextRequest,
   ctx: { params: Promise<{ path: string[] }> },
 ) {
-  const gate = await maintenanceGate();
-  if (gate) return gate;
-  const { path } = await ctx.params;
-  const route = path.join("/");
-  if (route.startsWith("me/library/")) {
-    return new NextResponse(null, { status: 204 });
-  }
-  return forward(req, `/${route}${new URL(req.url).search}`);
+  return handle(req, ctx);
+}
+
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
+  return handle(req, ctx);
 }
 
 export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ path: string[] }> },
 ) {
-  const gate = await maintenanceGate();
-  if (gate) return gate;
-  const { path } = await ctx.params;
-  const route = path.join("/");
-  if (route.startsWith("me/library/")) {
-    return new NextResponse(null, { status: 204 });
-  }
-  return forward(req, `/${route}${new URL(req.url).search}`);
+  return handle(req, ctx);
+}
+
+export async function HEAD(
+  req: NextRequest,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
+  return handle(req, ctx);
 }
