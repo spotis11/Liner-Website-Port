@@ -3,7 +3,7 @@
   "version": "0.2.1",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000 2>&1 | tee dev.log",
+    "dev": "bash liner-bot/anchored.sh & next dev -p 3000 2>&1 | tee dev.log",
     "build": "prisma generate && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && mkdir -p .next/standalone/node_modules && rm -rf .next/standalone/node_modules/nodemailer && cp -r node_modules/nodemailer .next/standalone/node_modules/ && rm -f .next/standalone/dev.log .next/standalone/server.log && cp .env .next/standalone/.env && cp .env.production .next/standalone/.env.production && python3 scripts/prune_standalone.py && python3 scripts/verify_standalone_env.py",
     "start": "pkill -f 'next dev -p 3000' 2>/dev/null; sleep 1; NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
