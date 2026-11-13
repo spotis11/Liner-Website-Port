@@ -834,7 +834,7 @@
     "profile": {
       "avatar_change": "Prześlij zdjęcie",
       "avatar_failed": "Nie udało się przetworzyć tego obrazu. Spróbuj innego.",
-      "avatar_gif_too_large": "Ten animowany GIF jest za duży, aby zachować animację. Wybierz jeden poniżej 290 KB.",
+      "avatar_gif_too_large": "Ten animowany GIF jest za duży. Liner Pro odblokowuje animowane awatary do 30 MB.",
       "avatar_invalid": "Wybierz obraz PNG, JPEG, WebP lub GIF.",
       "avatar_remove": "Usuń zdjęcie",
       "avatar_removed": "Zdjęcie profilowe usunięte",

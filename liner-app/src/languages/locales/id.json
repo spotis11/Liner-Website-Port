@@ -885,7 +885,7 @@
     "profile": {
       "avatar_change": "Unggah foto",
       "avatar_failed": "Tidak dapat memproses gambar ini. Coba gambar lain.",
-      "avatar_gif_too_large": "GIF animasi ini terlalu besar untuk mempertahankan animasinya. Pilih yang di bawah 290 KB.",
+      "avatar_gif_too_large": "GIF animasi ini terlalu besar. Liner Pro membuka avatar animasi hingga 30 MB.",
       "avatar_invalid": "Pilih gambar PNG, JPEG, WebP, atau GIF.",
       "avatar_remove": "Hapus foto",
       "avatar_removed": "Foto profil dihapus",

@@ -821,7 +821,7 @@
       "avatar_invalid": "Pumili ng PNG, JPEG, WebP o GIF na imahe.",
       "avatar_too_large": "Masyadong malaki ang imahe. Pumili ng mas maliit sa 10 MB.",
       "avatar_failed": "Hindi ma-process ang imaheng ito. Subukan ang iba.",
-      "avatar_gif_too_large": "Masyadong malaki ang animated GIF na ito para mapanatili ang animation. Pumili ng laging mas maliit kaysa 290 KB.",
+      "avatar_gif_too_large": "Masyadong malaki ang animated GIF na ito. Binubuksan ng Liner Pro ang mga animated avatar hanggang 30 MB.",
       "bio_label": "Bio",
       "bio_placeholder": "Sabihin sa mundo ang music taste mo...",
       "save_changes": "I-save ang mga Pagbabago",

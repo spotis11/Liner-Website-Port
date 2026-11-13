@@ -134,6 +134,12 @@ export function validateRegistration(input: {
   }
 }
 
+/** Data-URL avatars up to this size stay inline in JSON payloads; anything
+ *  larger (Liner Pro animated GIFs up to 30 MB) is rewritten to
+ *  GET /api/avatar/[id] so /me, user finder and announcement payloads stay
+ *  light and the browser caches the bytes instead. */
+const AVATAR_INLINE_MAX_CHARS = 400_000;
+
 export function toPublicUser(account: {
   id: string;
   email: string | null;
@@ -155,7 +161,12 @@ export function toPublicUser(account: {
     email: account.email ?? undefined,
     username: account.username,
     displayName: account.displayName,
-    avatarUrl: account.avatarUrl,
+    avatarUrl:
+      account.avatarUrl &&
+      account.avatarUrl.startsWith("data:") &&
+      account.avatarUrl.length > AVATAR_INLINE_MAX_CHARS
+        ? `/api/avatar/${account.id}`
+        : account.avatarUrl,
     bio: account.bio,
     isPublic: account.isPublic,
     showActivity: account.showActivity,

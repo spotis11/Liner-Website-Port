@@ -145,13 +145,15 @@ export function AccountTab({ searchQuery }: { searchQuery?: string }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || avatarBusy) return;
-    if (!isAcceptableAvatarFile(file)) {
+    if (!isAcceptableAvatarFile(file, { isPro: user.isPro === true })) {
       toast(t("settings.profile.avatar_invalid"), "error");
       return;
     }
     setAvatarBusy(true);
     try {
-      const dataUrl = await fileToAvatarDataUrl(file);
+      const dataUrl = await fileToAvatarDataUrl(file, {
+        isPro: user.isPro === true,
+      });
       await updateProfile({ avatarUrl: dataUrl });
       toast(t("settings.profile.avatar_updated"), "success");
     } catch (error) {

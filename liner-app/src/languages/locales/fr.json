@@ -951,7 +951,7 @@
     "profile": {
       "avatar_change": "Importer une photo",
       "avatar_failed": "Impossible de traiter cette image. Essayez-en une autre.",
-      "avatar_gif_too_large": "Ce GIF animé est trop lourd pour conserver son animation. Choisissez-en un de moins de 290 Ko.",
+      "avatar_gif_too_large": "Ce GIF animé est trop lourd. Liner Pro permet des avatars animés jusqu’à 30 Mo.",
       "avatar_invalid": "Choisissez une image PNG, JPEG, WebP ou GIF.",
       "avatar_remove": "Supprimer la photo",
       "avatar_removed": "Photo de profil supprimée",

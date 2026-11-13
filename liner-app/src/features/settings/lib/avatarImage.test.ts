@@ -28,6 +28,25 @@ function stubCanvas(dataUrl: string) {
   return { drawImage, toDataURL, getContext };
 }
 
+/** Minimal GIF file: "GIF89a" + one Graphic Control Extension (0x21 0xF9)
+ *  block per frame + zero padding + trailer. Two GCEs = animated. Padding is
+ *  a pre-allocated zero-filled buffer — pushing millions of bytes one at a
+ *  time would blow the test timeout. */
+function gifFile(frames: number, padBytes = 0): File {
+  const head = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]);
+  const gces: number[] = [];
+  for (let i = 0; i < frames; i++) {
+    gces.push(0x21, 0xf9, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00);
+  }
+  const parts: BlobPart[] = [
+    head,
+    new Uint8Array(gces),
+    new Uint8Array(padBytes), // zero-filled by construction
+    new Uint8Array([0x3b]),
+  ];
+  return new File(parts, "avatar.gif", { type: "image/gif" });
+}
+
 describe("isAcceptableAvatarFile", () => {
   it("accepts common raster images", () => {
     expect(isAcceptableAvatarFile(makeFile([], "image/png"))).toBe(true);
@@ -151,20 +170,6 @@ describe("fileToAvatarDataUrl", () => {
 describe("fileToAvatarDataUrl — animated GIFs", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  /** Minimal GIF file: "GIF89a" + one Graphic Control Extension (0x21 0xF9)
-   *  block per frame + zero padding + trailer. Two GCEs = animated. */
-  function gifFile(frames: number, padBytes = 0): File {
-    const bytes: number[] = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61];
-    for (let i = 0; i < frames; i++) {
-      bytes.push(0x21, 0xf9, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00);
-    }
-    for (let i = 0; i < padBytes; i++) bytes.push(0x00);
-    bytes.push(0x3b);
-    return new File([new Uint8Array(bytes)], "avatar.gif", {
-      type: "image/gif",
-    });
-  }
-
   it("stores animated GIFs byte-for-byte, skipping the canvas re-encode", async () => {
     const stub = stubCanvas("data:image/webp;base64,SHOULD_NOT_BE_USED");
     const file = gifFile(2);
@@ -203,5 +208,38 @@ describe("fileToAvatarDataUrl — animated GIFs", () => {
     const dataUrl = await fileToAvatarDataUrl(gifFile(1));
     expect(dataUrl).toBe("data:image/webp;base64,static");
     expect(stub.drawImage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Liner Pro GIF avatars (30 MB)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("isAcceptableAvatarFile admits up to 30 MB GIFs only for Pro", () => {
+    const twentyMb = gifFile(2, 20 * 1024 * 1024);
+    expect(isAcceptableAvatarFile(twentyMb)).toBe(false);
+    expect(isAcceptableAvatarFile(twentyMb, { isPro: true })).toBe(true);
+    // 31 MB is over even the Pro cap
+    const thirtyOneMb = gifFile(2, 31 * 1024 * 1024);
+    expect(isAcceptableAvatarFile(thirtyOneMb, { isPro: true })).toBe(false);
+  });
+
+  it("stores oversized-for-non-Pro animated GIFs byte-for-byte when Pro", async () => {
+    // 320 KB GIF -> ~427k chars of data URL: rejected at the compact cap,
+    // accepted through the Pro cap (41.95M chars)
+    const file = gifFile(2, 320 * 1024);
+    const dataUrl = await fileToAvatarDataUrl(file, { isPro: true });
+    expect(dataUrl.startsWith("data:image/gif;base64,")).toBe(true);
+    const decoded = atob(dataUrl.slice("data:image/gif;base64,".length));
+    const original = new Uint8Array(await file.arrayBuffer());
+    expect(decoded.length).toBe(original.length);
+    for (let i = 0; i < original.length; i++) {
+      expect(decoded.charCodeAt(i)).toBe(original[i]);
+    }
+  });
+
+  it("rejects Pro GIFs over 30 MB before any base64 conversion", async () => {
+    await expect(
+      fileToAvatarDataUrl(gifFile(2, 31 * 1024 * 1024), { isPro: true }),
+    ).rejects.toMatchObject({ reason: "too_large" });
   });
 });

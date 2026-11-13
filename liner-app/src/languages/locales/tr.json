@@ -741,7 +741,7 @@
       "avatar_invalid": "Lütfen PNG, JPEG, WebP veya GIF bir görsel seç.",
       "avatar_too_large": "Görsel çok büyük. Lütfen 10 MB altında bir dosya seç.",
       "avatar_failed": "Bu görsel işlenemedi. Lütfen başka bir tane dene.",
-      "avatar_gif_too_large": "Bu animasyonlu GIF, animasyonu korumak için çok büyük. Lütfen 290 KB altında bir tane seçin.",
+      "avatar_gif_too_large": "Bu animasyonlu GIF çok büyük. Liner Pro, 30 MB'a kadar animasyonlu avatarları açar.",
       "bio_label": "Biyografi",
       "bio_placeholder": "Müzik zevkini dünyaya anlat...",
       "save_changes": "Değişiklikleri kaydet",

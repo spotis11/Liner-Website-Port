@@ -4,6 +4,7 @@ import {
   toPublicUser,
   normalizeUsername,
 } from "@/lib/websiteAuth";
+import { isOwnerPro } from "@/lib/pro";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -41,7 +42,27 @@ export async function PATCH(req: NextRequest) {
     data.bio = body.bio.trim().slice(0, 300);
   }
   if (typeof body.avatarUrl === "string") {
-    data.avatarUrl = body.avatarUrl.slice(0, 400_000);
+    // Liner Pro unlocks animated GIF avatars up to 30 MB (~41.95M chars of
+    // base64 + prefix headroom); everyone else keeps the compact cap. Reject
+    // rather than slice — slicing a data URL corrupts it into a broken image.
+    const proAccount = await db.account.findUnique({
+      where: { id: identity.accountId },
+      select: { isPro: true },
+    });
+    const isPro = Boolean(proAccount?.isPro) || isOwnerPro(identity.username);
+    const cap = isPro ? 41_950_000 : 400_000;
+    if (body.avatarUrl.length > cap) {
+      return NextResponse.json(
+        {
+          error: isPro
+            ? "Avatar too large. Liner Pro allows animated avatars up to 30 MB."
+            : "Avatar too large. Animated avatars up to 30 MB are a Liner Pro feature.",
+          code: "AVATAR_TOO_LARGE",
+        },
+        { status: 413 },
+      );
+    }
+    data.avatarUrl = body.avatarUrl;
   }
   if (typeof body.username === "string") {
     const username = normalizeUsername(body.username);
