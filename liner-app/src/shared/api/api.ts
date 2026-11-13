@@ -615,8 +615,6 @@ import type {
 
 // ---- Endpoints --------------------------------------------------------------
 
-const LINER_UPSTREAM_BASE = "https://api.tryliner.fun";
-
 /**
  * Parses a lyrics SSE response (upstream OR same-origin) into the event
  * stream the desktop backend defined. A JSON body means the track is a
@@ -1189,10 +1187,12 @@ export const api = {
     };
 
     // Upstream-first (desktop parity): with a linked Liner account the
-    // browser calls api.tryliner.fun directly — that is where word-level
-    // providers ("polaris mono", "binimum") live; they are served only to
-    // signed-in Liner accounts. Signed-out users and any upstream failure
-    // fall through to the same-origin stream (lrclib pool) below.
+    // word-level providers ("polaris mono", "binimum") are fetched — but via
+    // OUR same-origin relay (?upstream=1), NOT cross-origin: api.tryliner.fun
+    // sits behind Cloudflare WAF rules and browsers can get CORS-blocked or
+    // challenged. The server relays with the desktop's Electron UA. Signed-out
+    // users and any upstream failure fall through to the same-origin lrclib
+    // pool below.
     const linerToken = await getValidLinerAccessToken();
     if (linerToken) {
       try {
@@ -1204,7 +1204,8 @@ export const api = {
         );
         let upstreamRes: Response;
         try {
-          upstreamRes = await fetch(`${LINER_UPSTREAM_BASE}${path}`, {
+          const upstreamUrl = `${getApiBaseUrl()}${path}${hintParams ? "&" : "?"}upstream=1`;
+          upstreamRes = await fetch(upstreamUrl, {
             signal: signal
               ? AbortSignal.any([signal, connect.signal])
               : connect.signal,

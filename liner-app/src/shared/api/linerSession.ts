@@ -3,12 +3,17 @@
  * for word-level lyrics ("Polaris Mono" / "binimum" are served ONLY to
  * signed-in Liner accounts; lrclib is the anonymous fallback).
  *
- * WHY BROWSER-DIRECT: the upstream API sits behind Cloudflare, which
- * challenges datacenter traffic on the auth POSTs — so the server cannot
- * hold a Liner session. A real user browser (residential IP, real Chromium)
- * passes exactly like the desktop app does. CORS is fully open upstream
- * (verified 2026-11-13: preflight 204, allow-methods GET/HEAD/POST,
- * allow-headers echoes our x-liner-* set, allow-origin echoes any origin).
+ * ROUTING (WAF rules): the upstream API sits behind Cloudflare which the
+ * upstream README explicitly warns about — browsers can be CORS-blocked or
+ * challenged on cross-origin calls. Requests therefore go through OUR
+ * website's same-origin relay (the Next.js /v1 backend forwards to the
+ * upstream with the desktop's Electron UA):
+ *   - refresh  -> relayed (no password involved; server IP passes CF)
+ *   - login    -> still browser-direct (real-browser CF pass, and the
+ *                 password must never touch our server)
+ *   - lyrics   -> relayed via /v1/tracks/:id/lyrics?upstream=1 (see api.ts)
+ * The signature is computed in the browser over the UPSTREAM path; the relay
+ * forwards path + x-liner-* headers byte-for-byte, so it stays valid.
  *
  * Request signing mirrors the desktop's native signer (signer/src/crypto.rs
  * + electron/crypto.ts — public constants from the official repo):
@@ -19,6 +24,8 @@
  * The session is stored separately from the website auth session — the
  * website Bearer and the Liner Bearer are two different trust domains.
  */
+
+import { getApiBaseUrl } from "./baseUrl";
 
 const LINER_UPSTREAM_BASE = "https://api.tryliner.fun";
 const SESSION_KEY = "liner_liner_session_v1";
@@ -54,7 +61,7 @@ const API_KEY_CHECKSUM = Uint8Array.from([
 let signerKey: CryptoKey | null = null;
 let signerClockOffsetMs = 0;
 
-function concat(...parts: Uint8Array[]): Uint8Array {
+function concat(...parts: Uint8Array[]): Uint8Array<ArrayBuffer> {
   const total = parts.reduce((n, p) => n + p.length, 0);
   const out = new Uint8Array(total);
   let at = 0;
@@ -66,7 +73,9 @@ function concat(...parts: Uint8Array[]): Uint8Array {
 }
 
 async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return new Uint8Array(
+    await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>),
+  );
 }
 
 function bytesToBase64Url(bytes: Uint8Array): string {
@@ -116,7 +125,7 @@ export async function signLinerRequest(
     const mac = await crypto.subtle.sign(
       "HMAC",
       key,
-      new TextEncoder().encode(canonical),
+      new TextEncoder().encode(canonical) as Uint8Array<ArrayBuffer>,
     );
     return {
       "x-liner-signature": bytesToBase64Url(new Uint8Array(mac)),
@@ -184,12 +193,17 @@ async function upstreamCall(
   path: string,
   body: Record<string, unknown>,
   bearer?: string,
+  mode: "relay" | "direct" = "relay",
 ): Promise<{ ok: boolean; status: number; json: UpstreamAuthTokens | null }> {
   const bodyText = JSON.stringify(body);
   const signed = await signLinerRequest("POST", path, bodyText);
+  // relay = same-origin (our /v1 backend forwards to the upstream — no CORS);
+  // direct = straight to api.tryliner.fun (Electron keeps doing this itself;
+  // in the browser only login uses it, to keep the password off our server)
+  const base = mode === "relay" ? getApiBaseUrl() : LINER_UPSTREAM_BASE;
   let res: Response;
   try {
-    res = await fetch(`${LINER_UPSTREAM_BASE}${path}`, {
+    res = await fetch(`${base}${path}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -224,10 +238,17 @@ export async function linerLoginUpstream(
   password: string,
 ): Promise<boolean> {
   if (!email || !password) return false;
-  const res = await upstreamCall("/v1/auth/login", {
-    email: email.trim(),
-    password,
-  });
+  // direct on purpose: real browsers pass Cloudflare on POST login, and the
+  // password must never transit our server
+  const res = await upstreamCall(
+    "/v1/auth/login",
+    {
+      email: email.trim(),
+      password,
+    },
+    undefined,
+    "direct",
+  );
   const tokens = res.json;
   if (!res.ok || !tokens?.accessToken || !tokens?.refreshToken) return false;
   writeSession({

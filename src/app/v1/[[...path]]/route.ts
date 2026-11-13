@@ -40,6 +40,86 @@ export const dynamic = "force-dynamic";
 const UPSTREAM = "https://api.tryliner.fun";
 const FORWARD_TIMEOUT_MS = 6_000;
 
+// Word-level lyrics proxy: the upstream sits behind Cloudflare WAF rules
+// (their README warns about it), so the browser's cross-origin GET can be
+// CORS-blocked or challenged. The client therefore asks OUR same-origin
+// /v1/tracks/:id/lyrics?upstream=1 and this server relays it — same-origin
+// means no CORS at all, and the relay presents the desktop's Electron UA
+// (the client the upstream expects, verified to pass the WAF).
+const UPSTREAM_CLIENT_UA =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) liner-desktop/0.2.12 Chrome/134.0.0.0 Electron/44.0.0 Safari/537.36";
+
+// headers the signed upstream protocol needs (signature stays browser-side:
+// the browser signs METHOD\npath\nts\nnonce\nsha256(body) over the UPSTREAM
+// path, we relay path + headers byte-for-byte, so the signature is valid)
+const UPSTREAM_FORWARD_HEADERS = [
+  "authorization",
+  "x-liner-signature",
+  "x-liner-timestamp",
+  "x-liner-nonce",
+  "x-request-id",
+  "x-client-version",
+  "x-platform",
+  "x-session-id",
+  "accept",
+] as const;
+
+function upstreamHeaders(req: NextRequest): Headers {
+  const headers = new Headers();
+  for (const name of UPSTREAM_FORWARD_HEADERS) {
+    const value = req.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  headers.set("user-agent", UPSTREAM_CLIENT_UA);
+  return headers;
+}
+
+async function upstreamLyrics(
+  req: NextRequest,
+  route: string,
+  search: string,
+): Promise<Response> {
+  // word-level providers are served ONLY to signed-in Liner accounts; a
+  // bearer-less proxy call is pointless — serve the local pool instead
+  if (!req.headers.get("authorization")) {
+    return lyricsStream(new URL(req.url));
+  }
+  try {
+    const upstream = await fetch(`${UPSTREAM}/v1/${route}${search}`, {
+      method: "GET",
+      headers: upstreamHeaders(req),
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(60_000)]),
+      redirect: "manual",
+    });
+    const contentType = upstream.headers.get("content-type") ?? "";
+    if (contentType.includes("text/html")) {
+      // Cloudflare challenge page — the client falls over to the local pool
+      return NextResponse.json(
+        { error: "Upstream unavailable.", code: "UPSTREAM_BLOCKED" },
+        { status: 503 },
+      );
+    }
+    const headers = new Headers();
+    if (contentType) headers.set("content-type", contentType);
+    headers.set("cache-control", "no-cache, no-transform");
+    for (const name of ["date", "x-request-id", "retry-after"] as const) {
+      const value = upstream.headers.get(name);
+      if (value) headers.set(name, value);
+    }
+    // true streaming passthrough — the SSE events reach the player live
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Upstream unreachable.", code: "UPSTREAM_UNREACHABLE" },
+      { status: 503 },
+    );
+  }
+}
+
 const STRIP_AUTH = new Set(["authorization", "cookie", "host"]);
 
 function forwardableHeaders(req: NextRequest): Headers {
@@ -298,6 +378,9 @@ export async function GET(
     return NextResponse.json({ status: "not_found" }, { status: 404 });
   }
   if (route.startsWith("tracks/") && route.endsWith("/lyrics")) {
+    if (url.searchParams.get("upstream") === "1") {
+      return upstreamLyrics(req, route, url.search);
+    }
     return lyricsStream(url);
   }
   if (route === "explore/popular") {
