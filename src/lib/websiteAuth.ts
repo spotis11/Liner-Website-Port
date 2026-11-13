@@ -257,8 +257,13 @@ export async function rotateSession(
     select: { id: true, accountId: true, account: { select: { username: true } } },
   });
   if (!stale) return null;
-  await db.session.delete({ where: { id: stale.id } }).catch(() => undefined);
+  // Create the new Session row BEFORE deleting the old one. If issueSession
+  // fails (DB hiccup, unique constraint), the old refresh token is still
+  // valid — the client retries later instead of being force-logged-out.
+  // (Previously delete-then-create: a failed issueSession left the client
+  // holding a dead refresh token → forced logout on the next refresh.)
   const session = await issueSession(stale.accountId, null);
+  await db.session.delete({ where: { id: stale.id } }).catch(() => undefined);
   return {
     identity: {
       accountId: stale.accountId,

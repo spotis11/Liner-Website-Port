@@ -26,6 +26,29 @@ export function AuthLock({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("auth:changed", syncExpiredSession);
   }, [initialize]);
 
+  // Revalidate the session when the user returns to a long-inactive tab.
+  // A stale-looking session (token still in localStorage but the DB row was
+  // wiped by a deploy/mirror cycle) is only discovered on the next API call;
+  // this surfaces it proactively so the user sees the login redirect
+  // immediately rather than a broken library load.
+  useEffect(() => {
+    let hiddenAt: number | null = null;
+    const VISIBILITY_THRESHOLD_MS = 30_000;
+    const onVisibility = () => {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+      } else if (hiddenAt !== null) {
+        const hiddenFor = Date.now() - hiddenAt;
+        hiddenAt = null;
+        if (hiddenFor >= VISIBILITY_THRESHOLD_MS && getAuthSession()) {
+          void initialize();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [initialize]);
+
   useEffect(() => {
     const anonymousAllowed = pathname === "/login" || pathname === "/auth/discord";
     if (status === "anonymous" && !anonymousAllowed) {

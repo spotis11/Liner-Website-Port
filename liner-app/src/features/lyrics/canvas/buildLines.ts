@@ -39,10 +39,18 @@ function subtitleOf(line: Lyric): string | null {
 export function buildLines(lyrics: Lyric[]): LyricsModel {
   const lines = lyrics.map((line, index): LyricLineModel => {
     const words = line.words ?? "";
+    const nextStart = lyrics[index + 1]?.startTimeMs;
+    // For line-level LRC (from lrclib), durationMs is usually 0 — use the next
+    // line's start as the end boundary so lineSyncedParts can distribute real
+    // per-word durations. Last line falls back to a 3 s window.
+    const endMs =
+      nextStart !== undefined
+        ? nextStart
+        : line.startTimeMs + (line.durationMs || 3000);
     const parts =
       line.parts && line.parts.length > 0
         ? line.parts
-        : lineSyncedParts(words, line.startTimeMs);
+        : lineSyncedParts(words, line.startTimeMs, endMs);
     return {
       startMs: line.startTimeMs,
       durationMs: line.durationMs,
