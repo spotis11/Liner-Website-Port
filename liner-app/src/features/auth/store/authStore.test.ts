@@ -190,9 +190,12 @@ describe("authStore.initialize — silent account recovery after a server wipe",
 
   it("re-signs the user in from the bundle when the server lost every session", async () => {
     seedRecoveryBundle();
+    // website tokens carry the at_/rt_ prefixes (their refresh is answered
+    // by /api/auth/refresh, which the mock below rejects — the server
+    // "lost every session", so recovery must take over)
     setAuthSession({
-      accessToken: "dead-access",
-      refreshToken: "dead-refresh",
+      accessToken: "at_dead",
+      refreshToken: "rt_dead",
       accessTokenExpiresAt: new Date(Date.now() - 60_000).toISOString(),
       user: { id: "acc_owner", username: "jayzeyluna" },
     } as AuthTokens);

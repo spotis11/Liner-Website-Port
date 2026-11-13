@@ -184,7 +184,7 @@ describe("moderationApi — website-port ban system", () => {
       });
 
     it("listBans forces one refresh and retries when the served token went stale", async () => {
-      seedSession("stale", "rt-1");
+      seedSession("at_stale", "rt_1");
       const fetchMock = vi.fn()
         .mockResolvedValueOnce(new Response("{}", { status: 401 }))
         .mockResolvedValueOnce(
@@ -216,7 +216,7 @@ describe("moderationApi — website-port ban system", () => {
 
     it("surfaces unauthorized when the forced refresh cannot produce a fresh token", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-      seedSession("stale", "rt-dead");
+      seedSession("at_stale", "rt_dead");
       const fetchMock = vi.fn()
         .mockResolvedValueOnce(new Response("{}", { status: 401 }))
         .mockResolvedValue(
@@ -234,7 +234,7 @@ describe("moderationApi — website-port ban system", () => {
     });
 
     it("addBan rides the same refresh-and-retry path", async () => {
-      seedSession("stale", "rt-1");
+      seedSession("at_stale", "rt_1");
       const fetchMock = vi.fn()
         .mockResolvedValueOnce(new Response("{}", { status: 401 }))
         .mockResolvedValueOnce(
@@ -266,7 +266,7 @@ describe("moderationApi — website-port ban system", () => {
       // admin cookie vouches for the browser on the retry — the request must
       // still succeed instead of showing "session expired"
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-      seedSession("stale", "rt-dead");
+      seedSession("at_stale", "rt_dead");
       const fetchMock = vi.fn()
         .mockResolvedValueOnce(new Response("{}", { status: 401 }))
         .mockResolvedValueOnce(

@@ -619,9 +619,10 @@ export default function LoginPage() {
                 </AnimatePresence>
               </form>
 
-              {/* UPSTREAM-PARITY TEST (v1.25): the real api.tryliner.fun has
-                  no Discord-OAuth or guest tier — website-only options hidden
-                  for this test. Revert = restore this block (git revert).
+              {/* Website-only sign-in options: Discord-OAuth and guest
+                  accounts mint website sessions (`at_`/`rt_` tokens) — the
+                  /v1 relay serves them from this site's own backend, while
+                  email/password sign-ins continue upstream (tryliner). */}
               <div className="mt-[16px] flex items-center gap-[12px]">
                 <span className="h-px flex-1 bg-border-primary" />
                 <span className="text-[11px] font-[500] uppercase tracking-wide text-text-tertiary">
@@ -660,7 +661,6 @@ export default function LoginPage() {
               <p className="m-0 mt-[8px] text-center text-[11px] leading-[1.5] text-text-tertiary">
                 {t("login.guest_hint")}
               </p>
-              end UPSTREAM-PARITY TEST block */}
             </div>
           </div>
 

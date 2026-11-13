@@ -128,8 +128,8 @@ describe("announcementsApi — website-port announcement admin gate", () => {
   it("sendAnnouncement forces one refresh and retries when the served token went stale", async () => {
     const { setAuthSession } = await import("@/shared/api/auth-session");
     setAuthSession({
-      accessToken: "stale",
-      refreshToken: "rt-1",
+      accessToken: "at_stale",
+      refreshToken: "rt_1",
       accessTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
       user: { id: "u1" },
     });

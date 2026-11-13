@@ -328,6 +328,19 @@ async function refreshHere(current: AuthTokens): Promise<AuthTokens | null> {
 
 async function postRefresh(refreshToken: string): Promise<Response> {
   const body = JSON.stringify({ refreshToken });
+  // WEBSITE sessions (Discord/guest — `at_`/`rt_` tokens minted by this
+  // port's own backend) rotate against /api/auth/refresh; upstream Liner
+  // sessions rotate against the signed /v1/auth/refresh relay. The rt_ in
+  // the body is the tell — the access token may already be expired.
+  if (refreshToken.startsWith("rt_") || getAuthSession()?.accessToken?.startsWith("at_")) {
+    return fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body,
+    });
+  }
   // upstream refresh, relayed same-origin with the desktop HMAC signature
   // (signature covers the upstream path; the relay forwards it byte-for-byte)
   const signedHeaders = await signApiRequest("POST", "/v1/auth/refresh", body);
@@ -375,6 +388,18 @@ export async function clearAuthSession(): Promise<void> {
   setAuthSession(null);
   if (!current?.refreshToken) return;
   const body = JSON.stringify({ refreshToken: current.refreshToken });
+  if (current.refreshToken.startsWith("rt_") || current.accessToken?.startsWith("at_")) {
+    // website session — retire it on this port's own backend
+    await fetch(`${getApiBaseUrl()}/api/auth/logout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${current.accessToken}`,
+      },
+      body,
+    }).catch(() => undefined);
+    return;
+  }
   // upstream logout, relayed same-origin (desktop parity, signed like refresh)
   const signedHeaders = await signApiRequest("POST", "/v1/auth/logout", body);
   const response = await fetch(`${getApiBaseUrl()}/v1/auth/logout`, {

@@ -26,11 +26,17 @@
  */
 
 import { getApiBaseUrl } from "./baseUrl";
+import { getAuthSession } from "./auth-session";
 
 const LINER_UPSTREAM_BASE = "https://api.tryliner.fun";
 const SESSION_KEY = "liner_liner_session_v1";
 const CLIENT_VERSION = "1.0.4-desktop";
 const REFRESH_MARGIN_MS = 120_000;
+
+/** Website access/refresh tokens are always `at_`/`rt_`-prefixed. */
+function isWebsiteToken(token: string): boolean {
+  return token.startsWith("at_") || token.startsWith("rt_");
+}
 
 interface LinerSession {
   email: string;
@@ -267,12 +273,23 @@ export async function linerLoginUpstream(
  * A fresh upstream access token, refreshing proactively when it is about to
  * expire (desktop parity: <120s margin, single-flight refresh). Rotated
  * refresh tokens are persisted immediately.
+ *
+ * v1.26 BRIDGE: since the upstream-parity switch, an upstream Liner login
+ * stores its tokens in the MAIN auth session (one sign-in, one session) —
+ * there is no separate liner session any more. When this browser has no
+ * separate session, the main session's token is used IF it is an upstream
+ * token (website sessions are `at_`/`rt_`-prefixed and are a different
+ * trust domain — their bearer is worthless to api.tryliner.fun).
  */
 let refreshInFlight: Promise<string | null> | null = null;
 
 export async function getValidLinerAccessToken(): Promise<string | null> {
   const session = readSession();
-  if (!session) return null;
+  if (!session) {
+    const main = getAuthSession();
+    const token = main?.accessToken ?? null;
+    return token && !isWebsiteToken(token) ? token : null;
+  }
   const expiresAt = expiryMs(session);
   const stale =
     expiresAt !== null
