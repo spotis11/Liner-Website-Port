@@ -5,6 +5,7 @@ import {
   toPublicUser,
 } from "@/lib/websiteAuth";
 import { issueWebsiteOwnerCookie } from "@/lib/websiteCookie";
+import { recoveryTokenFor } from "@/lib/websiteRecovery";
 import { scheduleDbMirror } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
       req.headers.get("user-agent"),
     );
     const response = NextResponse.json({
+      recoveryToken: await recoveryTokenFor(account.id),
       accessToken: session.accessToken,
       refreshToken: session.refreshToken,
       accessTokenExpiresAt: session.accessTokenExpiresAt,

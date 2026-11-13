@@ -130,6 +130,32 @@ if [ "$FETCHED" = "0" ]; then
 fi
 
 if [ "$FETCHED" = "0" ]; then
+    # DATA-SAFETY GATE (v1.23.0): reaching this point means production state
+    # is UNKNOWN — the live fetch failed and no cached export exists. Every
+    # historical "everyone signed out + accounts wiped" incident (v1.15.1,
+    # v1.18.0, v1.18.1, and the 2026-11-13 cycle) went through exactly this
+    # branch and silently shipped the SANITIZED workspace seed: an empty
+    # production. That is no longer acceptable by default:
+    #   - re-arm the chain and redeploy:  scripts/fetch_prod_mirror.sh db/production-mirror-latest.json
+    #     (run while the OLD container is still reachable, then click Deploy again)
+    #   - or consciously accept the wipe: DB_MIRROR_ALLOW_WIPE=1
+    # A failed build keeps the previous deployment live, so failing here is
+    # strictly safer than seeding an empty site. The client-side recovery
+    # protocol (POST /api/auth/recover) limits the blast radius of an
+    # accidental wipe, but likes/playlists of users who never return would
+    # still be lost — hence this gate.
+    if [ "${DB_MIRROR_ALLOW_WIPE:-0}" != "1" ]; then
+        echo "❌ DEPLOY ABORTED: the production mirror chain is UNARMED."
+        echo "    The live fetch failed AND no cached production export exists (db/production-mirror-latest.json)."
+        echo "    Shipping now would seed an EMPTY production database — every user signed out, accounts and libraries wiped."
+        echo "    Fix (pick one):"
+        echo "      1. While the old container is still up:  scripts/fetch_prod_mirror.sh db/production-mirror-latest.json  — then redeploy."
+        echo "      2. Or accept the wipe explicitly:        DB_MIRROR_ALLOW_WIPE=1 (one-off env for this build)."
+        echo "    Client recovery (POST /api/auth/recover) will auto-restore logins+profiles+liked songs for users who return,"
+        echo "    but do not rely on it as the primary protection."
+        exit 1
+    fi
+    echo "⚠️  DB_MIRROR_ALLOW_WIPE=1 — proceeding with the SANITIZED workspace seed (accounts stripped) at explicit request."
     # Last resort: the WORKSPACE mirror (or the workspace db itself). The
     # workspace db is a LOCAL TESTING database — its account rows can never
     # be real production users, yet shipping them has historically wiped

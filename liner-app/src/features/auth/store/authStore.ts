@@ -2,7 +2,10 @@ import { create } from "zustand";
 import { api, ApiError, HumanCheckCancelledError } from "@/shared/api";
 import {
   clearAuthSession,
+  clearRecoveryBundle,
   getAuthSession,
+  getRecoveryBundle,
+  recoverAccount,
   setAuthSession,
   refreshAuthSession,
   type AuthUser,
@@ -15,12 +18,18 @@ import { checkBan, ModerationError } from "@/features/moderation/lib/moderationA
 import { useBanStore } from "@/features/moderation/store/banStore";
 import { useWelcomeStore } from "@/features/welcome/store/welcomeStore";
 import { clearScreenCache } from "@/shared/cache/screenCache";
+import {
+  readLikedCache,
+  reloadLikedTracks,
+} from "@/features/library/hooks/useLikedTracks";
 
 export type AuthStatus = "initializing" | "authenticated" | "anonymous";
 export interface DiscordLoginPayload {
   accessToken: string;
   refreshToken: string;
   accessTokenExpiresAt: string;
+  /** durable recovery credential from the callback handoff (rc= param) */
+  recoveryToken?: string;
   user: AuthUser;
 }
 export type AuthState = {
@@ -49,6 +58,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: async () => {
     const stored = getAuthSession();
     if (!stored) {
+      // No live session — but a durable recovery bundle may exist (e.g. the
+      // session was dropped on an earlier visit because the server lost it).
+      // Try silent recovery before showing the sign-in/onboarding wall.
+      if (await tryRecoverAccount()) return;
       set({ status: "anonymous", user: null });
       return;
     }
@@ -59,7 +72,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     // "session expired" / network errors (Task 28). Drop it up front so the
     // next visit is a clean sign-in instead of a half-broken state.
     if (!stored.refreshToken || !stored.refreshToken.trim()) {
+      // A session without a refresh token can never renew — but the
+      // recovery bundle may still bring the account back silently.
       setAuthSession(null);
+      if (await tryRecoverAccount()) return;
       set({ status: "anonymous", user: null });
       return;
     }
@@ -113,6 +129,11 @@ export const useAuthStore = create<AuthState>((set) => ({
           set({ status: "authenticated", user: remaining.user ?? stored.user });
           return;
         }
+        // The server definitively lost this session (rotation table gone —
+        // historically a wiped production db). Last line of defense before
+        // dropping the user on the onboarding: the client-held recovery
+        // bundle re-signs them in (or rebuilds the account) silently.
+        if (await tryRecoverAccount()) return;
         setAuthSession(null);
         set({ status: "anonymous", user: null });
       } else {
@@ -194,6 +215,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
   logout: async () => {
+    // intentional sign-out also retires the durable recovery bundle —
+    // a signed-out browser must never auto-reconnect the account
+    clearRecoveryBundle();
     await clearPlayback();
     try {
       window.linerElectron?.closeOverlay?.();
@@ -228,6 +252,9 @@ async function enforceWebsiteBan(user: { username?: string | null; avatarUrl?: s
   const session = getAuthSession();
   const result = await checkBan(username, session?.accessToken).catch(() => null);
   if (!result?.banned) return;
+  // the ban wall is a definitive exit — retire the recovery bundle too,
+  // otherwise the client would silently reconnect on the next visit
+  clearRecoveryBundle();
   await clearAuthSession();
   useBanStore.getState().setBan({
     username: result.username ?? username,
@@ -259,6 +286,62 @@ useAuthStore.subscribe((state, previous) => {
     void clearPlayback();
   }
 });
+
+/** Re-push the client-cached liked library after a recovery rebuild. */
+const RECOVERY_LIKE_CAP = 500;
+const RECOVERY_LIKE_CONCURRENCY = 4;
+
+export async function repushLikedLibrary(): Promise<void> {
+  const cached = readLikedCache().slice(0, RECOVERY_LIKE_CAP);
+  if (cached.length === 0) return;
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < cached.length) {
+      const track = cached[cursor++];
+      await api.likeTrackSnapshot(
+        track as unknown as { id: string; title: string } & Record<string, unknown>,
+      ).catch(() => undefined);
+    }
+  };
+  await Promise.all(
+    Array.from(
+      { length: Math.min(RECOVERY_LIKE_CONCURRENCY, cached.length) },
+      () => worker(),
+    ),
+  );
+}
+
+/**
+ * Silent account recovery — the client half of the permanent logout fix.
+ * Runs only when a durable recovery bundle exists and the session is
+ * definitively dead (server lost its session/account rows). On success the
+ * user is signed straight back in — never the "create an account" wall.
+ */
+async function tryRecoverAccount(): Promise<boolean> {
+  const bundle = getRecoveryBundle();
+  if (!bundle) return false;
+  const tokens = await recoverAccount();
+  if (!tokens?.user) return false;
+  try {
+    // same gates as every other sign-in: banned accounts hit the ban wall
+    await enforceWebsiteBan(tokens.user);
+  } catch {
+    // enforceWebsiteBan cleared the session and raised the wall
+    return false;
+  }
+  setAuthSession(tokens);
+  useAuthStore.setState({ status: "authenticated", user: tokens.user });
+  useWelcomeStore.getState().notifyLogin(tokens.user);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("library:changed"));
+  }
+  // the account row may have been rebuilt from the cached profile — restore
+  // the liked library from the client cache in the background
+  void repushLikedLibrary()
+    .catch(() => undefined)
+    .then(() => reloadLikedTracks().catch(() => undefined));
+  return true;
+}
 
 export function getAuthErrorCode(error: unknown): string {
   if (error instanceof HumanCheckCancelledError) return "human_check_cancelled";

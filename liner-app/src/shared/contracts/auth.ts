@@ -26,6 +26,12 @@ export interface AuthTokens {
   accessTokenExpiresAt: string;
   user: PublicUser;
   expiresAt?: number;
+  /**
+   * Durable client-held credential for POST /api/auth/recover — re-signs the
+   * browser in (or rebuilds the wiped account) when the server loses the
+   * session database. Cleared only by explicit sign-out / ban.
+   */
+  recoveryToken?: string;
 }
 
 export interface AuthResult {
@@ -33,6 +39,8 @@ export interface AuthResult {
   refreshToken: string;
   accessTokenExpiresAt: string | Date;
   user: PublicUser;
+  /** see AuthTokens.recoveryToken */
+  recoveryToken?: string;
 }
 
 export interface RegisterInput {

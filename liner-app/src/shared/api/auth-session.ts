@@ -1,5 +1,6 @@
 import type { AuthTokens, AuthUser } from "../contracts";
 import { syncServerTime } from "./requestSigner";
+import { rememberRecovery } from "./recovery";
 
 export type { AuthTokens, AuthUser };
 
@@ -121,6 +122,12 @@ if (typeof window !== "undefined") {
 export function setAuthSession(next: AuthTokens | null): void {
   session = next;
   sessionSetAtMs = next ? Date.now() : null;
+  // Durable recovery bundle: every session carrying a user + recovery token
+  // (login/register/guest/Discord handoff/refresh/profile update) refreshes
+  // the client-held identity copy. Dead-session drops pass next=null and
+  // keep the bundle — that is exactly the state recovery exists for.
+  // Explicit sign-out clears it separately via clearRecoveryBundle().
+  if (next?.user) rememberRecovery(next);
   const bridge = mainBridge();
   if (bridge) {
     followMain(bridge);

@@ -71,6 +71,13 @@ export {
   type AuthTokens,
 } from "./auth-session";
 
+export {
+  getRecoveryBundle,
+  clearRecoveryBundle,
+  recoverAccount,
+  type RecoveryBundle,
+} from "./recovery";
+
 export { toClientTrack } from "./track";
 
 export {

@@ -821,6 +821,22 @@ export const api = {
     });
   },
 
+  /**
+   * Like a track from a client-held snapshot (no catalog re-resolve). Used
+   * by the post-recovery library re-push: the wiped server must get back
+   * exactly what the browser cached, even if the catalog can no longer
+   * resolve the id. Accepts either Track shape (client/contracts) — the
+   * server reads id/title/artists/coverUrl/durationMs/source only.
+   */
+  likeTrackSnapshot(
+    track: { id: string; title: string } & Record<string, unknown>,
+  ): Promise<void> {
+    return request<void>("/api/library/tracks", {
+      method: "PUT",
+      body: JSON.stringify({ track, trackSnapshot: track }),
+    });
+  },
+
   unlikeTrack(id: string): Promise<void> {
     return request<void>(
       `/api/library/tracks?trackId=${encodeURIComponent(id)}`,

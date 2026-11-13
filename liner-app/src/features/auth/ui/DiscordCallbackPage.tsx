@@ -67,6 +67,9 @@ export default function DiscordCallbackPage() {
     const at = searchParams.get("at");
     const rt = searchParams.get("rt");
     const exp = searchParams.get("exp");
+    // durable recovery credential — stored with the session so this browser
+    // can silently re-sign in (or rebuild the account) after a server wipe
+    const rc = searchParams.get("rc") ?? undefined;
     const user = decodeUserParam(searchParams.get("user"));
 
     // consume the fragment immediately so the tokens never linger in the
@@ -90,7 +93,7 @@ export default function DiscordCallbackPage() {
       return;
     }
 
-    completeDiscordLogin({ accessToken: at, refreshToken: rt, accessTokenExpiresAt: exp, user })
+    completeDiscordLogin({ accessToken: at, refreshToken: rt, accessTokenExpiresAt: exp, recoveryToken: rc, user })
       .then(() => navigate("/", { replace: true }))
       .catch(() => setError(t("login.discord_error")));
   }, [completeDiscordLogin, navigate, searchParams, t]);

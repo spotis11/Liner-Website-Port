@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rotateSession, toPublicUser, WebsiteAuthError } from "@/lib/websiteAuth";
+import { recoveryTokenFor } from "@/lib/websiteRecovery";
 import { scheduleDbMirror } from "@/lib/db";
 import { db, ensureDbReady } from "@/lib/db";
 
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
     }
     scheduleDbMirror();
     return NextResponse.json({
+      recoveryToken: await recoveryTokenFor(rotated.identity.accountId),
       accessToken: rotated.session.accessToken,
       refreshToken: rotated.session.refreshToken,
       accessTokenExpiresAt: rotated.session.accessTokenExpiresAt,

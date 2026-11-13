@@ -142,5 +142,14 @@ export async function register() {
         .then(({ ensureOwnerPro }) => ensureOwnerPro())
         .catch(() => undefined);
     }, 12_000).unref();
+    // dev-only: keep the deploy-time production mirror cache armed (see
+    // src/lib/prodMirrorWatch.ts — prevents the empty-seed wipe deploys)
+    try {
+      void import("@/lib/prodMirrorWatch").then(({ startProdMirrorCacheWatcher }) =>
+        startProdMirrorCacheWatcher(),
+      );
+    } catch {
+      // never break server bootstrap
+    }
   }
 }

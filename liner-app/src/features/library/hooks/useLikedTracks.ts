@@ -14,6 +14,37 @@ let view = { data: cache, isLoading: true, error: false };
 
 const optimisticOverrides = new Map<string, boolean>();
 
+// --- durable liked-library cache (client half of account recovery) ---------
+// Persisted after every successful server load so a wiped production
+// database can be rebuilt from the browser (see authStore repushLikedLibrary).
+const LIKED_CACHE_KEY = "liner_liked_cache_v1";
+const LIKED_CACHE_MAX = 1000;
+
+function persistLikedCache(tracks: Track[]): void {
+  try {
+    localStorage.setItem(
+      LIKED_CACHE_KEY,
+      JSON.stringify(tracks.slice(0, LIKED_CACHE_MAX)),
+    );
+  } catch {
+    // storage full/disabled — recovery then simply has nothing to re-push
+  }
+}
+
+/** The last server-verified liked library this browser saw (oldest last). */
+export function readLikedCache(): Track[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LIKED_CACHE_KEY) ?? "null");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (t): t is Track => !!t && typeof t === "object" && typeof (t as Track).id === "string" && typeof (t as Track).title === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
 function buildView(isLoading: boolean): {
   data: LikedData;
   isLoading: boolean;
@@ -114,6 +145,7 @@ function load(force = false): Promise<void> {
     fetchedFromServer = true;
     loadFailed = false;
     optimisticOverrides.clear();
+    persistLikedCache(tracks);
   })()
     .catch(() => {
       if (!fetchedFromServer) cache = EMPTY;

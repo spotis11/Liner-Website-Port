@@ -11,6 +11,7 @@ import {
 } from "@/lib/discordAuth";
 import { loginWithDiscord, toPublicUser } from "@/lib/websiteAuth";
 import { issueWebsiteOwnerCookie } from "@/lib/websiteCookie";
+import { recoveryTokenFor } from "@/lib/websiteRecovery";
 import { scheduleDbMirror } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -85,6 +86,9 @@ export async function GET(req: NextRequest) {
       at: session.accessToken,
       rt: session.refreshToken,
       exp: session.accessTokenExpiresAt,
+      // durable client-held recovery credential — the SPA stores it and can
+      // silently re-sign-in (or rebuild the account) after a wiped database
+      rc: await recoveryTokenFor(account.id),
       user: Buffer.from(JSON.stringify(user)).toString("base64url"),
     });
     const response = backToSpa(params.toString(), true);

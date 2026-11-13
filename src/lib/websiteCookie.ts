@@ -21,7 +21,13 @@ interface CookiePayload {
 
 let cachedSecret: Buffer | null = null;
 
-async function secret(): Promise<Buffer> {
+/**
+ * The HMAC key stored in the SystemKey table ("website_session_secret").
+ * Exported for src/lib/websiteRecovery.ts — recovery tokens are signed with
+ * the same secret so they survive republishes, container recreates and the
+ * sanitized last-resort seed (systemKey rows always ship).
+ */
+export async function sessionSecret(): Promise<Buffer> {
   if (cachedSecret) return cachedSecret;
   try {
     const { db, ensureDbReady } = await import("@/lib/db");
@@ -63,7 +69,7 @@ export function issueWebsiteOwnerCookie(
       exp: Date.now() + COOKIE_TTL_MS,
     };
     const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-    void secret().then((key) => {
+    void sessionSecret().then((key) => {
       const mac = sign(body, key);
       response.cookies.set({
         name: COOKIE_NAME,
@@ -88,7 +94,7 @@ export async function readWebsiteSessionCookie(
   const [, body, mac] = value.split(".");
   if (!body || !mac) return null;
   try {
-    const key = await secret();
+    const key = await sessionSecret();
     const expected = sign(body, key);
     const a = Buffer.from(mac);
     const b = Buffer.from(expected);
