@@ -8,6 +8,11 @@ import {
   type AuthUser,
 } from "./auth-session";
 import { signApiRequest, syncServerTime } from "./requestSigner";
+import {
+  getValidLinerAccessToken,
+  signLinerRequest,
+  syncLinerServerTime,
+} from "./linerSession";
 import { clientCatalog } from "./clientCatalog";
 import { getLocalImportHandler } from "./localImports";
 import type { Track } from "@/shared/contracts";
@@ -610,6 +615,79 @@ import type {
 
 // ---- Endpoints --------------------------------------------------------------
 
+const LINER_UPSTREAM_BASE = "https://api.tryliner.fun";
+
+/**
+ * Parses a lyrics SSE response (upstream OR same-origin) into the event
+ * stream the desktop backend defined. A JSON body means the track is a
+ * known instrumental — surfaced as a not_found done event.
+ */
+async function* parseLyricsSSE(
+  res: Response,
+  signal?: AbortSignal,
+): AsyncGenerator<LyricsStreamEvent> {
+  if (res.headers.get("content-type")?.includes("application/json")) {
+    const body = (await res.json()) as { instrumental?: boolean };
+    yield body.instrumental
+      ? {
+          type: "done",
+          cached: true,
+          status: "not_found",
+          instrumental: true,
+        }
+      : { type: "done", cached: true, status: "not_found" };
+    return;
+  }
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const flushEvent = (): LyricsStreamEvent | null => {
+    const sep = buffer.indexOf("\n\n");
+    if (sep === -1) return null;
+    const rawEvent = buffer.slice(0, sep);
+    buffer = buffer.slice(sep + 2);
+
+    const dataLines: string[] = [];
+    for (const line of rawEvent.split("\n")) {
+      if (line.startsWith("data:")) {
+        dataLines.push(line.slice(5).trim());
+      }
+    }
+
+    if (dataLines.length === 0) return null;
+    try {
+      return JSON.parse(dataLines.join("\n")) as LyricsStreamEvent;
+    } catch {
+      return null;
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let event = flushEvent();
+      while (event) {
+        yield event;
+        event = flushEvent();
+      }
+    }
+
+    buffer += decoder.decode();
+    let event = flushEvent();
+    while (event) {
+      yield event;
+      event = flushEvent();
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export const api = {
   async login(email: string, password: string): Promise<AuthTokens> {
     // website accounts: same-origin /api/auth — our own database, no proof-of-work
@@ -1098,8 +1176,6 @@ export const api = {
           }).toString()
         : "";
     const path = `/v1/tracks/${encodeURIComponent(id)}/lyrics${hintParams ? `?${hintParams}` : ""}`;
-    const signedHeaders = await signApiRequest("GET", path);
-    const accessToken = await getValidAccessToken();
     const requestId =
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
@@ -1111,6 +1187,50 @@ export const api = {
       "x-platform": getPlatform(),
       "x-session-id": id,
     };
+
+    // Upstream-first (desktop parity): with a linked Liner account the
+    // browser calls api.tryliner.fun directly — that is where word-level
+    // providers ("polaris mono", "binimum") live; they are served only to
+    // signed-in Liner accounts. Signed-out users and any upstream failure
+    // fall through to the same-origin stream (lrclib pool) below.
+    const linerToken = await getValidLinerAccessToken();
+    if (linerToken) {
+      try {
+        const linerSigned = await signLinerRequest("GET", path);
+        const connect = new AbortController();
+        const connectTimer = setTimeout(
+          () => connect.abort(),
+          LYRICS_CONNECT_TIMEOUT_MS,
+        );
+        let upstreamRes: Response;
+        try {
+          upstreamRes = await fetch(`${LINER_UPSTREAM_BASE}${path}`, {
+            signal: signal
+              ? AbortSignal.any([signal, connect.signal])
+              : connect.signal,
+            headers: {
+              Accept: "application/json, text/event-stream",
+              Authorization: `Bearer ${linerToken}`,
+              ...correlationHeaders,
+              ...linerSigned,
+            },
+          });
+        } finally {
+          clearTimeout(connectTimer);
+        }
+        syncLinerServerTime(upstreamRes.headers.get("date"));
+        if (upstreamRes.ok && upstreamRes.body) {
+          yield* parseLyricsSSE(upstreamRes, signal);
+          return;
+        }
+      } catch (err) {
+        if (signal?.aborted) throw err;
+        // fall through to the same-origin provider pool
+      }
+    }
+
+    const signedHeaders = await signApiRequest("GET", path);
+    const accessToken = await getValidAccessToken();
 
     let res: Response;
     const connect = new AbortController();
@@ -1150,66 +1270,7 @@ export const api = {
       throw new ApiError(res.status, res.statusText, undefined, respReqId);
     }
 
-    if (res.headers.get("content-type")?.includes("application/json")) {
-      const body = (await res.json()) as { instrumental?: boolean };
-      yield body.instrumental
-        ? {
-            type: "done",
-            cached: true,
-            status: "not_found",
-            instrumental: true,
-          }
-        : { type: "done", cached: true, status: "not_found" };
-      return;
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    const flushEvent = (): LyricsStreamEvent | null => {
-      const sep = buffer.indexOf("\n\n");
-      if (sep === -1) return null;
-      const rawEvent = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-
-      const dataLines: string[] = [];
-      for (const line of rawEvent.split("\n")) {
-        if (line.startsWith("data:")) {
-          dataLines.push(line.slice(5).trim());
-        }
-      }
-
-      if (dataLines.length === 0) return null;
-      try {
-        return JSON.parse(dataLines.join("\n")) as LyricsStreamEvent;
-      } catch {
-        return null;
-      }
-    };
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let event = flushEvent();
-        while (event) {
-          yield event;
-          event = flushEvent();
-        }
-      }
-
-      buffer += decoder.decode();
-      let event = flushEvent();
-      while (event) {
-        yield event;
-        event = flushEvent();
-      }
-    } finally {
-      reader.releaseLock();
-    }
+    yield* parseLyricsSSE(res, signal);
   },
 
   recordPlaybackEvent(payload: RecordPlaybackEventRequest): Promise<void> {

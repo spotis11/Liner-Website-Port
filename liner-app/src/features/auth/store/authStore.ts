@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api, ApiError, HumanCheckCancelledError } from "@/shared/api";
+import { api, ApiError, HumanCheckCancelledError, linerLoginUpstream } from "@/shared/api";
 import {
   clearAuthSession,
   clearRecoveryBundle,
@@ -152,6 +152,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     // website-port ban gate: banned accounts are refused the session
     await enforceWebsiteBan(result.user).catch(() => {});
     set({ status: "authenticated", user: result.user });
+    // silent upstream link: the same credentials are tried against the
+    // official Liner API straight from this browser (desktop parity for
+    // word-level lyrics). Never blocks or breaks the website login — a
+    // failure just means lyrics stay on the same-origin (lrclib) pool.
+    linerLoginUpstream(email, password).catch(() => {});
     // welcome flow: returning users get the single "Welcome back" greeting
     useWelcomeStore.getState().notifyLogin(result.user);
     if (typeof window !== "undefined") {

@@ -72,6 +72,13 @@ export {
 } from "./auth-session";
 
 export {
+  hasLinerSession,
+  linerLoginUpstream,
+  getValidLinerAccessToken,
+  forgetLinerSession,
+} from "./linerSession";
+
+export {
   getRecoveryBundle,
   clearRecoveryBundle,
   recoverAccount,
