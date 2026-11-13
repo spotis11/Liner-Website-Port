@@ -33,6 +33,7 @@ STANDALONE = os.path.join(ROOT, ".next", "standalone")
 WORKSPACE_DIRS = [
     "skills", "docs", "scripts", "liner-app", "upload", "download",
     "discord-bot", "mini-services", "examples", "agent-ctx", "liner-ref",
+    "liner-bot",
 ]
 
 # Root-level junk NFT sometimes copies into the standalone dir.

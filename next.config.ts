@@ -31,6 +31,7 @@ const nextConfig: NextConfig = {
       "./upload/**/*",
       "./mini-services/**/*",
       "./discord-bot/**/*",
+      "./liner-bot/**/*",
       "./liner-ref/**/*",
       "./db/*.json",
       "./node_modules/typescript/**/*",
