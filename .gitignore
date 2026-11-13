@@ -102,3 +102,6 @@ scripts/e2e-profile/
 # account rows — never commit; primary fallback for the build seed)
 /db/production-mirror-latest.json
 /scripts/webserver.pid
+
+# local Discord bot (runs here, never committed — contains its own .env token)
+liner-bot/
