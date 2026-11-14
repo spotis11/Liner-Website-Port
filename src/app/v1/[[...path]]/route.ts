@@ -626,6 +626,15 @@ async function websiteDispatch(
     return dailyMixes(req);
   }
   if (route === "explore/popular" && method === "GET") {
+    // REAL Liner trending: the upstream exposes explore/popular anonymously
+    // (verified live 2026-11-14) and its data IS what the real Liner home
+    // shows. The local community answer (this site's own accounts' plays) is
+    // empty for fresh visitors or skews toward a single listener, which used
+    // to push the client into its YouTube Music (innertube) fallback whose
+    // geo-personalized feed surfaced unrelated regional tracks. Upstream
+    // first, this site's own community data only as the degraded fallback.
+    const upstreamRes = await forwardAnonymous(req, `/v1/${route}${url.search}`, bodyBytes);
+    if (upstreamRes.status === 200) return upstreamRes;
     const raw = url.searchParams.get("window") ?? "all";
     const window = ["12h", "24h", "7d", "30d", "all"].includes(raw)
       ? raw
@@ -633,12 +642,18 @@ async function websiteDispatch(
     return popularTracks(window);
   }
   if (route === "explore/popular/albums" && method === "GET") {
+    // same policy as explore/popular: upstream is the source of truth for
+    // the home surfaces; the local hardcoded empty is only the fallback
+    const upstreamRes = await forwardAnonymous(req, `/v1/${route}${url.search}`, bodyBytes);
+    if (upstreamRes.status === 200) return upstreamRes;
     return NextResponse.json({
       window: url.searchParams.get("window") ?? "7d",
       items: [],
     });
   }
   if (route === "explore/most-saved" && method === "GET") {
+    const upstreamRes = await forwardAnonymous(req, `/v1/${route}${url.search}`, bodyBytes);
+    if (upstreamRes.status === 200) return upstreamRes;
     return NextResponse.json({
       type: url.searchParams.get("type") ?? "all",
       items: [],
@@ -687,6 +702,31 @@ async function likedTracksOf(accountId: string | null): Promise<LikedSnapshot[]>
   return rows;
 }
 
+/** Anonymous upstream GET parsed as JSON (null on any failure). */
+async function upstreamAnonymousJson(
+  req: NextRequest,
+  path: string,
+): Promise<Record<string, unknown> | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(`${UPSTREAM}${path}`, {
+      method: "GET",
+      headers: anonymousHeaders(req),
+      signal: controller.signal,
+      redirect: "manual",
+    });
+    if (!upstream.ok) return null;
+    const contentType = upstream.headers.get("content-type");
+    if (!contentType?.includes("application/json")) return null;
+    return JSON.parse(new TextDecoder().decode(await upstream.arrayBuffer()));
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * GET /v1/me/recommendations/daily-mixes — daily mixes built from the
  * account's liked tracks, clustered by primary artist (up to 4 mixes).
@@ -719,6 +759,54 @@ async function dailyMixes(req: NextRequest): Promise<NextResponse> {
       tracks,
     };
   });
+  if (mixes.length === 0) {
+    // Fresh visitor (no likes yet): build the mixes from the REAL Liner
+    // trending pool (the same source the upstream explore/popular home
+    // surface serves, which is what the Liner desktop home shows). Without
+    // this the client fell back to its innertube YouTube Music feed, whose
+    // geo-personalized picks surfaced unrelated regional tracks (v1.26.2
+    // home-screen report: "listening right now is chinese songs"). Tracks
+    // are clustered by primary artist like the liked-tracks builder above —
+    // one trending fetch, so the four mixes stay diverse instead of four
+    // near-identical windows of the same songs.
+    const data = await upstreamAnonymousJson(
+      req,
+      "/v1/explore/popular?window=30d&limit=50",
+    );
+    const items = Array.isArray(data?.items) ? data.items : [];
+    const seen = new Set<string>();
+    const clusters = new Map<string, Record<string, unknown>[]>();
+    for (const item of items) {
+      const track = (item as Record<string, unknown>)?.track;
+      if (!track || typeof track !== "object") continue;
+      const record = track as Record<string, unknown>;
+      const id = typeof record.id === "string" ? record.id : null;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const artistList = Array.isArray(record.artists) ? record.artists : [];
+      const primary =
+        (artistList[0] as Record<string, unknown> | undefined)?.name ??
+        (typeof record.artist === "string" ? record.artist : "Unknown artist");
+      const artist = String(primary).trim() || "Unknown artist";
+      const list = clusters.get(artist) ?? [];
+      list.push(record);
+      clusters.set(artist, list);
+    }
+    const ordered = [...clusters.entries()].sort(
+      (a, b) => b[1].length - a[1].length,
+    );
+    for (const [artist, tracks] of ordered.slice(0, 4)) {
+      mixes.push({
+        id: `daily-mix-${mixes.length + 1}`,
+        title: `Daily Mix ${mixes.length + 1}`,
+        description: `Trending on Liner — more like ${artist}`,
+        clusterArtists: [artist],
+        trackCount: Math.min(tracks.length, 10),
+        // raw upstream track JSON — the client normalizes it via toClientTrack
+        tracks: tracks.slice(0, 10),
+      });
+    }
+  }
   return NextResponse.json({
     items: mixes,
     generatedAt: new Date().toISOString(),

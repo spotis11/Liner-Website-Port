@@ -24,9 +24,11 @@ function rankOf(id: string): number {
 export function useListeningNow() {
   const { data, isLoading } = useCachedResource(
     "home:listening-now",
-    // the site backend only knows this site's own accounts — for a fresh
-    // visitor it is empty, so fall back to YouTube Music's home feed
-    // ("Quick picks") fetched through the innertube layer
+    // the relay now serves explore/popular from the REAL Liner upstream
+    // (anonymous forward — the same trending the Liner desktop home shows);
+    // the YouTube Music feed (innertube "Quick picks") is only a last resort
+    // for when even that fails, and its geo-personalized feed can surface
+    // unrelated regional tracks, so it must never shadow real Liner data
     () =>
       api
         .getPopularTracks("12h", LISTENING_NOW_LIMIT)
