@@ -1,0 +1,9 @@
+{
+  "name": "liner-system-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Liner System Discord bot - headless 24/7 service (platform-boot managed)",
+  "scripts": {
+    "dev": "bash /home/z/my-project/liner-bot/run.sh"
+  }
+}

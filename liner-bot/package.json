@@ -1,17 +1,14 @@
 {
-  "name": "liner-bot",
+  "name": "liner-system-bot",
   "version": "1.0.0",
-  "description": "",
+  "private": true,
+  "description": "Liner System - private Discord bot of the official Liner Discord server (commit watcher + channel tools)",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "node index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "discord.js": "^14.28.1",
-    "sharp": "^0.35.5"
+    "discord.js": "^14.16.3"
   }
 }

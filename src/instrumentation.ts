@@ -20,33 +20,50 @@
 // dispatcher there is safe — the raised cap is a Node-only concern.
 //
 // ---------------------------------------------------------------------------
-// Alfredo Discord bot watchdog (24/7 self-healing)
+// Discord bot watchdog (24/7 self-healing)
 //
-// The headless bot (discord-bot/run_headless.py under run_forever.sh) runs
-// alongside this server in the workspace. If it dies (crash, OOM spike during
-// a build, sandbox hiccup), this watchdog — running inside the long-lived
-// next-server process — notices the stale heartbeat and respawns it detached
-// via setsid. On hosts without discord-bot/ (production FC) it is inert.
+// Two bots run alongside this server in the workspace, each guarded the same
+// way: a fresh heartbeat file every 15s; when it goes stale and the runner
+// process is gone, this watchdog — running inside the long-lived next-server
+// process — respawns the bot's supervisor detached via setsid.
+//
+//   - liner-bot (Liner System, discord.js): liner-bot/run.sh
+//   - discord-bot (Alfredo headless runner, python): discord-bot/run_forever.sh
+//     (inert until alfredo.py is restored on this host)
+//
+// On hosts without the bot directories (production FC) both are inert.
 // ---------------------------------------------------------------------------
-const BOT_DIR = "/home/z/my-project/discord-bot";
-const BOT_HEARTBEAT_STALE_MS = 90_000;
-const BOT_WATCHDOG_INTERVAL_MS = 30_000;
-const BOT_SPAWN_COOLDOWN_MS = 60_000;
+const STALE_MS = 90_000;
+const WATCHDOG_INTERVAL_MS = 30_000;
+const SPAWN_COOLDOWN_MS = 60_000;
 
-let botWatchdogStarted = false;
-let lastBotSpawnAt = 0;
+const WATCHED_BOTS = [
+  {
+    name: "liner-system",
+    dir: "/home/z/my-project/liner-bot",
+    script: "run.sh",
+  },
+  {
+    name: "alfredo",
+    dir: "/home/z/my-project/discord-bot",
+    script: "run_forever.sh",
+  },
+] as const;
 
-function startBotWatchdog(botDirExists: boolean): void {
-  if (botWatchdogStarted || !botDirExists) return;
-  botWatchdogStarted = true;
+const botWatchdogStarted = new Set<string>();
+const lastSpawnAt = new Map<string, number>();
+
+function startBotWatchdog(bot: (typeof WATCHED_BOTS)[number], scriptExists: boolean): void {
+  if (botWatchdogStarted.has(bot.name) || !scriptExists) return;
+  botWatchdogStarted.add(bot.name);
 
   const timer = setInterval(() => {
-    void checkAndRespawnBot();
-  }, BOT_WATCHDOG_INTERVAL_MS);
+    void checkAndRespawnBot(bot);
+  }, WATCHDOG_INTERVAL_MS);
   // never keep the event loop alive just for the watchdog
   if (typeof timer.unref === "function") timer.unref();
 
-  async function checkAndRespawnBot(): Promise<void> {
+  async function checkAndRespawnBot(bot: (typeof WATCHED_BOTS)[number]): Promise<void> {
     try {
       const [{ readFileSync }, nodeProcess, { spawn }] = await Promise.all([
         import("fs"),
@@ -57,12 +74,12 @@ function startBotWatchdog(botDirExists: boolean): void {
       let stale = true;
       let runnerPid: number | null = null;
       try {
-        const raw = readFileSync(`${BOT_DIR}/bot_status.json`, "utf8");
+        const raw = readFileSync(`${bot.dir}/bot_status.json`, "utf8");
         const s = JSON.parse(raw) as { heartbeat?: string; pid?: number };
         if (typeof s.pid === "number") runnerPid = s.pid;
         if (s.heartbeat) {
           const age = Date.now() - new Date(s.heartbeat).getTime();
-          stale = !(age >= 0 && age < BOT_HEARTBEAT_STALE_MS);
+          stale = !(age >= 0 && age < STALE_MS);
         }
       } catch {
         stale = true; // no status file yet
@@ -81,17 +98,21 @@ function startBotWatchdog(botDirExists: boolean): void {
       }
 
       const now = Date.now();
-      if (now - lastBotSpawnAt < BOT_SPAWN_COOLDOWN_MS) return;
-      lastBotSpawnAt = now;
+      if (now - (lastSpawnAt.get(bot.name) ?? 0) < SPAWN_COOLDOWN_MS) return;
+      lastSpawnAt.set(bot.name, now);
 
-      const child = spawn(
-        "setsid",
-        ["bash", `${BOT_DIR}/run_forever.sh`],
-        { cwd: BOT_DIR, detached: true, stdio: "ignore" },
-      );
+      const child = spawn("setsid", ["bash", `${bot.dir}/${bot.script}`], {
+        cwd: bot.dir,
+        detached: true,
+        stdio: "ignore",
+      });
       child.unref();
       console.warn(
-        "[liner] bot watchdog: heartbeat stale — respawned run_forever.sh (pid",
+        "[liner] bot watchdog:",
+        bot.name,
+        "heartbeat stale — respawned",
+        bot.script,
+        "(pid",
         child.pid ?? "?",
         ")",
       );
@@ -116,10 +137,12 @@ export async function register() {
         error instanceof Error ? error.message : error,
       );
     }
-    // watchdog is inert unless the bot directory exists on this host
+    // watchdog is inert unless the bot script exists on this host
     try {
       const { existsSync } = await import("fs");
-      startBotWatchdog(existsSync(`${BOT_DIR}/run_forever.sh`));
+      for (const bot of WATCHED_BOTS) {
+        startBotWatchdog(bot, existsSync(`${bot.dir}/${bot.script}`));
+      }
     } catch {
       // never let the watchdog break server bootstrap
     }

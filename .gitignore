@@ -103,5 +103,10 @@ scripts/e2e-profile/
 /db/production-mirror-latest.json
 /scripts/webserver.pid
 
-# local Discord bot (runs here, never committed — contains its own .env token)
-liner-bot/
+# Liner System bot — runtime secrets + data never tracked (source IS tracked)
+liner-bot/.env
+liner-bot/node_modules/
+liner-bot/logs/
+liner-bot/data/
+liner-bot/bot_status.json
+liner-bot/bot.pid
