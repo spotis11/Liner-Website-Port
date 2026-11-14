@@ -4,6 +4,12 @@ import { verifyAccessToken } from "@/lib/websiteAuth";
 import { db } from "@/lib/db";
 import { overlayWebsitePro } from "@/lib/linerProOverlay";
 import { collectLyricsCandidates, type LyricsHint } from "@/lib/lyricsProviders";
+import {
+  applyUpstreamProfilePatch,
+  overlayUpstreamProfile,
+  UpstreamProfileError,
+} from "@/lib/upstreamProfileOverlay";
+import { signUpstreamRequest } from "@/lib/upstreamSigner";
 
 // website route handlers reused directly (same process, no HTTP hop): the
 // website session surface the SPA needs is exactly the pre-v1.25 /api/*
@@ -148,6 +154,89 @@ function shouldOverlayPro(route: string, method: string): boolean {
   }
   if (method === "PATCH" && route === "users/me") return true;
   return false;
+}
+
+/**
+ * PATCH /v1/users/me for UPSTREAM sessions — stored locally, answered
+ * locally. The upstream API has NO profile-edit route at all (every shape
+ * 404s: "Route PATCH:/v1/users/me not found" — verified live 2026-11-14 with
+ * a real upstream session), so the browser's validly-signed PATCH can never
+ * succeed there. Instead: prove the token against the upstream with a
+ * server-signed GET /v1/me (the client claims are never trusted for the
+ * overlay key), store the patch in UpstreamProfile, answer with the merged
+ * user. Website sessions (at_ tokens) never reach this — they dispatch to
+ * websiteProfilePATCH below.
+ */
+async function upstreamProfilePATCH(
+  req: NextRequest,
+  bodyBytes: ArrayBuffer | null,
+): Promise<Response> {
+  let patch: Record<string, unknown> | null = null;
+  if (bodyBytes && bodyBytes.byteLength > 0) {
+    try {
+      patch = JSON.parse(new TextDecoder().decode(bodyBytes)) as Record<string, unknown>;
+    } catch {}
+  }
+  if (!patch || typeof patch !== "object") {
+    return NextResponse.json({ error: "Invalid body." }, { status: 400 });
+  }
+  let upstreamRes: Response;
+  try {
+    // upstreamHeaders returns a Headers instance — spread would empty it;
+    // overlay the fresh signature headers on the instance itself
+    const hopHeaders = upstreamHeaders(req);
+    const signature = signUpstreamRequest("GET", "/v1/me");
+    hopHeaders.set("x-liner-signature", signature["x-liner-signature"]);
+    hopHeaders.set("x-liner-timestamp", signature["x-liner-timestamp"]);
+    hopHeaders.set("x-liner-nonce", signature["x-liner-nonce"]);
+    upstreamRes = await fetch(`${UPSTREAM}/v1/me`, {
+      method: "GET",
+      headers: hopHeaders,
+      redirect: "manual",
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Upstream unreachable.", code: "UPSTREAM_UNREACHABLE" },
+      { status: 503 },
+    );
+  }
+  if (!upstreamRes.ok) {
+    // relay the upstream's auth answer (401/403) untouched
+    const buf = await upstreamRes.arrayBuffer();
+    console.warn(
+      `[v1/users/me PATCH] validation hop status=${upstreamRes.status} ct=${upstreamRes.headers.get("content-type")} body=${new TextDecoder().decode(buf.slice(0, 200))}`,
+    );
+    const res = new NextResponse(buf, { status: upstreamRes.status });
+    const ct = upstreamRes.headers.get("content-type");
+    if (ct) res.headers.set("content-type", ct);
+    return res;
+  }
+  let user: Record<string, unknown> | null = null;
+  try {
+    const parsed = JSON.parse(new TextDecoder().decode(await upstreamRes.arrayBuffer()));
+    user = (parsed?.user ?? parsed) as Record<string, unknown> | null;
+  } catch {
+    user = null;
+  }
+  if (!user || typeof user !== "object") {
+    return NextResponse.json(
+      { error: "Upstream user payload incomplete.", code: "UPSTREAM_SHAPE" },
+      { status: 502 },
+    );
+  }
+  try {
+    const merged = await applyUpstreamProfilePatch(user, patch);
+    return NextResponse.json(merged);
+  } catch (error) {
+    if (error instanceof UpstreamProfileError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
+    console.error("[v1/users/me PATCH]", error);
+    return NextResponse.json({ error: "Profile update failed." }, { status: 500 });
+  }
 }
 
 async function forward(
@@ -744,6 +833,20 @@ async function handle(
       return upstreamLyrics(req, route, url.search);
     }
     return lyricsStream(url);
+  }
+  // profile editing for upstream sessions: the upstream has no profile-edit
+  // route (every PATCH/PUT/POST shape on /v1/users/me 404s), so edits are
+  // stored locally (UpstreamProfile) and GET /v1/me answers with the stored
+  // profile merged on top of the upstream user. See upstreamProfileOverlay.
+  if (route === "users/me" && req.method === "PATCH") {
+    return upstreamProfilePATCH(req, bodyBytes);
+  }
+  if (route === "me" && req.method === "GET") {
+    const res = await forward(req, `/v1/me${url.search}`, true, bodyBytes);
+    if (res.status !== 200) return res;
+    const bytes = await res.arrayBuffer();
+    const merged = await overlayUpstreamProfile(bytes, res.headers.get("content-type"));
+    return new NextResponse(merged, { status: 200, headers: res.headers });
   }
   if (route === "auth/verify") {
     return passthrough(req, `/v1/${route}${url.search}`, bodyBytes);

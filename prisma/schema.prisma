@@ -275,3 +275,26 @@ model AccountPlaylistItem {
   @@unique([playlistId, trackId])
   @@index([playlistId, position])
 }
+
+// Local profile overlay for UPSTREAM Liner sessions (api.tryliner.fun JWTs).
+// The upstream API has NO profile-edit route (PATCH /v1/users/me etc. all
+// 404 — verified 2026-11-14), so profile edits made on this website are
+// stored here, keyed by the upstream JWT `sub`, and merged into relayed
+// /v1/me + PATCH /v1/users/me responses (see lib/upstreamProfileOverlay.ts).
+// Nullable fields mean "not overridden — pass the upstream value through";
+// bio/avatarUrl use "" as an explicit "cleared" marker.
+model UpstreamProfile {
+  id                      String   @id @default(cuid())
+  upstreamSub             String   @unique
+  username                String?
+  displayName             String?
+  bio                     String?
+  avatarUrl               String?
+  isPublic                Boolean?
+  showActivity            Boolean?
+  showHistory             Boolean?
+  showLikedTracks         Boolean?
+  participateLeaderboards Boolean?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}

@@ -250,6 +250,22 @@ const SCHEMA_DDL: string[] = [
 )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "AccountPlaylistItem_playlistId_trackId_key" ON "AccountPlaylistItem"("playlistId", "trackId")`,
   `CREATE INDEX IF NOT EXISTS "AccountPlaylistItem_playlistId_position_idx" ON "AccountPlaylistItem"("playlistId", "position")`,
+  `CREATE TABLE IF NOT EXISTS "UpstreamProfile" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "upstreamSub" TEXT NOT NULL,
+  "username" TEXT,
+  "displayName" TEXT,
+  "bio" TEXT,
+  "avatarUrl" TEXT,
+  "isPublic" BOOLEAN,
+  "showActivity" BOOLEAN,
+  "showHistory" BOOLEAN,
+  "showLikedTracks" BOOLEAN,
+  "participateLeaderboards" BOOLEAN,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" DATETIME NOT NULL
+)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "UpstreamProfile_upstreamSub_key" ON "UpstreamProfile"("upstreamSub")`,
 ]
 
 // Column additions for pre-existing tables: SQLite has no ADD COLUMN IF NOT

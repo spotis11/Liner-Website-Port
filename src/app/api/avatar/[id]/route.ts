@@ -28,10 +28,20 @@ export async function GET(
   const account = await db.account
     .findUnique({ where: { id }, select: { avatarUrl: true } })
     .catch(() => null);
-  if (!account?.avatarUrl) {
+  const avatarUrl =
+    account?.avatarUrl ??
+    // upstream-session profile overlays store their (possibly oversized)
+    // avatars on the UpstreamProfile row — toPublicUser-style rewrites in
+    // upstreamProfileOverlay point here with the profile row id
+    (
+      await db.upstreamProfile
+        .findUnique({ where: { id }, select: { avatarUrl: true } })
+        .catch(() => null)
+    )?.avatarUrl ??
+    null;
+  if (!avatarUrl) {
     return NextResponse.json({ error: "Avatar not found." }, { status: 404 });
   }
-  const avatarUrl = account.avatarUrl;
 
   // http(s) avatar (Discord CDN etc.) — redirect to the origin directly.
   if (!avatarUrl.startsWith("data:")) {
