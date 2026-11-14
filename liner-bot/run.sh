@@ -11,8 +11,8 @@ cd "$BOT_DIR"
 mkdir -p logs data
 PYTHON=""
 
-# never start twice (matches any running node index.js from this bot dir)
-if pgrep -f "liner-bot.*index\.js" | grep -v "^$$\$" > /dev/null 2>&1; then
+# never start twice (marker argv is part of the runner's cmdline)
+if pgrep -f "node.*index\.js --liner-system-bot" > /dev/null 2>&1; then
   echo "[supervisor] Liner System bot already running — nothing to do"
   exit 0
 fi
@@ -20,7 +20,7 @@ fi
 echo "[supervisor] $(date -u +%FT%TZ) loop started (pid $$)" >> logs/supervisor.log
 while true; do
   echo "[supervisor] $(date -u +%FT%TZ) launching Liner System bot" >> logs/supervisor.log
-  node index.js >> logs/bot.log 2>&1
+  node index.js --liner-system-bot >> logs/bot.log 2>&1
   code=$?
   echo "[supervisor] $(date -u +%FT%TZ) bot exited code=$code — restarting in 5s" >> logs/supervisor.log
   sleep 5
