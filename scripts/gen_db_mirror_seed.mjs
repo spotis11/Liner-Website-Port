@@ -16,6 +16,7 @@ import { writeFileSync, renameSync } from "node:fs";
 const TABLES = [
   "account",
   "session",
+  "upstreamProfile",
   "playlist",
   "playlistTrack",
   "likedTrack",

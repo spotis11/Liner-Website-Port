@@ -479,6 +479,7 @@ async function restoreBansFromMirror(): Promise<void> {
 const MIRROR_TABLES = [
   'account',
   'session',
+  'upstreamProfile',
   'playlist',
   'playlistTrack',
   'likedTrack',
@@ -499,6 +500,7 @@ const MIRROR_TABLES = [
 const RESTORE_ORDER: readonly string[] = [
   'account',
   'session',
+  'upstreamProfile',
   'playlist',
   'playlistTrack',
   'likedTrack',
