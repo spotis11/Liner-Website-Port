@@ -30,6 +30,7 @@ describe("linerSession — main-session bridge (v1.26)", () => {
       accessToken: "upstream-access-token",
       refreshToken: "upstream-refresh-token",
       accessTokenExpiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      user: { id: "test-user" },
     });
     const token = await getValidLinerAccessToken();
     expect(token).toBe("upstream-access-token");
@@ -40,6 +41,7 @@ describe("linerSession — main-session bridge (v1.26)", () => {
       accessToken: "at_website_token",
       refreshToken: "rt_website_token",
       accessTokenExpiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      user: { id: "test-user" },
     });
     expect(await getValidLinerAccessToken()).toBeNull();
   });
@@ -49,6 +51,7 @@ describe("linerSession — main-session bridge (v1.26)", () => {
       accessToken: "upstream-access-token",
       refreshToken: "upstream-refresh-token",
       accessTokenExpiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      user: { id: "test-user" },
     });
     window.localStorage.setItem(
       "liner_liner_session_v1",
