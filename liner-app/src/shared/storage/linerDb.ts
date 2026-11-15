@@ -63,8 +63,12 @@ export interface CachedArtistRecord {
 }
 
 const DB_NAME = "liner_db_v1";
-// v5 adds "on this device" stores: user-imported audio files + their metadata
-const DB_VERSION = 5;
+// v5 adds "on this device" stores: user-imported audio files + their metadata.
+// v6 (2026-11-15): clears the lyrics store so cached lrclib degrade entries
+// written before the relay's v1.26 Polaris-Mono-for-local-ids fix stop
+// shadowing the new word-level stream (the localStorage lyrics cache is
+// bumped v2→v3 in parallel; both layers are purged together).
+const DB_VERSION = 6;
 
 const MEM_AUDIO_LIMIT = 3;
 // the memory maps only sit in front of indexeddb: cap them so a long session doesn't keep every record it saw
@@ -154,6 +158,13 @@ class LinerDb {
           lyricsStore.createIndex("syncLevel", "syncLevel", { unique: false });
         } else if (event.oldVersion < 4) {
           // clear legacy lyrics store on v4 migration
+          try {
+            request.transaction?.objectStore("lyrics").clear();
+          } catch {}
+        } else if (event.oldVersion < 6) {
+          // v6: clear stale lrclib degrade entries written before the relay's
+          // v1.26 Polaris-Mono-for-local-ids fix (they would shadow the new
+          // word-level stream until their 7-day TTL elapsed)
           try {
             request.transaction?.objectStore("lyrics").clear();
           } catch {}

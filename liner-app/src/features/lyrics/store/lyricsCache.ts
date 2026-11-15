@@ -13,8 +13,14 @@ export interface CachedLyricsItem {
   timestamp: number;
 }
 
-const STORAGE_INDEX_KEY = "liner_lyrics_v2_index";
-const STORAGE_PREFIX = "liner_lyrics_v2_item_";
+// v3 (2026-11-15): the relay now resolves local track ids to YouTube ids and
+// serves Polaris Mono word-level lyrics for songs that previously degraded to
+// the local lrclib pool (see lyricsIdResolver + relay v1.26). Every v2 cache
+// entry written before that fix is a stale lrclib degrade that would shadow
+// the new word-level stream for up to 7 days — so the schema is bumped and
+// the legacy v2 keys are purged on startup, forcing a re-fetch.
+const STORAGE_INDEX_KEY = "liner_lyrics_v3_index";
+const STORAGE_PREFIX = "liner_lyrics_v3_item_";
 const MAX_ENTRIES = 250;
 
 const SYNC_RANK: Record<LyricsSyncLevel, number> = {
@@ -140,18 +146,28 @@ class LyricsCache {
     try {
       if (typeof localStorage === "undefined") return;
 
-      // purge legacy v1 cache keys on startup
-      const legacyIndexRaw = localStorage.getItem("liner_lyrics_lru_index");
-      if (legacyIndexRaw) {
-        try {
-          const legacyIndex: string[] = JSON.parse(legacyIndexRaw);
-          if (Array.isArray(legacyIndex)) {
-            for (const id of legacyIndex) {
-              localStorage.removeItem("liner_lyrics_item_" + id);
+      // purge legacy cache keys on startup so a schema bump actually frees
+      // the stale entries (the player would otherwise keep reading them
+      // until their 7-day TTL elapsed). v1 = old LRU format; v2 = the
+      // schema used before the v1.26 Polaris-Mono-for-local-ids fix, whose
+      // lrclib degrade entries would shadow the new word-level stream.
+      const legacyPrefixes = [
+        { index: "liner_lyrics_lru_index", item: "liner_lyrics_item_" },
+        { index: "liner_lyrics_v2_index", item: "liner_lyrics_v2_item_" },
+      ];
+      for (const { index, item } of legacyPrefixes) {
+        const legacyIndexRaw = localStorage.getItem(index);
+        if (legacyIndexRaw) {
+          try {
+            const legacyIndex: string[] = JSON.parse(legacyIndexRaw);
+            if (Array.isArray(legacyIndex)) {
+              for (const id of legacyIndex) {
+                localStorage.removeItem(item + id);
+              }
             }
-          }
-        } catch {}
-        localStorage.removeItem("liner_lyrics_lru_index");
+          } catch {}
+          localStorage.removeItem(index);
+        }
       }
 
       const raw = localStorage.getItem(STORAGE_INDEX_KEY);

@@ -26,6 +26,7 @@ import {
   shouldCacheLyricsCandidate,
   compareLyricsCandidates,
   isBetterLyricsCandidate,
+  isWordLevelSync,
   type CachedLyricsItem,
 } from "@/features/lyrics";
 import { preloadCoverArt } from "@/features/covers";
@@ -38,6 +39,22 @@ import { STREAMS_REFUSED_MESSAGE } from "@/shared/youtube";
 
 const MAX_CONSECUTIVE_AUTO_SKIPS = 3;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+// Word-level / syllable-level candidates come from the upstream Polaris Mono
+// stream and are stable — the 7-day TTL is fine. Anything below that (plain
+// or line_level) is almost certainly a local lrclib degrade served when the
+// upstream had nothing YET, and the upstream may now have word-level lyrics
+// (relay v1.26 resolves local ids to YouTube ids; the upstream recovers over
+// time). Re-check those within an hour so the player upgrades on its own
+// instead of holding the degrade for a full week.
+const DEGRADE_RECHECK_MS = 60 * 60 * 1000;
+
+function lyricsRecheckMs(candidate?: { syncLevel?: string } | null): number {
+  return candidate && isWordLevelSync(
+    (candidate.syncLevel ?? "plain") as Parameters<typeof isWordLevelSync>[0],
+  )
+    ? SEVEN_DAYS_MS
+    : DEGRADE_RECHECK_MS;
+}
 
 export { usePlayerStore, type PlayerStatus, type RepeatMode, type PlayerState };
 
@@ -1344,7 +1361,7 @@ class PlayerEngine {
         const existing = await linerDb.getLyrics(trackId);
         if (existing) {
           const lastChecked = existing.lastCheckedAt || 0;
-          if (Date.now() - lastChecked < SEVEN_DAYS_MS) {
+          if (Date.now() - lastChecked < lyricsRecheckMs(existing.candidate)) {
             return;
           }
         }
@@ -1480,7 +1497,8 @@ class PlayerEngine {
         "lyrics",
         `cache hit for "${track.title}" (age: ${Math.round((Date.now() - lastChecked) / 1000)}s)`,
       );
-      const isStale = Date.now() - lastChecked >= SEVEN_DAYS_MS;
+      const isStale =
+        Date.now() - lastChecked >= lyricsRecheckMs(cached.candidate);
       if (!isStale || (cached as any).userLocked) {
         return;
       }
