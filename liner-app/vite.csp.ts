@@ -15,15 +15,19 @@ function contentSecurityPolicy(isDev: boolean): string {
   return [
     "default-src 'self'",
     `script-src ${scriptSources.join(" ")}`,
-    // the muted, mirrored video frame is a youtube.com embed; without an
-    // explicit frame-src it falls back to default-src 'self' and is blocked
-    "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+    // frame-src: two embed surfaces share this directive — the muted,
+    // mirrored video frame (a youtube.com / youtube-nocookie.com embed) and
+    // the Liner desktop auth/relay iframe (tryliner.fun). CSP ignores a
+    // DUPLICATE frame-src directive (only the first wins), so every source
+    // MUST live in a single directive or the later one is silently dropped
+    // (which was blocking *.tryliner.fun in production with a console
+    // "Ignoring duplicate Content-Security-Policy directive 'frame-src'").
+    `frame-src https://www.youtube.com https://www.youtube-nocookie.com https://*.tryliner.fun${isDev ? " http://localhost:* http://127.0.0.1:*" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' * http: https: data: blob: liner-local:",
     "media-src 'self' * http: https: data: blob: liner-local:",
     "connect-src 'self' * http: https: ws: wss: data: blob:",
-    `frame-src https://*.tryliner.fun${isDev ? " http://localhost:* http://127.0.0.1:*" : ""}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
