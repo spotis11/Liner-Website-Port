@@ -8,6 +8,7 @@
 //     footer: GitHub • owner/repo • time ago   (+ Open on GitHub link button)
 //   No reactions, no emoji characters — images/buttons only.
 // - basic "." commands: .lock .unlock .ping .help .commits .commitchannel .status
+//   moderation: .ban @user|userid[, reason] .timeout @user|userid[, duration reason]
 //
 // Token comes from liner-bot/.env (DISCORD_BOT_TOKEN) — never committed.
 
@@ -293,6 +294,74 @@ function lockState(ch, allow) {
   return ch.permissionOverwrites.edit(ch.guild.roles.everyone, { SendMessages: allow });
 }
 
+// ---------- moderation helpers (.ban / .timeout) ----------
+// Parses ".cmd <@user|userid>[,] [duration] reason" → { userId, reason, durationMs? }.
+// Mention or raw snowflake ID accepted; reason is everything after the target
+// (a leading comma between target and reason is tolerated).
+function parseModTarget(content, cmdName) {
+  const rest = content.slice(1 + cmdName.length).trim();
+  if (!rest) return null;
+  let userId = null;
+  let tail = rest;
+  const mention = rest.match(/^<@!?(\d{15,20})>\s*,?\s*([\s\S]*)$/);
+  if (mention) {
+    userId = mention[1];
+    tail = mention[2];
+  } else {
+    const id = rest.match(/^(\d{15,20})\s*,?\s*([\s\S]*)$/);
+    if (id) {
+      userId = id[1];
+      tail = id[2];
+    }
+  }
+  if (!userId) return null;
+  return { userId, reason: tail.trim() };
+}
+// "10m" / "1h" / "30s" / "2d" → ms (max 28d per Discord). Returns null if no token.
+function parseDurationToken(reason) {
+  const m = reason.match(/^(\d{1,4})\s*([smhd])\b\s*/i);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  const mult = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[m[2].toLowerCase()];
+  return { ms: n * mult, consumed: m[0] };
+}
+function formatDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+}
+const MAX_TIMEOUT_MS = 28 * 86_400_000;
+const DEFAULT_TIMEOUT_MS = 10 * 60_000; // 10 minutes if no duration token given
+
+// Verifies the bot and the moderator can act on the target by role hierarchy.
+// Returns a human-readable error string, or null when the action is allowed.
+function hierarchyError(guild, modMember, targetMember) {
+  if (!targetMember) return "Member not found in this server.";
+  if (targetMember.id === guild.ownerId) return "Cannot act on the server owner.";
+  const targetTop = targetMember.roles.highest.position;
+  const myTop = guild.members.me.roles.highest.position;
+  const modTop = modMember.roles.highest.position;
+  if (targetTop >= myTop) return "I cannot act on that member — their role is equal to or above mine.";
+  if (targetTop >= modTop) return "You cannot act on a member whose role is equal to or above yours.";
+  if (targetMember.user?.bot) return "Cannot act on another bot.";
+  return null;
+}
+function modEmbed(title, fields) {
+  const e = new EmbedBuilder()
+    .setColor(0x000000)
+    .setTitle(title)
+    .addFields(fields)
+    .setFooter({ text: "Liner System" })
+    .setTimestamp();
+  if (THUMB) e.setThumbnail(THUMB);
+  return e;
+}
+
 client.once(Events.ClientReady, async (c) => {
   console.log(`[liner-bot] Bot is ONLINE! Logged in as ${c.user.tag} (${c.user.id})`);
   touchStatus({
@@ -323,6 +392,60 @@ client.on(Events.MessageCreate, async (msg) => {
       if (!has(msg, PermissionFlagsBits.ManageChannels)) return;
       await lockState(msg.channel, null);
       await msg.reply("Channel unlocked.");
+    } else if (lower === "ban") {
+      // .ban @user|userid[, reason]  — requires Ban Members
+      if (!has(msg, PermissionFlagsBits.BanMembers)) return;
+      const parsed = parseModTarget(content, "ban");
+      if (!parsed) return void msg.reply("Usage: `.ban @user/userid, reason`");
+      const { userId, reason } = parsed;
+      const target = await msg.guild.members.fetch(userId).catch(() => null);
+      if (target) {
+        const err = hierarchyError(msg.guild, msg.member, target);
+        if (err) return void msg.reply(err);
+      }
+      // Delete the banned user's messages from the last day (Discord max: 7 days).
+      await msg.guild.bans.create(userId, {
+        deleteMessageSeconds: 60 * 60 * 24,
+        reason: `${msg.author.tag}: ${reason || "No reason provided"}`,
+      });
+      await msg.channel.send({
+        embeds: [
+          modEmbed("Member Banned", [
+            { name: "User", value: `<@${userId}>\n\`${userId}\``, inline: true },
+            { name: "Moderator", value: `${msg.author}\n\`${msg.author.tag}\``, inline: true },
+            { name: "Reason", value: reason || "No reason provided" },
+          ]),
+        ],
+      });
+    } else if (lower === "timeout") {
+      // .timeout @user|userid[, duration reason]  — requires Moderate Members
+      if (!has(msg, PermissionFlagsBits.ModerateMembers)) return;
+      const parsed = parseModTarget(content, "timeout");
+      if (!parsed) return void msg.reply("Usage: `.timeout @user/userid, reason` (optional duration first, e.g. `30m` or `1h`)");
+      let { userId, reason } = parsed;
+      let durationMs = DEFAULT_TIMEOUT_MS;
+      const dur = parseDurationToken(reason);
+      if (dur) {
+        durationMs = dur.ms;
+        reason = reason.slice(dur.consumed.length).trim();
+      }
+      if (durationMs < 1000) return void msg.reply("Duration too short (minimum 1s).");
+      if (durationMs > MAX_TIMEOUT_MS) return void msg.reply("Timeout cannot exceed 28 days.");
+      const target = await msg.guild.members.fetch(userId).catch(() => null);
+      if (!target) return void msg.reply("Member not found in this server.");
+      const err = hierarchyError(msg.guild, msg.member, target);
+      if (err) return void msg.reply(err);
+      await target.timeout(durationMs, `${msg.author.tag}: ${reason || "No reason provided"}`);
+      await msg.channel.send({
+        embeds: [
+          modEmbed("Member Timed Out", [
+            { name: "User", value: `<@${userId}>\n\`${userId}\``, inline: true },
+            { name: "Duration", value: formatDuration(durationMs), inline: true },
+            { name: "Moderator", value: `${msg.author}\n\`${msg.author.tag}\``, inline: true },
+            { name: "Reason", value: reason || "No reason provided" },
+          ]),
+        ],
+      });
     } else if (lower === "ping") {
       await msg.reply(`Pong! ${Math.max(0, Math.round(client.ws.ping))}ms`);
     } else if (lower === "commits") {
@@ -354,6 +477,9 @@ client.on(Events.MessageCreate, async (msg) => {
           "Liner System commands:",
           ".lock — lock this channel (Manage Channels)",
           ".unlock — unlock this channel",
+          ".ban @user/userid, reason — ban a member (Ban Members)",
+          ".timeout @user/userid, reason — timeout a member, default 10m (Moderate Members)",
+          "  optional duration token first, e.g. `.timeout @user 1h spam`",
           ".commits [n] — recent commits from the website repo",
           ".commitchannel #channel — where commit announcements post",
           ".status — watcher status",
