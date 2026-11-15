@@ -9,7 +9,7 @@ import urllib.request
 
 EMAIL = os.environ.get("TEST_EMAIL", "seekfromohio@gmail.com")
 PASSWORD = os.environ["TEST_PASSWORD"]
-BASE = "http://localhost:3000"
+BASE = "http://localhost:3001"
 
 req = urllib.request.Request(
     f"{BASE}/v1/auth/login",
