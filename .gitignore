@@ -108,5 +108,6 @@ liner-bot/.env
 liner-bot/node_modules/
 liner-bot/logs/
 liner-bot/data/
+liner-bot/bot-data/
 liner-bot/bot_status.json
 liner-bot/bot.pid

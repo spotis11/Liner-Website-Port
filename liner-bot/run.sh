@@ -16,6 +16,13 @@ if pgrep -f "node.*index\.js --liner-system-bot" > /dev/null 2>&1; then
   echo "[supervisor] Liner System bot already running — nothing to do"
   exit 0
 fi
+# second guard: even while node is down (crash-loop window) only one supervisor
+mkdir -p bot-data
+if [ -f bot-data/supervisor.pid ] && kill -0 "$(cat bot-data/supervisor.pid 2>/dev/null)" 2>/dev/null; then
+  echo "[supervisor] another supervisor already on duty — nothing to do"
+  exit 0
+fi
+echo $$ > bot-data/supervisor.pid
 
 echo "[supervisor] $(date -u +%FT%TZ) loop started (pid $$)" >> logs/supervisor.log
 while true; do

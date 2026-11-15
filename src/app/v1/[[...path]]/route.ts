@@ -10,6 +10,10 @@ import {
   UpstreamProfileError,
 } from "@/lib/upstreamProfileOverlay";
 import { signUpstreamRequest } from "@/lib/upstreamSigner";
+import {
+  getServiceLinerAccessToken,
+  refreshServiceLinerToken,
+} from "@/lib/linerUpstreamService";
 
 // website route handlers reused directly (same process, no HTTP hop): the
 // website session surface the SPA needs is exactly the pre-v1.25 /api/*
@@ -384,44 +388,62 @@ async function upstreamLyrics(
   route: string,
   search: string,
 ): Promise<Response> {
-  // word-level providers are served ONLY to signed-in Liner accounts; a
-  // bearer-less proxy call is pointless — serve the local pool instead
-  if (!req.headers.get("authorization")) {
+  // Polaris Mono (the real Liner word-level provider) serves ONLY signed-in
+  // Liner accounts: bearer-less calls get 401 "Sign in to Liner to see
+  // lyrics." (verified live 2026-11-14). Real upstream bearers pass through
+  // as before; website sessions and signed-out visitors ride the relay's OWN
+  // upstream identity (LINER_SERVICE_* — see linerUpstreamService) so every
+  // session gets the real Liner lyrics. When no identity is available or the
+  // upstream still refuses, this SAME response degrades to the local lrclib
+  // pool — the client never needs a second hop.
+  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
+  const upstreamBearer = bearer && !isWebsiteToken(bearer) ? bearer : null;
+  const serviceToken = upstreamBearer ? null : await getServiceLinerAccessToken();
+  if (!upstreamBearer && !serviceToken) {
     return lyricsStream(new URL(req.url));
   }
+  const headers = upstreamHeaders(req);
+  headers.set("authorization", `Bearer ${upstreamBearer ?? serviceToken}`);
   try {
-    const upstream = await fetch(`${UPSTREAM}/v1/${route}${search}`, {
+    let upstream = await fetch(`${UPSTREAM}/v1/${route}${search}`, {
       method: "GET",
-      headers: upstreamHeaders(req),
+      headers,
       signal: AbortSignal.any([req.signal, AbortSignal.timeout(60_000)]),
       redirect: "manual",
     });
-    const contentType = upstream.headers.get("content-type") ?? "";
-    if (contentType.includes("text/html")) {
-      // Cloudflare challenge page — the client falls over to the local pool
-      return NextResponse.json(
-        { error: "Upstream unavailable.", code: "UPSTREAM_BLOCKED" },
-        { status: 503 },
-      );
+    if (serviceToken && (upstream.status === 401 || upstream.status === 403)) {
+      // cached service bearer expired upstream-side — re-mint once and retry
+      const fresh = await refreshServiceLinerToken();
+      if (fresh) {
+        headers.set("authorization", `Bearer ${fresh}`);
+        upstream = await fetch(`${UPSTREAM}/v1/${route}${search}`, {
+          method: "GET",
+          headers,
+          signal: AbortSignal.any([req.signal, AbortSignal.timeout(60_000)]),
+          redirect: "manual",
+        });
+      }
     }
-    const headers = new Headers();
-    if (contentType) headers.set("content-type", contentType);
-    headers.set("cache-control", "no-cache, no-transform");
+    const contentType = upstream.headers.get("content-type") ?? "";
+    if (contentType.includes("text/html") || !upstream.ok) {
+      // Cloudflare challenge or upstream miss — degrade to the local pool
+      return lyricsStream(new URL(req.url));
+    }
+    const resHeaders = new Headers();
+    if (contentType) resHeaders.set("content-type", contentType);
+    resHeaders.set("cache-control", "no-cache, no-transform");
     for (const name of ["date", "x-request-id", "retry-after"] as const) {
       const value = upstream.headers.get(name);
-      if (value) headers.set(name, value);
+      if (value) resHeaders.set(name, value);
     }
     // true streaming passthrough — the SSE events reach the player live
     return new Response(upstream.body, {
       status: upstream.status,
       statusText: upstream.statusText,
-      headers,
+      headers: resHeaders,
     });
   } catch {
-    return NextResponse.json(
-      { error: "Upstream unreachable.", code: "UPSTREAM_UNREACHABLE" },
-      { status: 503 },
-    );
+    return lyricsStream(new URL(req.url));
   }
 }
 
@@ -909,7 +931,13 @@ async function handle(
   // WEBSITE MODE — website sessions get the website's own backend
   if (isWebsiteToken(bearer)) {
     if (route.startsWith("tracks/") && route.endsWith("/lyrics")) {
-      // website tokens mean nothing upstream — local provider pool only
+      // website tokens mean nothing upstream, but the real Liner lyrics
+      // ("polaris mono") still do: the relay swaps in its own Liner service
+      // identity (see upstreamLyrics) and degrades to the local pool in the
+      // same response when the upstream has nothing
+      if (url.searchParams.get("upstream") === "1") {
+        return upstreamLyrics(req, route, url.search);
+      }
       return lyricsStream(url);
     }
     return websiteDispatch(req, route, url.search, bodyBytes);

@@ -41,6 +41,8 @@ REQUIRED = [
     ("DB_MIRROR_EXPORT_KEY", "accounts/sessions die on the next deploy"),
     ("DISCORD_PUBLIC_BASE", "OAuth redirect_uri becomes host-dependent"),
     ("DISCORD_REDIRECT_URI", "OAuth redirect_uri becomes host-dependent"),
+    ("LINER_SERVICE_EMAIL", "Polaris Mono lyrics fall back to lrclib for guests"),
+    ("LINER_SERVICE_PASS", "Polaris Mono lyrics fall back to lrclib for guests"),
 ]
 
 OPTIONAL_NOTE = [
