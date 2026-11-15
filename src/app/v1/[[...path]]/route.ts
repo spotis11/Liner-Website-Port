@@ -14,6 +14,10 @@ import {
   getServiceLinerAccessToken,
   refreshServiceLinerToken,
 } from "@/lib/linerUpstreamService";
+import {
+  isUpstreamTrackId,
+  resolveUpstreamTrackId,
+} from "@/lib/lyricsIdResolver";
 
 // website route handlers reused directly (same process, no HTTP hop): the
 // website session surface the SPA needs is exactly the pre-v1.25 /api/*
@@ -402,10 +406,39 @@ async function upstreamLyrics(
   if (!upstreamBearer && !serviceToken) {
     return lyricsStream(new URL(req.url));
   }
+
+  // LOCAL-id resolution (2026-11-15): pre-loaded feed tracks and local search
+  // hits carry audius/itunes/local ids the upstream rejects outright (400
+  // VALIDATION_ERROR — its track ids are 11-char YouTube videoIds or "sc:…").
+  // Before touching the upstream, swap a local id for the resolved YouTube id
+  // (same title/artist hints the SPA already sends). Verified live: audius id
+  // → 400 → lrclib line_level; resolved id → Polaris Mono word_level plus
+  // Unison/Wordly/Liner Experimental/Liner options.
+  const url = new URL(req.url);
+  const title = (url.searchParams.get("title") ?? "").trim();
+  const artist = (url.searchParams.get("artist") ?? "").trim();
+  let resolvedRoute = route;
+  const idMatch = route.match(/^tracks\/([^/]+)\/lyrics$/);
+  if (idMatch) {
+    const trackId = decodeURIComponent(idMatch[1]);
+    if (!isUpstreamTrackId(trackId)) {
+      if (!title || !artist) {
+        // no hints to resolve with — the upstream call would just 400
+        return lyricsStream(url);
+      }
+      const resolved = await resolveUpstreamTrackId(title, artist);
+      if (!resolved) {
+        // nothing plausible on YT Music — local pool straight away
+        return lyricsStream(url);
+      }
+      resolvedRoute = `tracks/${encodeURIComponent(resolved)}/lyrics`;
+    }
+  }
+
   const headers = upstreamHeaders(req);
   headers.set("authorization", `Bearer ${upstreamBearer ?? serviceToken}`);
   try {
-    let upstream = await fetch(`${UPSTREAM}/v1/${route}${search}`, {
+    let upstream = await fetch(`${UPSTREAM}/v1/${resolvedRoute}${search}`, {
       method: "GET",
       headers,
       signal: AbortSignal.any([req.signal, AbortSignal.timeout(60_000)]),
@@ -416,7 +449,7 @@ async function upstreamLyrics(
       const fresh = await refreshServiceLinerToken();
       if (fresh) {
         headers.set("authorization", `Bearer ${fresh}`);
-        upstream = await fetch(`${UPSTREAM}/v1/${route}${search}`, {
+        upstream = await fetch(`${UPSTREAM}/v1/${resolvedRoute}${search}`, {
           method: "GET",
           headers,
           signal: AbortSignal.any([req.signal, AbortSignal.timeout(60_000)]),
@@ -426,7 +459,10 @@ async function upstreamLyrics(
     }
     const contentType = upstream.headers.get("content-type") ?? "";
     if (contentType.includes("text/html") || !upstream.ok) {
-      // Cloudflare challenge or upstream miss — degrade to the local pool
+      // Cloudflare challenge or upstream miss — degrade to the local pool.
+      // A 400/404 here can also mean the RESOLVED id has no lyrics upstream
+      // (rare, but a different YT upload of the song may have them) — one
+      // re-resolve is not worth the latency; lrclib is the correct answer.
       return lyricsStream(new URL(req.url));
     }
     const resHeaders = new Headers();
@@ -934,21 +970,25 @@ async function handle(
       // website tokens mean nothing upstream, but the real Liner lyrics
       // ("polaris mono") still do: the relay swaps in its own Liner service
       // identity (see upstreamLyrics) and degrades to the local pool in the
-      // same response when the upstream has nothing
-      if (url.searchParams.get("upstream") === "1") {
-        return upstreamLyrics(req, route, url.search);
-      }
-      return lyricsStream(url);
+      // same response when the upstream has nothing. v1.26: upstream-first
+      // for website sessions too — the SPA only adds ?upstream=1 when it
+      // holds a Liner bearer, but Polaris Mono should not depend on session
+      // type (the real Liner serves it to every signed-in listener; guests
+      // here ride the service identity). Local-id tracks are resolved to
+      // their YouTube ids inside upstreamLyrics first.
+      return upstreamLyrics(req, route, url.search);
     }
     return websiteDispatch(req, route, url.search, bodyBytes);
   }
 
   // UPSTREAM MODE — real Liner sessions relayed to api.tryliner.fun
   if (route.startsWith("tracks/") && route.endsWith("/lyrics")) {
-    if (url.searchParams.get("upstream") === "1") {
-      return upstreamLyrics(req, route, url.search);
-    }
-    return lyricsStream(url);
+    // v1.26: the lyrics route is now ALWAYS upstream-first (real bearer or
+    // service identity, local ids resolved to YouTube ids first) — the
+    // lrclib pool only as the in-response degrade. The old ?upstream=1 flag
+    // is accepted but no longer gates anything, so the provider never
+    // depends on which hop the client happens to take.
+    return upstreamLyrics(req, route, url.search);
   }
   // profile editing for upstream sessions: the upstream has no profile-edit
   // route (every PATCH/PUT/POST shape on /v1/users/me 404s), so edits are
