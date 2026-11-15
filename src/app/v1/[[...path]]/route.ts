@@ -472,8 +472,22 @@ async function upstreamLyrics(
       const value = upstream.headers.get(name);
       if (value) resHeaders.set(name, value);
     }
-    // true streaming passthrough — the SSE events reach the player live
-    return new Response(upstream.body, {
+    // Buffer the upstream SSE so we can tell whether it actually carried
+    // lyrics. The upstream returns 200 even when every provider is not_found
+    // or errored — for a niche track its source-fetchers (Polaris Mono, Liner
+    // Atlas, Genius) report "source request failed" and the stream ends with
+    // done: not_found. A raw passthrough forwards those errors to the player
+    // and stops there. So when no candidate was found, fall back to this
+    // server's own lrclib pool (it searches by title/artist, not YouTube id,
+    // and may surface line-level lyrics the upstream's id-keyed LRCLIB lookup
+    // missed); only when that is empty does the player see a clean "no lyrics
+    // found" — never the noisy upstream source-fetch errors.
+    const bodyText = await upstream.text();
+    const hasCandidate = /"status"\s*:\s*"found"/.test(bodyText);
+    if (!hasCandidate) {
+      return lyricsStream(new URL(req.url));
+    }
+    return new Response(bodyText, {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: resHeaders,
