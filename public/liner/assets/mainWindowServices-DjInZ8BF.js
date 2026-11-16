@@ -1,1 +1,0 @@
-import{d as e,p as t}from"./index-DgStgVSq.js";import{B as n,It as r,N as i,Vt as a}from"./player-D2_GGW03.js";function o(){return typeof window>`u`?()=>{}:window.linerElectron?.onBundleStamp?.(e=>t(`gray`,`bundle`,e))??(()=>{})}function s(){e(),n(),a(),o(),r(),i()}export{s as initMainWindowServices};

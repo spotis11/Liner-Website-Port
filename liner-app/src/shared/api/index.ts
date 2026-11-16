@@ -5,9 +5,14 @@ export {
   ApiError,
   resolveApiErrorMessage,
 } from "./api";
-export { DEFAULT_PRIMARY_API, getApiBaseUrl } from "./baseUrl";
+export {
+  DEFAULT_PRIMARY_API,
+  getApiBaseUrl,
+  isElectronContext,
+} from "./baseUrl";
 export {
   HumanCheckCancelledError,
+  humanCheckFrameBlocked,
   humanCheckOrigins,
   humanCheckPageUrl,
   setHumanCheckPrompt,

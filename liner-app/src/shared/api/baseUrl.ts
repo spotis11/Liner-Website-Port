@@ -15,7 +15,7 @@ export function isSecureBaseUrl(url: string): boolean {
   }
 }
 
-function isElectronContext(): boolean {
+export function isElectronContext(): boolean {
   return (
     typeof window !== "undefined" &&
     Boolean((window as unknown as Record<string, unknown>).linerElectron)

@@ -1,4 +1,4 @@
-import { DEFAULT_PRIMARY_API } from "./baseUrl";
+import { DEFAULT_PRIMARY_API, isElectronContext } from "./baseUrl";
 
 export type HumanCheckAction = "login" | "register";
 export type HumanCheckMode = "off" | "optional" | "required";
@@ -41,6 +41,17 @@ export function humanCheckOrigins(): string[] {
   // older web bundles still frame the same-origin relay copy of the page
   if (typeof window !== "undefined") origins.add(window.location.origin);
   return [...origins];
+}
+
+// On the website port the widget can never run: the frame loads upstream's
+// page, but for most visitors upstream answers with a Cloudflare WAF
+// challenge (403 — and challenge pages set X-Frame-Options: sameorigin, so
+// the browser refuses to display the frame at all), and a WAF-passing frame
+// would still hit the widget's domain lock (110200). The desktop shell is
+// exempt: its UA clears the WAF and it hosts the page in a top-level window,
+// so neither restriction applies.
+export function humanCheckFrameBlocked(): boolean {
+  return typeof window !== "undefined" && !isElectronContext();
 }
 
 export function isHumanCheckMode(value: unknown): value is HumanCheckMode {

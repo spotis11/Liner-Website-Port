@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   HumanCheckCancelledError,
+  humanCheckFrameBlocked,
   humanCheckOrigins,
   humanCheckPageUrl,
   runHumanCheck,
@@ -18,6 +19,12 @@ describe("human check", () => {
 
   it("accepts messages from the upstream origin", () => {
     expect(humanCheckOrigins()).toContain("https://api.tryliner.fun");
+  });
+
+  it("treats the browser (non-Electron) context as frame-blocked", () => {
+    // vitest runs in a DOM environment without window.linerElectron, i.e.
+    // exactly the website-port case: the widget can never render there
+    expect(humanCheckFrameBlocked()).toBe(true);
   });
 
   it("asks nothing while the api has the check off", async () => {
