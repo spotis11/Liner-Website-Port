@@ -161,6 +161,30 @@ export async function register() {
         )
         .catch(() => undefined);
     }, 15_000).unref();
+    // running.sh free plan has no alwaysOn (Pro-only) — containers sleep after
+    // 30 idle minutes, so every visit after a quiet half hour pays a full
+    // cold boot. An external self-ping through the edge counts as traffic and
+    // keeps the container warm, the same way the hosted bots stay fresh.
+    // Gated on WEB_SELF_PING_URL (a running.sh service variable) so the
+    // sandbox dev server never pings production.
+    {
+      const selfPingUrl = process.env.WEB_SELF_PING_URL?.trim();
+      if (selfPingUrl) {
+        const tick = async () => {
+          try {
+            const res = await fetch(selfPingUrl, { method: "GET" });
+            console.log(`[liner] self-ping ${res.status}`);
+          } catch (error) {
+            console.warn(
+              "[liner] self-ping failed:",
+              error instanceof Error ? error.message : error,
+            );
+          }
+        };
+        setTimeout(tick, 15_000).unref();
+        setInterval(tick, 5 * 60 * 1000).unref();
+      }
+    }
     // Liner Pro boot sweep: the owner's account (jayzeyluna) is Pro forever —
     // re-flag the row on every boot so wipes / mirror restores can never
     // leave the owner without the badge. Deferred like the mail queue.
