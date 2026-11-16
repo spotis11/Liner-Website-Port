@@ -346,6 +346,91 @@ async function forwardAnonymous(
   }
 }
 
+/**
+ * One authed GET to the upstream catalog — 200-or-null, HTML-guarded, same
+ * contract as forwardAnonymous but with caller-owned headers (bearer set by
+ * the caller: a real upstream session token or the relay's service identity).
+ */
+async function upstreamCatalogGet(
+  pathWithSearch: string,
+  headers: Headers,
+): Promise<Response | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(`${UPSTREAM}${pathWithSearch}`, {
+      method: "GET",
+      headers,
+      signal: controller.signal,
+      redirect: "manual",
+    });
+    const contentType = upstream.headers.get("content-type");
+    if (!upstream.ok || contentType?.includes("text/html")) return null;
+    const body = await upstream.arrayBuffer();
+    const res = new NextResponse(body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+    });
+    if (contentType) res.headers.set("content-type", contentType);
+    return res;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Home-surface catalog forward — explore/popular/albums + explore/most-saved.
+ * The upstream serves these ONLY to signed-in Liner accounts: the anonymous
+ * forward comes back non-200 (verified live 2026-11-16: explore/popular
+ * tracks answer anonymously, the albums/most-saved routes don't — the route
+ * exists, a probe through the default branch 308-normalizes to it while the
+ * sibling guesses 404). An empty answer pushed the client into its
+ * geo-personalized innertube fallback, whose CN-egress session surfaced
+ * CHINESE albums ("Top Albums" in Mandarin) instead of the real Liner home.
+ *
+ * Order: a real upstream bearer first (an upstream session gets its own
+ * personalized answer — exactly what the real app shows that account), then
+ * the anonymous forward (works if the upstream ever opens the routes up),
+ * then the relay's own service identity (guests + website sessions — the
+ * same session the lyrics bridge rides, with one 401 re-mint retry), then
+ * the local empty fallback.
+ */
+async function forwardHomeCatalog(
+  req: NextRequest,
+  pathWithSearch: string,
+  bodyBytes: ArrayBuffer | null,
+  fallback: () => NextResponse,
+): Promise<NextResponse> {
+  const bearer =
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
+  if (bearer && !isWebsiteToken(bearer)) {
+    const headers = upstreamHeaders(req);
+    headers.set("authorization", `Bearer ${bearer}`);
+    const res = await upstreamCatalogGet(pathWithSearch, headers);
+    if (res) return res;
+  }
+  const anon = await forwardAnonymous(req, pathWithSearch, bodyBytes);
+  if (anon.status === 200) return anon;
+  const serviceToken = await getServiceLinerAccessToken();
+  if (serviceToken) {
+    const headers = upstreamHeaders(req);
+    headers.set("authorization", `Bearer ${serviceToken}`);
+    let res = await upstreamCatalogGet(pathWithSearch, headers);
+    if (!res) {
+      // cached service bearer may have expired upstream-side — re-mint once
+      const fresh = await refreshServiceLinerToken();
+      if (fresh) {
+        headers.set("authorization", `Bearer ${fresh}`);
+        res = await upstreamCatalogGet(pathWithSearch, headers);
+      }
+    }
+    if (res) return res;
+  }
+  return fallback();
+}
+
 // /v1/auth/verify — the human-check page (Turnstile) is HTML by design and
 // talks to the SPA via postMessage; it must pass through unwrapped
 async function passthrough(
@@ -715,21 +800,23 @@ async function websiteDispatch(
   }
   if (route === "explore/popular/albums" && method === "GET") {
     // same policy as explore/popular: upstream is the source of truth for
-    // the home surfaces; the local hardcoded empty is only the fallback
-    const upstreamRes = await forwardAnonymous(req, `/v1/${route}${url.search}`, bodyBytes);
-    if (upstreamRes.status === 200) return upstreamRes;
-    return NextResponse.json({
-      window: url.searchParams.get("window") ?? "7d",
-      items: [],
-    });
+    // the home surfaces — but these routes are auth-gated upstream, so the
+    // forward rides a real bearer / the service identity when anonymous
+    // fails (see forwardHomeCatalog — the CN-innertube-fallback fix)
+    return forwardHomeCatalog(req, `/v1/${route}${url.search}`, bodyBytes, () =>
+      NextResponse.json({
+        window: url.searchParams.get("window") ?? "7d",
+        items: [],
+      }),
+    );
   }
   if (route === "explore/most-saved" && method === "GET") {
-    const upstreamRes = await forwardAnonymous(req, `/v1/${route}${url.search}`, bodyBytes);
-    if (upstreamRes.status === 200) return upstreamRes;
-    return NextResponse.json({
-      type: url.searchParams.get("type") ?? "all",
-      items: [],
-    });
+    return forwardHomeCatalog(req, `/v1/${route}${url.search}`, bodyBytes, () =>
+      NextResponse.json({
+        type: url.searchParams.get("type") ?? "all",
+        items: [],
+      }),
+    );
   }
   if (route === "me/lyrics/search") {
     // the client catches this 404 and moves on to its remaining providers

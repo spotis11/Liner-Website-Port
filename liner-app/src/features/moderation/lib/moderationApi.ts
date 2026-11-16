@@ -204,6 +204,27 @@ export async function listBans(
     }));
 }
 
+/**
+ * Non-erroring session probe against GET /api/moderation/session (always 200
+ * { authorized }): lets the moderation panel check whether the browser's
+ * token/admin-cookie actually vouches BEFORE calling the owner-only
+ * endpoints — whose 401s the browser logs to the console no matter how the
+ * caller catches them. Null token is fine: the admin cookie can vouch alone.
+ */
+export async function probeAdminSession(
+  accessToken: string | null,
+  timeoutMs = 8_000,
+): Promise<boolean> {
+  const res = await fetch("/api/moderation/session", {
+    headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {},
+    cache: "no-store",
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) return false;
+  const data = (await res.json().catch(() => null)) as { authorized?: boolean } | null;
+  return data?.authorized === true;
+}
+
 /** Ban one account (site owner only). Returns the stored ban. */
 export async function addBan(
   input: AddBanInput,

@@ -12,6 +12,7 @@ import {
   formatBanRemaining,
   listBans,
   normalizeUsername,
+  probeAdminSession,
   removeBan,
   type BanInfo,
   type BanType,
@@ -65,6 +66,9 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
   const [bans, setBans] = useState<BanInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // false only when the session probe says neither the token nor the admin
+  // cookie vouches — the owner-only surfaces stay untouched (no doomed 401s)
+  const [authorized, setAuthorized] = useState(true);
 
   const [banUsername, setBanUsername] = useState("");
   const [banType, setBanType] = useState<BanType>("normal");
@@ -140,13 +144,30 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
     }
   }, [t, toast]);
 
+  // Mount: probe the admin session first (the probe answers 200 either way,
+  // so a stale upstream session no longer fires listBans/listProUsers into
+  // guaranteed — and console-logged — 401s on every tab open), and only
+  // touch the owner-only endpoints when the browser actually vouches.
   useEffect(() => {
-    if (isAdmin) void refreshPro();
-  }, [isAdmin, refreshPro]);
-
-  useEffect(() => {
-    if (isAdmin) void refresh();
-  }, [isAdmin, refresh]);
+    if (!isAdmin) return;
+    let disposed = false;
+    void (async () => {
+      const accessToken = await getValidAccessToken().catch(() => null);
+      const ok = await probeAdminSession(accessToken).catch(() => false);
+      if (disposed) return;
+      setAuthorized(ok);
+      if (!ok) {
+        setLoading(false);
+        setProLoading(false);
+        return;
+      }
+      void refresh();
+      void refreshPro();
+    })();
+    return () => {
+      disposed = true;
+    };
+  }, [isAdmin, refresh, refreshPro]);
 
   // keep the maintenance switch in sync with the backend
   const refreshMaintenance = useCallback(async () => {
@@ -414,6 +435,11 @@ export function ModerationTab({ searchQuery }: { searchQuery?: string }) {
           <p className="m-0 text-[13px] leading-[1.5] text-text-secondary" style={font}>
             {t("settings.moderation.section_subtitle")}
           </p>
+          {!authorized && (
+            <p className="m-0 text-[12px] leading-[1.5] text-text-tertiary" style={font}>
+              {t("settings.moderation.error_unauthorized")}
+            </p>
+          )}
 
           {/* active bans */}
           <div className="flex flex-col gap-[8px]">
