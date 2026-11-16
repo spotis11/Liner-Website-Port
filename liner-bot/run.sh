@@ -9,6 +9,12 @@
 BOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$BOT_DIR"
 mkdir -p logs data
+# hosted migration: Liner System runs on running.sh (see .hosted) — every local
+# respawn path (keeper, watchdog, cron bootstrap) must stand down.
+if [ -f "${BOT_DIR}/.hosted" ]; then
+  echo "[supervisor] $(date -u +%FT%TZ) .hosted marker — Liner System lives on running.sh now" >> logs/supervisor.log
+  exit 0
+fi
 PYTHON=""
 
 # never start twice (marker argv is part of the runner's cmdline)

@@ -1,0 +1,8 @@
+Liner System runs as a hosted container on running.sh (project "liner-bot",
+service svc_tbshccvh7ahhfygk5h6z, https://liner-bot-e4ll.running.sh/health).
+
+This marker retires every local runner path on this host — run.sh, the
+anchored.sh keeper, and the next-server watchdog in instrumentation.ts — so
+the hosted instance never double-announces commits.
+
+Remove this file only to return the bot to this host.

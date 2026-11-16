@@ -18,6 +18,54 @@ export const dynamic = "force-dynamic";
  * neither runs (e.g. production FC), returns online:false instead of
  * erroring.
  */
+// Hosted Liner System — the running.sh container that survives sandbox resets
+// (this host has no local runner with a fresh heartbeat: production FC, or the
+// sandbox after the bot's local retirement). URL is non-secret; also pinned in
+// .env.production.
+const HOSTED_BOT_HEALTH_URL =
+  process.env.HOSTED_BOT_HEALTH_URL || "https://liner-bot-e4ll.running.sh/health";
+
+async function fetchHostedStatus(): Promise<{
+  online: boolean;
+  status: string;
+  bot: string | null;
+  guildCount: number | null;
+  startedAt: string | null;
+  lastReadyAt: string | null;
+  heartbeatAgeSec: number | null;
+  kind: string;
+} | null> {
+  try {
+    const res = await fetch(HOSTED_BOT_HEALTH_URL, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return null;
+    const s = (await res.json()) as {
+      online?: boolean;
+      status?: string;
+      bot?: string | null;
+      guildCount?: number | null;
+      startedAt?: string | null;
+      lastReadyAt?: string | null;
+      heartbeatAgeSec?: number | null;
+    };
+    if (!s.online) return null;
+    return {
+      online: true,
+      status: s.status ?? "online",
+      bot: s.bot ?? null,
+      guildCount: s.guildCount ?? null,
+      startedAt: s.startedAt ?? null,
+      lastReadyAt: s.lastReadyAt ?? null,
+      heartbeatAgeSec: s.heartbeatAgeSec ?? null,
+      kind: "liner-system-hosted",
+    };
+  } catch {
+    return null; // hosted bot unreachable — report offline below
+  }
+}
+
 export async function GET() {
   const candidates = [
     { dir: "/home/z/my-project/liner-bot", kind: "liner-system" },
@@ -31,6 +79,10 @@ export async function GET() {
         { headers: { "cache-control": "no-store" } },
       );
     }
+  }
+  const hosted = await fetchHostedStatus();
+  if (hosted) {
+    return NextResponse.json(hosted, { headers: { "cache-control": "no-store" } });
   }
   return NextResponse.json(
     {

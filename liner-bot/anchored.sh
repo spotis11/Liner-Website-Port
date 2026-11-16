@@ -20,6 +20,11 @@ if [ -f bot-data/keeper.pid ]; then
   KPID=$(cat bot-data/keeper.pid 2>/dev/null)
   [ -n "$KPID" ] && kill -0 "$KPID" 2>/dev/null && exit 0
 fi
+# hosted migration: Liner System runs on running.sh (see .hosted) — stand down
+if [ -f "${BOT_DIR}/.hosted" ]; then
+  echo "[anchored] $(date -u +%FT%TZ) .hosted marker present — keeper standing down (bot is hosted on running.sh)" >> bot-data/keeper.log
+  exit 0
+fi
 echo $$ > bot-data/keeper.pid
 
 log() { echo "[anchored] $(date -u +%FT%TZ) $*" >> bot-data/keeper.log; }

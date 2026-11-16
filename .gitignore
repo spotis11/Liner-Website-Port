@@ -111,3 +111,7 @@ liner-bot/data/
 liner-bot/bot-data/
 liner-bot/bot_status.json
 liner-bot/bot.pid
+
+# local secrets (API tokens etc.) — never commit
+.secrets/
+scripts/.last_bot_deploy_id

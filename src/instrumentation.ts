@@ -141,7 +141,10 @@ export async function register() {
     try {
       const { existsSync } = await import("fs");
       for (const bot of WATCHED_BOTS) {
-        startBotWatchdog(bot, existsSync(`${bot.dir}/${bot.script}`));
+        // hosted migration: liner-bot/.hosted retires the local runner — the
+        // Liner System bot runs on running.sh and must not double-announce.
+        const retired = bot.name === "liner-system" && existsSync(`${bot.dir}/.hosted`);
+        startBotWatchdog(bot, existsSync(`${bot.dir}/${bot.script}`) && !retired);
       }
     } catch {
       // never let the watchdog break server bootstrap

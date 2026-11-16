@@ -111,6 +111,76 @@ function touchStatus(patch = {}) {
 setInterval(() => touchStatus(), 15_000).unref();
 touchStatus();
 
+// ---------- hosted runtime (running.sh container) ----------
+// The sandbox runs next to the git checkout; a hosted container does not, so
+// it clones the watch repo once on boot (public repo, no credentials baked
+// in), serves /health on $PORT for the platform health check, and self-pings
+// to defeat free-tier idle sleep (an outbound gateway socket does not count
+// as traffic). Every branch is inert without running.sh's env markers.
+if (process.env.RUNNING_HEALTH_CHECK || process.env.RUNNING_PUBLIC_DOMAIN) {
+  const { createServer } = await import("node:http");
+  createServer((req, res) => {
+    if (req.url === "/health") {
+      const ageMs = Date.now() - new Date(STATUS.heartbeat).getTime();
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          ok: true,
+          online: STATUS.status === "online" && ageMs >= 0 && ageMs < 90_000,
+          status: STATUS.status,
+          bot: STATUS.bot_username,
+          guildCount: STATUS.guild_count,
+          startedAt: STATUS.started_at,
+          lastReadyAt: STATUS.last_ready_at,
+          heartbeatAgeSec: ageMs >= 0 ? Math.round(ageMs / 1000) : null,
+        }),
+      );
+    } else {
+      res.writeHead(204);
+      res.end();
+    }
+  }).listen(Number(process.env.PORT || 3000), "0.0.0.0");
+  console.log(`[liner-bot] health server on 0.0.0.0:${process.env.PORT || 3000}`);
+  if (process.env.RUNNING_PUBLIC_DOMAIN) {
+    const selfUrl = `https://${process.env.RUNNING_PUBLIC_DOMAIN}/health`;
+    setInterval(() => fetch(selfUrl).catch(() => {}), 4 * 60_000).unref();
+    console.log(`[liner-bot] keepalive self-ping → ${selfUrl} every 4m`);
+  }
+}
+
+// Clone the watch repo in the background — login must never wait on it. A
+// partial clone (no blobs, no checkout) keeps it light on free-tier memory:
+// the watcher only ever needs commit objects (rev-parse, log, fetch).
+if (process.env.CLONE_URL && !fs.existsSync(path.join(REPO_DIR, ".git"))) {
+  (async () => {
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      if (fs.existsSync(path.join(REPO_DIR, ".git"))) return;
+      console.log(
+        `[liner-bot] hosted boot: cloning ${process.env.CLONE_URL} → ${REPO_DIR} (attempt ${attempt})`,
+      );
+      const err = await new Promise((resolve) =>
+        execFile(
+          "git",
+          [
+            "clone", "--quiet", "--filter=blob:none", "--no-checkout",
+            "--single-branch", "--branch", REPO_BRANCH,
+            process.env.CLONE_URL, REPO_DIR,
+          ],
+          { timeout: 180_000, maxBuffer: 8e6 },
+          (e) => resolve(e),
+        ),
+      );
+      if (!err) {
+        console.log("[liner-bot] clone complete — commit watcher armed");
+        return;
+      }
+      console.error(`[liner-bot] clone failed: ${err.message}`);
+      await new Promise((r) => setTimeout(r, Math.min(attempt * 10_000, 60_000)));
+    }
+    console.error("[liner-bot] no repo checkout — commit watcher stays idle until restart");
+  })();
+}
+
 // ---------- git helpers ----------
 const g = (args) =>
   new Promise((resolve) => {
