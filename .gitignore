@@ -80,7 +80,15 @@ server.log
 /.zscripts/*.log
 /.zscripts-backup*
 /mini-services/
-/discord-bot/
+# discord-bot toolkit is committed again for durability (survives sandbox
+# resets) — alfredo.py (embeds DEFAULT_BOT_TOKEN, portable auto-start design,
+# public origin repo) and runtime artifacts stay ignored
+/discord-bot/logs/
+/discord-bot/bot_status.json
+/discord-bot/bot.pid
+/discord-bot/__pycache__/
+/discord-bot/alfredo.py
+/discord-bot/bot-data/
 /tool-results/
 /worklog.md
 /.secrets/
@@ -115,3 +123,5 @@ liner-bot/bot.pid
 # local secrets (API tokens etc.) — never commit
 .secrets/
 scripts/.last_bot_deploy_id
+scripts/.last_alfredo_deploy_id
+scripts/.alfredo_bot_svc_id

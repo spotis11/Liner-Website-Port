@@ -8,9 +8,10 @@ TOKEN=$(cat /home/z/my-project/.secrets/running_token)
 rs() { curl -sS -H "Authorization: Bearer $TOKEN" -H "content-type: application/json" "$@"; }
 
 D=${1:?deployment id required}
-S=svc_tbshccvh7ahhfygk5h6z
-P=prj_qlg6u7iilas32ilkbv4j
-E=env_zw22hwmnsgk42ukvscmn
+# optional service/project/env overrides (defaults = Liner System bot)
+S=${2:-svc_tbshccvh7ahhfygk5h6z}
+P=${3:-prj_qlg6u7iilas32ilkbv4j}
+E=${4:-env_zw22hwmnsgk42ukvscmn}
 
 ST=""
 for i in $(seq 1 28); do

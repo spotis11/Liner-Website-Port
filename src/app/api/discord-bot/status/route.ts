@@ -25,7 +25,15 @@ export const dynamic = "force-dynamic";
 const HOSTED_BOT_HEALTH_URL =
   process.env.HOSTED_BOT_HEALTH_URL || "https://liner-bot-e4ll.running.sh/health";
 
-async function fetchHostedStatus(): Promise<{
+// Hosted Alfredo (headless runner container) — same pattern as Liner System.
+const HOSTED_ALFREDO_HEALTH_URL =
+  process.env.HOSTED_ALFREDO_HEALTH_URL ||
+  "https://alfredo-bot-liner-bot-pwdq.running.sh/health";
+
+async function fetchHostedStatus(
+  url: string,
+  kind: string,
+): Promise<{
   online: boolean;
   status: string;
   bot: string | null;
@@ -36,7 +44,7 @@ async function fetchHostedStatus(): Promise<{
   kind: string;
 } | null> {
   try {
-    const res = await fetch(HOSTED_BOT_HEALTH_URL, {
+    const res = await fetch(url, {
       cache: "no-store",
       signal: AbortSignal.timeout(4000),
     });
@@ -59,7 +67,7 @@ async function fetchHostedStatus(): Promise<{
       startedAt: s.startedAt ?? null,
       lastReadyAt: s.lastReadyAt ?? null,
       heartbeatAgeSec: s.heartbeatAgeSec ?? null,
-      kind: "liner-system-hosted",
+      kind,
     };
   } catch {
     return null; // hosted bot unreachable — report offline below
@@ -80,9 +88,13 @@ export async function GET() {
       );
     }
   }
-  const hosted = await fetchHostedStatus();
+  const hosted = await fetchHostedStatus(HOSTED_BOT_HEALTH_URL, "liner-system-hosted");
   if (hosted) {
     return NextResponse.json(hosted, { headers: { "cache-control": "no-store" } });
+  }
+  const alfredo = await fetchHostedStatus(HOSTED_ALFREDO_HEALTH_URL, "alfredo-hosted");
+  if (alfredo) {
+    return NextResponse.json(alfredo, { headers: { "cache-control": "no-store" } });
   }
   return NextResponse.json(
     {
