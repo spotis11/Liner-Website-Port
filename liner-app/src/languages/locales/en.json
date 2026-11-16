@@ -281,6 +281,7 @@
     "description": "A quick Cloudflare check keeps bots away from Liner accounts. It usually passes on its own in a second.",
     "expired": "The check timed out and is starting again.",
     "failed": "The check didn't load. Check your connection and try again.",
+    "failed_domain": "Liner's verification widget only runs on its own domains (error 110200). Create your account in the official Liner app, then sign in here — sign-in doesn't need this check.",
     "waiting": "Checking…",
     "retry": "Try again",
     "cancel": "Cancel",

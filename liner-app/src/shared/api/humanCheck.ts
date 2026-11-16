@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./baseUrl";
+import { DEFAULT_PRIMARY_API } from "./baseUrl";
 
 export type HumanCheckAction = "login" | "register";
 export type HumanCheckMode = "off" | "optional" | "required";
@@ -26,16 +26,21 @@ export function setHumanCheckPrompt(next: HumanCheckPrompt | null): void {
 }
 
 export function humanCheckPageUrl(action: HumanCheckAction): string {
-  return `${getApiBaseUrl()}/v1/auth/verify?action=${action}`;
+  // The Turnstile widget on this page is domain-locked to Liner's own
+  // hostnames — anywhere else it dies with error 110200 ("domain not
+  // authorized"), so a same-origin relay copy can never host it. The frame
+  // loads the upstream page directly: real browsers pass upstream's WAF
+  // where datacenter clients get challenged, and the widget runs on an
+  // authorized origin. The page answers over postMessage with a wildcard
+  // targetOrigin.
+  return `${DEFAULT_PRIMARY_API}/v1/auth/verify?action=${action}`;
 }
 
-export function humanCheckOrigin(): string {
-  const base = getApiBaseUrl();
-  if (base) return new URL(base).origin;
-  // website port: same-origin relay — the iframe is served by our own /v1
-  // backend, so the postMessage origin is this document's origin
-  if (typeof window !== "undefined") return window.location.origin;
-  return "https://api.tryliner.fun";
+export function humanCheckOrigins(): string[] {
+  const origins = new Set<string>([new URL(DEFAULT_PRIMARY_API).origin]);
+  // older web bundles still frame the same-origin relay copy of the page
+  if (typeof window !== "undefined") origins.add(window.location.origin);
+  return [...origins];
 }
 
 export function isHumanCheckMode(value: unknown): value is HumanCheckMode {

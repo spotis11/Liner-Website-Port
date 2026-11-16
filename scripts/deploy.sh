@@ -20,6 +20,9 @@ npx tsc -b
 echo "=== 2. vite build ==="
 npx vite build
 
+echo "=== 2.5 inject website CSP (desktop builds stay CSP-free) ==="
+python3 /home/z/my-project/scripts/inject_web_csp.py dist/index.html
+
 echo "=== 3. rsync dist -> public/liner ==="
 rsync -a --delete dist/ /home/z/my-project/public/liner/
 mkdir -p /home/z/my-project/.next/standalone/public/liner

@@ -15,6 +15,7 @@ export default function HumanCheckNotice() {
   const request = useHumanCheckStore((state) => state.request);
   const phase = useHumanCheckStore((state) => state.phase);
   const attempt = useHumanCheckStore((state) => state.attempt);
+  const errorCode = useHumanCheckStore((state) => state.errorCode);
   const retry = useHumanCheckStore((state) => state.retry);
   const cancel = useHumanCheckStore((state) => state.cancel);
   const failed = phase === "error";
@@ -30,11 +31,17 @@ export default function HumanCheckNotice() {
 
   if (typeof document === "undefined") return null;
 
+  // 1102xx is Cloudflare's "domain not authorized" family, and a silent
+  // frame (watchdog timeout) means upstream's WAF page — both need honest
+  // guidance instead of "check your connection"
+  const domainBlocked = failed && (!errorCode || errorCode.startsWith("1102"));
   const description =
     phase === "expired"
       ? t("human_check.expired")
       : failed
-        ? t("human_check.failed")
+        ? domainBlocked
+          ? t("human_check.failed_domain")
+          : t("human_check.failed")
         : t("human_check.description");
 
   return createPortal(

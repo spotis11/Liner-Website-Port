@@ -1,12 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   HumanCheckCancelledError,
+  humanCheckOrigins,
+  humanCheckPageUrl,
   runHumanCheck,
   setHumanCheckPrompt,
 } from "./humanCheck";
 
 describe("human check", () => {
   afterEach(() => setHumanCheckPrompt(null));
+
+  it("frames the upstream page — the widget is domain-locked (110200)", () => {
+    expect(humanCheckPageUrl("register")).toBe(
+      "https://api.tryliner.fun/v1/auth/verify?action=register",
+    );
+  });
+
+  it("accepts messages from the upstream origin", () => {
+    expect(humanCheckOrigins()).toContain("https://api.tryliner.fun");
+  });
 
   it("asks nothing while the api has the check off", async () => {
     const prompt = vi.fn();

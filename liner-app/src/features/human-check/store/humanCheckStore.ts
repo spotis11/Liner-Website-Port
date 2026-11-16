@@ -7,8 +7,10 @@ interface HumanCheckState {
   request: HumanCheckRequest | null;
   phase: HumanCheckPhase;
   attempt: number;
+  errorCode: string | null;
   open: (request: HumanCheckRequest) => Promise<string | null>;
   setPhase: (phase: HumanCheckPhase) => void;
+  fail: (code?: string) => void;
   solve: (token: string) => void;
   retry: () => void;
   cancel: () => void;
@@ -26,6 +28,7 @@ export const useHumanCheckStore = create<HumanCheckState>((set) => ({
   request: null,
   phase: "loading",
   attempt: 0,
+  errorCode: null,
 
   open: (request) => {
     finish(null);
@@ -33,6 +36,7 @@ export const useHumanCheckStore = create<HumanCheckState>((set) => ({
       request,
       phase: "loading",
       attempt: state.attempt + 1,
+      errorCode: null,
     }));
     return new Promise((resolve) => {
       settle = resolve;
@@ -41,13 +45,19 @@ export const useHumanCheckStore = create<HumanCheckState>((set) => ({
 
   setPhase: (phase) => set({ phase }),
 
+  fail: (code) => set({ phase: "error", errorCode: code ?? null }),
+
   solve: (token) => {
     set({ request: null });
     finish(token);
   },
 
   retry: () =>
-    set((state) => ({ phase: "loading", attempt: state.attempt + 1 })),
+    set((state) => ({
+      phase: "loading",
+      attempt: state.attempt + 1,
+      errorCode: null,
+    })),
 
   cancel: () => {
     set({ request: null });

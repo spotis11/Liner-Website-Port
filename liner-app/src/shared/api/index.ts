@@ -8,7 +8,7 @@ export {
 export { DEFAULT_PRIMARY_API, getApiBaseUrl } from "./baseUrl";
 export {
   HumanCheckCancelledError,
-  humanCheckOrigin,
+  humanCheckOrigins,
   humanCheckPageUrl,
   setHumanCheckPrompt,
   type HumanCheckAction,
