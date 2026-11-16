@@ -38,7 +38,11 @@ CACHE_PATH="${DB_MIRROR_CACHE_PATH:-$SOURCE_DB_DIR/production-mirror-latest.json
 # export its live state via GET /api/db-mirror/latest (locked behind
 # DB_MIRROR_EXPORT_KEY in the shared gitignored .env). Fetching it here makes
 # the package restore exactly what production had at build time.
-MIRROR_URL="${DB_MIRROR_SOURCE_URL:-https://liner-music.space-z.ai/api/db-mirror/latest}"
+# Source precedence: explicit env override first, then the shared gitignored
+# .env (the platform build environment carries neither — without this the
+# build always aimed at the FC URL even after the mirror moved to running.sh).
+ENV_SOURCE_URL="$(grep -E '^DB_MIRROR_SOURCE_URL=' "$PROJECT_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' | tr -d ' ' || true)"
+MIRROR_URL="${DB_MIRROR_SOURCE_URL:-${ENV_SOURCE_URL:-https://liner-music.space-z.ai/api/db-mirror/latest}}"
 # Key precedence: explicit env override (E2E / alternate servers) first, then
 # the shared gitignored .env that workspace builds and production both read.
 MIRROR_KEY="${DB_MIRROR_EXPORT_KEY:-$(grep -E '^DB_MIRROR_EXPORT_KEY=' "$PROJECT_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' | tr -d ' ' || true)}"
@@ -144,7 +148,12 @@ if [ "$FETCHED" = "0" ]; then
     # protocol (POST /api/auth/recover) limits the blast radius of an
     # accidental wipe, but likes/playlists of users who never return would
     # still be lost — hence this gate.
-    if [ "${DB_MIRROR_ALLOW_WIPE:-0}" != "1" ]; then
+    # Allow-wipe precedence mirrors MIRROR_URL/MIRROR_KEY: explicit env first,
+    # then the shared gitignored .env, then off. The platform build sets
+    # neither, so the .env value is the one that actually reaches this gate.
+    ENV_ALLOW_WIPE="$(grep -E '^DB_MIRROR_ALLOW_WIPE=' "$PROJECT_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' | tr -d ' ' || true)"
+    ALLOW_WIPE="${DB_MIRROR_ALLOW_WIPE:-${ENV_ALLOW_WIPE:-0}}"
+    if [ "$ALLOW_WIPE" != "1" ]; then
         echo "❌ DEPLOY ABORTED: the production mirror chain is UNARMED."
         echo "    The live fetch failed AND no cached production export exists (db/production-mirror-latest.json)."
         echo "    Shipping now would seed an EMPTY production database — every user signed out, accounts and libraries wiped."
