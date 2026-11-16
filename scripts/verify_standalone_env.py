@@ -18,9 +18,18 @@ without login / mail / the db-mirror round-trip.
 Required keys and what breaks without them:
   DATABASE_URL          local prod-runtime runs (FC start.sh exports its own)
   DISCORD_CLIENT_ID     Discord sign-in (503 DISCORD_NOT_CONFIGURED today's bug)
-  DB_MIRROR_EXPORT_KEY  deploy-time account/session survival round-trip
   DISCORD_PUBLIC_BASE   pins the OAuth redirect_uri (FC shows internal hosts)
   DISCORD_REDIRECT_URI  same — host-independent redirect_uri
+
+DB_MIRROR_EXPORT_KEY moved to OPTIONAL on 2026-11-16: the owner has stated
+twice they cannot supply the key, the standalone .env carries it commented
+out, and as a REQUIRED key it made `npm run build` exit 1 — which the z.ai
+platform deploy treats as a failed build, so liner-music.space-z.ai sat on
+the platform's static "problem deploying" page. The mirror is a reset-
+recovery round-trip, not a runtime dependency: running.sh (the primary
+host) persists its database platform-side independent of the mirror, the
+FC guest path degrades to the local pool, and a warning keeps the missing
+key visible without holding production hostage.
 
 DISCORD_CLIENT_SECRET / SMTP_USER / SMTP_PASS are OPTIONAL by design: the
 OAuth flow works PKCE-only for public-client apps, and mail degrades to a
@@ -47,7 +56,6 @@ STANDALONE = os.path.join(
 REQUIRED = [
     ("DATABASE_URL", "prod runtime cannot find the database"),
     ("DISCORD_CLIENT_ID", "Discord sign-in 503s (DISCORD_NOT_CONFIGURED)"),
-    ("DB_MIRROR_EXPORT_KEY", "accounts/sessions die on the next deploy"),
     ("DISCORD_PUBLIC_BASE", "OAuth redirect_uri becomes host-dependent"),
     ("DISCORD_REDIRECT_URI", "OAuth redirect_uri becomes host-dependent"),
 ]
@@ -65,6 +73,12 @@ OPTIONAL_NOTE = [
         "LINER_SERVICE_PASS",
         "guest/website sessions fall back to lrclib lyrics + home catalog "
         "(upstream-account sessions are NOT affected)",
+    ),
+    (
+        "DB_MIRROR_EXPORT_KEY",
+        "the deploy-time account/session mirror round-trip is OFF (reset-"
+        "recovery only — running.sh persists its DB platform-side; the FC "
+        "guest path degrades to the local pool)",
     ),
 ]
 
