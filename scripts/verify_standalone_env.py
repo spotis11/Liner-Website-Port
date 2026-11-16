@@ -25,6 +25,15 @@ Required keys and what breaks without them:
 DISCORD_CLIENT_SECRET / SMTP_USER / SMTP_PASS are OPTIONAL by design: the
 OAuth flow works PKCE-only for public-client apps, and mail degrades to a
 logged warning instead of failing requests.
+
+LINER_SERVICE_EMAIL / LINER_SERVICE_PASS moved to OPTIONAL on 2026-11-16:
+the sandbox reset lost the Polaris Mono service password, the owner does not
+have it recorded, and the runtime already degrades cleanly without it
+(isLinerServiceConfigured() -> false -> guest/website sessions fall back to
+the local lrclib pool; upstream-account sessions keep their own bearer and
+the e0556199 home-catalog fix). Blocking the deploy while production is DOWN
+over a graceful-degrade feature is the wrong trade-off — a warning keeps the
+consequence visible until the owner re-supplies the real password.
 """
 import os
 import sys
@@ -41,14 +50,22 @@ REQUIRED = [
     ("DB_MIRROR_EXPORT_KEY", "accounts/sessions die on the next deploy"),
     ("DISCORD_PUBLIC_BASE", "OAuth redirect_uri becomes host-dependent"),
     ("DISCORD_REDIRECT_URI", "OAuth redirect_uri becomes host-dependent"),
-    ("LINER_SERVICE_EMAIL", "Polaris Mono lyrics fall back to lrclib for guests"),
-    ("LINER_SERVICE_PASS", "Polaris Mono lyrics fall back to lrclib for guests"),
 ]
 
 OPTIONAL_NOTE = [
     ("DISCORD_CLIENT_SECRET", "PKCE-only flow is used (works for public clients)"),
     ("SMTP_USER", "welcome/ban mail is DISABLED"),
     ("SMTP_PASS", "welcome/ban mail is DISABLED"),
+    (
+        "LINER_SERVICE_EMAIL",
+        "guest/website sessions fall back to lrclib lyrics + home catalog "
+        "(upstream-account sessions are NOT affected)",
+    ),
+    (
+        "LINER_SERVICE_PASS",
+        "guest/website sessions fall back to lrclib lyrics + home catalog "
+        "(upstream-account sessions are NOT affected)",
+    ),
 ]
 
 # .env and .env.production are loaded by @next/env from the standalone dir;
