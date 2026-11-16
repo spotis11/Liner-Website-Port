@@ -1,5 +1,9 @@
 generator client {
   provider = "prisma-client-js"
+  // Ship BOTH query engines: the workspace is openssl-3.0.x, but the
+  // running.sh runtime presents debian-openssl-1.1.x — without the second
+  // engine the deployed web app dies with "could not locate the Query Engine".
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
 }
 
 datasource db {

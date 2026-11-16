@@ -125,3 +125,7 @@ liner-bot/bot.pid
 scripts/.last_bot_deploy_id
 scripts/.last_alfredo_deploy_id
 scripts/.alfredo_bot_svc_id
+
+# running.sh deploy state files
+scripts/.last_web_deploy_id
+scripts/.liner_web_svc_id

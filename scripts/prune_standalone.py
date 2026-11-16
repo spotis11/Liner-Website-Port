@@ -94,15 +94,19 @@ def main() -> None:
         for path in glob.glob(pattern):
             rm(path, freed)
 
-    # 4. native engines: keep ONLY the debian-openssl-3.0.x one (FC runtime),
+    # 4. native engines: keep debian-openssl-3.0.x (FC runtime) AND
+    #    debian-openssl-1.1.x (running.sh runtime presents openssl 1.1 —
+    #    without it the deployed web app dies with "could not locate the
+    #    Query Engine for runtime debian-openssl-1.1.x"),
     #    drop other platforms (darwin, musl, rhel, intel/arm variants)
+    KEEP_ENGINES = ("debian-openssl-3.0.x", "debian-openssl-1.1.x")
     for path in glob.glob(os.path.join(
             STANDALONE, "node_modules", ".prisma", "client", "libquery_engine-*")):
-        if "debian-openssl-3.0.x" not in os.path.basename(path):
+        if not any(k in os.path.basename(path) for k in KEEP_ENGINES):
             rm(path, freed)
     for path in glob.glob(os.path.join(
             STANDALONE, "node_modules", "@prisma", "client", "runtime", "libquery_engine-*")):
-        if "debian-openssl-3.0.x" not in os.path.basename(path):
+        if not any(k in os.path.basename(path) for k in KEEP_ENGINES):
             rm(path, freed)
 
     total = sum(size for _p, size in freed)
