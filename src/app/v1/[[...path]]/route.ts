@@ -85,6 +85,11 @@ export const dynamic = "force-dynamic";
 
 const UPSTREAM = "https://api.tryliner.fun";
 const FORWARD_TIMEOUT_MS = 20_000;
+// Home-surface catalog forwards must answer BEFORE the running.sh edge's
+// ~20s cut: the upstream's 30d/all popular-albums windows routinely take
+// longer than that, and the client then sees the edge's 503/502 instead of
+// our empty-state fallback. Bail to the fallback at 8s — well under the edge.
+const HOME_CATALOG_TIMEOUT_MS = 8_000;
 
 const UPSTREAM_CLIENT_UA =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) liner-desktop/0.2.12 Chrome/134.0.0.0 Electron/44.0.0 Safari/537.36";
@@ -380,6 +385,19 @@ async function upstreamCatalogGet(
   }
 }
 
+/** Race a home-catalog upstream attempt against the edge-safe deadline. */
+async function withTimeout<T>(promise: Promise<T>): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), HOME_CATALOG_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([promise, deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * Home-surface catalog forward — explore/popular/albums + explore/most-saved.
  * The upstream serves these ONLY to signed-in Liner accounts: the anonymous
@@ -403,32 +421,41 @@ async function forwardHomeCatalog(
   bodyBytes: ArrayBuffer | null,
   fallback: () => NextResponse,
 ): Promise<NextResponse> {
-  const bearer =
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
-  if (bearer && !isWebsiteToken(bearer)) {
-    const headers = upstreamHeaders(req);
-    headers.set("authorization", `Bearer ${bearer}`);
-    const res = await upstreamCatalogGet(pathWithSearch, headers);
-    if (res) return res;
-  }
-  const anon = await forwardAnonymous(req, pathWithSearch, bodyBytes);
-  if (anon.status === 200) return anon;
-  const serviceToken = await getServiceLinerAccessToken();
-  if (serviceToken) {
-    const headers = upstreamHeaders(req);
-    headers.set("authorization", `Bearer ${serviceToken}`);
-    let res = await upstreamCatalogGet(pathWithSearch, headers);
-    if (!res) {
-      // cached service bearer may have expired upstream-side — re-mint once
-      const fresh = await refreshServiceLinerToken();
-      if (fresh) {
-        headers.set("authorization", `Bearer ${fresh}`);
-        res = await upstreamCatalogGet(pathWithSearch, headers);
-      }
+  try {
+    const bearer =
+      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
+    if (bearer && !isWebsiteToken(bearer)) {
+      const headers = upstreamHeaders(req);
+      headers.set("authorization", `Bearer ${bearer}`);
+      const res = await withTimeout(upstreamCatalogGet(pathWithSearch, headers));
+      if (res) return res;
     }
-    if (res) return res;
+    const anon = await withTimeout(
+      forwardAnonymous(req, pathWithSearch, bodyBytes),
+    );
+    if (anon && anon.status === 200) return anon;
+    const serviceToken = await getServiceLinerAccessToken();
+    if (serviceToken) {
+      const headers = upstreamHeaders(req);
+      headers.set("authorization", `Bearer ${serviceToken}`);
+      let res = await withTimeout(upstreamCatalogGet(pathWithSearch, headers));
+      if (!res) {
+        // cached service bearer may have expired upstream-side — re-mint once
+        const fresh = await refreshServiceLinerToken();
+        if (fresh) {
+          headers.set("authorization", `Bearer ${fresh}`);
+          res = await withTimeout(upstreamCatalogGet(pathWithSearch, headers));
+        }
+      }
+      if (res) return res;
+    }
+    return fallback();
+  } catch {
+    // home surfaces must never error the browser: any unexpected failure
+    // (boot-window DB races, helper throws) degrades to the empty catalog —
+    // the client falls through to its own providers instead of a 500
+    return fallback();
   }
-  return fallback();
 }
 
 // /v1/auth/verify — the human-check page (Turnstile) is HTML by design and
@@ -796,7 +823,17 @@ async function websiteDispatch(
     const window = ["12h", "24h", "7d", "30d", "all"].includes(raw)
       ? raw
       : "all";
-    return popularTracks(window);
+    try {
+      return await popularTracks(window);
+    } catch {
+      // local aggregation hit an unexpected failure (e.g. boot-window DDL
+      // race) — degrade to the empty answer instead of a 500
+      return NextResponse.json({
+        window,
+        generatedAt: new Date().toISOString(),
+        items: [],
+      });
+    }
   }
   if (route === "explore/popular/albums" && method === "GET") {
     // same policy as explore/popular: upstream is the source of truth for

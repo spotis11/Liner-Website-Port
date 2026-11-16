@@ -100,12 +100,20 @@ export async function getServiceLinerAccessToken(): Promise<string | null> {
   if (cached && Date.now() < cached.expiresAt) return cached.accessToken;
   if (!loginInFlight) {
     loginInFlight = (async () => {
-      const email = process.env.LINER_SERVICE_EMAIL!.trim();
-      const pass = process.env.LINER_SERVICE_PASS!;
-      const session = await loginUpstream(email, pass);
-      if (!session) return null;
-      cached = session;
-      return session.accessToken;
+      try {
+        const email = process.env.LINER_SERVICE_EMAIL!.trim();
+        const pass = process.env.LINER_SERVICE_PASS!;
+        const session = await loginUpstream(email, pass);
+        if (!session) return null;
+        cached = session;
+        return session.accessToken;
+      } catch {
+        // a failed/flaky upstream login must never throw into a request —
+        // callers treat null as "no service identity available" and every
+        // home-surface route degrades to its empty-state fallback instead
+        // of erroring the browser
+        return null;
+      }
     })();
     try {
       return await loginInFlight;
