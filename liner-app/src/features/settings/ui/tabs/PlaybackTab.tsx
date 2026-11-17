@@ -45,12 +45,8 @@ export function PlaybackTab({ searchQuery }: { searchQuery?: string }) {
   const setMiniPlayerEnabled = usePlayerStore(
     (state) => state.setMiniPlayerEnabled,
   );
-  const soundWaveEnabled = usePlayerStore((state) => state.soundWaveEnabled);
   const visualizerMode = useVisualizerStore((state) => state.mode);
   const setVisualizerMode = useVisualizerStore((state) => state.setMode);
-  const setSoundWaveEnabled = usePlayerStore(
-    (state) => state.setSoundWaveEnabled,
-  );
 
   useEffect(() => {
     setMounted(true);
@@ -96,20 +92,6 @@ export function PlaybackTab({ searchQuery }: { searchQuery?: string }) {
           <ToggleSwitch
             checked={miniPlayerEnabled}
             onChange={setMiniPlayerEnabled}
-          />
-        }
-      />
-
-      <SettingRow
-        title={t("settings.sound_wave.title")}
-        description={t("settings.sound_wave.description")}
-        titleKey="settings.sound_wave.title"
-        descKey="settings.sound_wave.description"
-        searchQuery={searchQuery}
-        control={
-          <ToggleSwitch
-            checked={soundWaveEnabled}
-            onChange={setSoundWaveEnabled}
           />
         }
       />
