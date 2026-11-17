@@ -22,6 +22,7 @@ import { useTranslation } from "@/languages";
 import { useSettledLyricsLayout } from "../hooks/useSettledLyricsLayout";
 import { CanvasLyricsView } from "./CanvasLyricsView";
 import AmbientLayer from "./AmbientLayer";
+import { useCoverTone } from "../hooks/useCoverTone";
 import { BetaVisualsWarning } from "./BetaVisualsWarning";
 
 const KAWARP_FADE_IN_MS = 600;
@@ -60,6 +61,8 @@ export function FullscreenPlayer({
   const nextCoverUrl = player.queue[player.currentIndex + 1]?.coverUrl;
   const coverUrl = currentTrack?.coverUrl;
   const kawarpSrc = useCoverSrc(coverUrl);
+  // visualizer tint follows the cover (see useCoverTone — PR #343 barColor)
+  const coverBarColor = useCoverTone(coverUrl);
 
   useEffect(() => {
     if (!currentTrack) {
@@ -185,9 +188,15 @@ export function FullscreenPlayer({
 
       <div className="absolute inset-0 z-[1] bg-black/40" />
 
-      {/* Fullscreen Audio Spectrum Visualizer Backdrop (tryliner/desktop PR #343) */}
+      {/* Fullscreen Audio Spectrum Visualizer Backdrop (tryliner/desktop PR #343).
+          barColor: website-port tint derived from the cover so the bars follow
+          the artwork the way upstream's bright ambient wash makes them read. */}
       <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden select-none">
-        <SpectrumVisualizer className="w-full h-full" barCount={32} />
+        <SpectrumVisualizer
+          className="w-full h-full"
+          barCount={32}
+          barColor={coverBarColor}
+        />
       </div>
 
       <FullscreenFrameGlass />
