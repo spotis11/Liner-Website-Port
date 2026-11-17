@@ -15,8 +15,30 @@ const { MusicManager } = require("./lib/music");
 const { registry, ALIASES } = require("./lib/commands");
 const { store } = require("./lib/store");
 const configCommands = require("./lib/commands_config");
+const mod2 = require("./lib/cmd_mod2");
+const textCmds = require("./lib/cmd_text");
+const mathCmds = require("./lib/cmd_math");
+const infoCmds = require("./lib/cmd_info");
+const econCmds = require("./lib/cmd_econ");
+const fun2Cmds = require("./lib/cmd_fun2");
+const automod = require("./lib/cmd_automod");
 
 configCommands.register(registry);
+mod2.register(registry);
+textCmds.register(registry);
+mathCmds.register(registry);
+infoCmds.register(registry);
+econCmds.register(registry);
+fun2Cmds.register(registry);
+automod.register(registry);
+
+// meta commands
+registry.commandcount = async (ctx) => {
+  await ctx.reply(`🧮 **${Object.keys(registry).length}** commands (+${Object.keys(ALIASES).length} aliases). AI/Ollama commands are intentionally excluded (owner request).`);
+};
+registry.commands = registry.commandcount;
+ALIASES.cases = "caselist";
+ALIASES.ping2 = "ping";
 
 const PORT = Number(process.env.PORT) || 3000;
 const BOOT_TS = Date.now();
@@ -89,6 +111,10 @@ const cooldowns = new Map();
 client.on(Events.MessageCreate, async (msg) => {
   try {
     if (!msg.inGuild() || msg.author.bot) return;
+    // automod (antilink/antiinvite/anticaps/antihoist/antiemoji/antispam)
+    if (await automod.messageFilter(msg)) return;
+    // counting game channel hook
+    if (await automod.countingHook(msg)) return;
     // AFK notices: anyone mentioned while AFK gets a status reply
     if (msg.mentions.users.size) {
       for (const afk of store.afkMentions(msg.guild.id, [...msg.mentions.users.keys()])) {
@@ -159,6 +185,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 client.once(Events.ClientReady, async (c) => {
   log(`ready: logged in as ${c.user.tag} — ${c.guilds.cache.size} guild(s)`);
+  // custom status: persisted via .botstatus/.botactivity; default until set
+  try {
+    if (store.getPresence()) {
+      mod2.applyPresence(c);
+    } else {
+      c.user.setPresence({ activities: [{ name: ".help • Alfredo", type: 2 /* LISTENING */ }] });
+    }
+  } catch (err) {
+    log("presence set failed:", err.message);
+  }
   try {
     // Parity with alfredo.py's slash surface (/playmusic, /lyrics)
     const body = [

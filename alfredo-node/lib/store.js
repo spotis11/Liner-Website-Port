@@ -18,7 +18,15 @@ const DEFAULTS = () => ({
   reminders: [],     // [ { id, userId, channelId, text, at } ]
   todos: {},         // userId -> [ { text, done } ]
   customcmds: {},    // guildId -> { trigger -> response }
+  presence: null,    // { status: "online|idle|dnd|invisible", type, text }
+  warnings: {},      // guildId -> { userId -> [ { reason, by, at } ] }
+  cases: {},         // guildId -> [ { id, type, userId, by, reason, at } ]
+  economy: {},       // userId -> { bal, lastDaily, lastBeg, lastCrime, items: [] }
+  shop: {},          // guildId -> { itemName -> price }
+  counting: {},      // guildId -> { channelId, count }
+  automod: {},       // guildId -> { antilink, antiinvite, anticaps, antihoist, antiemoji, antispam }
   nextReminderId: 1,
+  nextCaseId: 1,
 });
 
 let data = DEFAULTS();
@@ -176,6 +184,99 @@ const store = {
   },
   listCustomCmds(guildId) {
     return Object.keys(data.customcmds[guildId] || {});
+  },
+
+  // ---- presence (custom status) ----
+  getPresence() {
+    return data.presence;
+  },
+  setPresence(p) {
+    data.presence = p;
+    save();
+  },
+
+  // ---- warnings / cases ----
+  addWarning(guildId, userId, reason, by) {
+    ((data.warnings[guildId] ||= {})[userId] ||= []).push({ reason, by, at: new Date().toISOString() });
+    const id = data.nextCaseId++;
+    (data.cases[guildId] ||= []).push({ id, type: "warn", userId, by, reason, at: Date.now() });
+    save();
+    return { warnIndex: data.warnings[guildId][userId].length, caseId: id };
+  },
+  getWarnings(guildId, userId) {
+    return data.warnings[guildId]?.[userId] || [];
+  },
+  deleteWarning(guildId, userId, index) {
+    const list = data.warnings[guildId]?.[userId];
+    if (!list || index < 0 || index >= list.length) return false;
+    list.splice(index, 1);
+    save();
+    return true;
+  },
+  clearWarnings(guildId, userId) {
+    if (data.warnings[guildId]) {
+      delete data.warnings[guildId][userId];
+      save();
+    }
+  },
+  addCase(guildId, type, userId, by, reason) {
+    const id = data.nextCaseId++;
+    (data.cases[guildId] ||= []).push({ id, type, userId, by, reason, at: Date.now() });
+    save();
+    return id;
+  },
+  getCase(guildId, id) {
+    return (data.cases[guildId] || []).find((c) => c.id === id) || null;
+  },
+  listCases(guildId, userId) {
+    const list = data.cases[guildId] || [];
+    return userId ? list.filter((c) => c.userId === userId) : list;
+  },
+  deleteCase(guildId, id) {
+    const list = data.cases[guildId] || [];
+    const i = list.findIndex((c) => c.id === id);
+    if (i === -1) return false;
+    list.splice(i, 1);
+    save();
+    return true;
+  },
+
+  // ---- economy (lite port of alfredo.py economy) ----
+  econ(userId) {
+    return (data.economy[userId] ||= { bal: 0, lastDaily: 0, lastBeg: 0, lastCrime: 0, items: [] });
+  },
+  shopOf(guildId) {
+    return data.shop[guildId] || {};
+  },
+  shopSet(guildId, name, price) {
+    (data.shop[guildId] ||= {})[name.toLowerCase()] = price;
+    save();
+  },
+  shopDelete(guildId, name) {
+    const s = data.shop[guildId];
+    if (!s || !(name.toLowerCase() in s)) return false;
+    delete s[name.toLowerCase()];
+    save();
+    return true;
+  },
+
+  // ---- counting game ----
+  getCounting(guildId) {
+    return data.counting[guildId] || null;
+  },
+  setCounting(guildId, channelId, count) {
+    data.counting[guildId] = { channelId, count };
+    save();
+  },
+
+  // ---- automod toggles ----
+  automodOf(guildId) {
+    return (data.automod[guildId] ||= { antilink: false, antiinvite: false, anticaps: false, antihoist: false, antiemoji: false, antispam: false });
+  },
+  automodSet(guildId, key, value) {
+    const cfg = this.automodOf(guildId);
+    cfg[key] = value;
+    save();
   },
 };
 

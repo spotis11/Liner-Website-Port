@@ -117,7 +117,22 @@ command("help", async (ctx) => {
       },
       {
         name: "🎲 Fun & games",
-        value: "`8ball` `coinflip` `dice` `d20` `d6` `d100` `rps` `choose` `roll NdM` `poll` `joke` `fact` `quote` `reverse` `mock` `clap`",
+        value: "`8ball` `coinflip` `dice` `d20` `d6` `d100` `rps` `choose` `roll NdM` `poll` `joke` `fact` `quote` `reverse` `mock` `clap` • `truth` `dare` `compliment` `ship` `slots` `hug`/`pat`/`kiss`/`slap` `countdown` `dog` `cat` • counting game: `counting-set #ch` `counting-reset`",
+        inline: false,
+      },
+      {
+        name: "🧮 Text • math • encoding",
+        value: "`boldtext` `codetext` `clapify` `emojify` `b64encode2`/`b64decode2` `base32` `binaryencode`/`binarydecode` `bin2dec`/`dec2bin`/`dec2hex`/`hex2dec` `caesar` `atbash` `charcount` • `average` `sqrt` `abs` `ceil` `floor` `round` `cos`/`sin`/`tan` `deg2rad`/`rad2deg` `divide` `sum` `max`/`min` `factorial` `gcd`/`lcm` `isprime` `percent`",
+        inline: false,
+      },
+      {
+        name: "💰 Economy & counting game",
+        value: "`daily` `beg` `crime` `balance` `pay` `gamble` `rob` `shop` `buy` `inventory` `additem`/`delitem` (admin)",
+        inline: false,
+      },
+      {
+        name: "📊 Server info",
+        value: "`channelinfo` `channelcount` `channellist` `channeltopic` `channelage` `roleinfo` `rolecount` `rolelist` `emojicount` `emojilist` `boost-info` `boosters`",
         inline: false,
       },
       {
@@ -126,8 +141,13 @@ command("help", async (ctx) => {
         inline: false,
       },
       {
-        name: "🛡️ Moderation",
-        value: "`kick` `ban` `unban` `mute <time>` `unmute` `purge <n>` `slowmode <s>`",
+        name: "🛡️ Moderation & automod",
+        value: "`kick` `ban` `unban` `mute <time>` `unmute` `purge <n>` `slowmode <s>` • `warn` `warns` `delwarn` `clearwarn` • `case-list`/`case-view <id>` • `addrole`/`removerole` `setnick` `deafen`/`undeafen` `banlist` • toggles: `antilink` `antiinvite` `anticaps` `antihoist` `antiemoji` `antispam` `automodstatus`",
+        inline: false,
+      },
+      {
+        name: "🤖 Bot config (admin)",
+        value: "`prefix <new|reset>` • `botstatus <online|idle|dnd|invisible>` • `botactivity <playing|watching|listening|streaming> <text>` • `botactivityclear` • `commandcount` — NO AI/Ollama commands, excluded by owner request",
         inline: false,
       },
     )
@@ -687,4 +707,4 @@ async function resolveTarget(ctx) {
   }
 }
 
-module.exports = { registry, ALIASES };
+module.exports = { registry, ALIASES, calcExpr };
