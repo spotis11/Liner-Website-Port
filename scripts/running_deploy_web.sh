@@ -59,6 +59,11 @@ rm -f /tmp/liner-web-vars.json
 rm -rf "$STG" && mkdir -p "$STG/db"
 cp -r "$ROOT/.next/standalone" "$STG/standalone"
 rm -f "$STG/standalone/.env"
+# the migration announcement is only for space-z.ai visitors — never ship it
+# to running.sh (loader tag in index.html + the JS file itself)
+sed -i '/INJECT:liner-migration-announcement-v/d; /liner-announcement\.js/d' \
+  "$STG/standalone/public/liner/index.html" 2>/dev/null || true
+rm -f "$STG/standalone/public/liner/liner-announcement.js"
 cp "$ROOT/db/custom.db" "$STG/db/custom.db"
 cp "$ROOT/deploy/web/Dockerfile" "$STG/Dockerfile"
 tar -czf /tmp/liner-web.tgz -C "$STG" Dockerfile standalone db

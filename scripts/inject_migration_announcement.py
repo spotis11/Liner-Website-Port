@@ -16,6 +16,11 @@ a self-contained IIFE (no deps): pill badge, long announcement body,
 Usage: python3 scripts/inject_migration_announcement.py [path/to/index.html]
 Default: writes the JS file next to both SPA roots and injects the loader
 tag into public/liner/index.html and liner-app/index.html.
+
+Deployment note (2026-11-17, owner request): the announcement ships ONLY to
+the z.ai home (liner-music.space-z.ai — the platform build packages the
+workspace public/ as-is). scripts/running_deploy_web.sh strips the loader
+tag and the JS file from its staging copy, so running.sh never serves it.
 """
 import re, sys, pathlib
 
