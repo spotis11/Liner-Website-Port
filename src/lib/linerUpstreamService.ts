@@ -19,7 +19,8 @@ import { signUpstreamRequest } from "@/lib/upstreamSigner";
 
 const UPSTREAM = "https://api.tryliner.fun";
 const CLIENT_VERSION = "1.0.4-desktop";
-const UPSTREAM_CLIENT_UA =
+/** Shared with the standalone upstream probes (admin gate, user directory). */
+export const UPSTREAM_CLIENT_UA =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) liner-desktop/0.2.12 Chrome/134.0.0.0 Electron/44.0.0 Safari/537.36";
 
 interface ServiceSession {

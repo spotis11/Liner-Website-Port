@@ -1,4 +1,6 @@
 import { LINER_PRIMARY_API } from "./announcements";
+import { signUpstreamRequest } from "./upstreamSigner";
+import { UPSTREAM_CLIENT_UA } from "./linerUpstreamService";
 
 /**
  * Upstream Liner user-directory client (server-side).
@@ -18,9 +20,8 @@ import { LINER_PRIMARY_API } from "./announcements";
  * the lookup.
  */
 
-/** same hardening as every other upstream probe: browser-like UA + timeout */
-const LINER_USERS_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+/** same hardening as every other upstream probe: signed + desktop identity */
+const LINER_USERS_UA = UPSTREAM_CLIENT_UA;
 
 export interface UpstreamUser {
   id: string;
@@ -60,6 +61,9 @@ async function upstreamGet(
         authorization: `Bearer ${accessToken}`,
         accept: "application/json",
         "user-agent": LINER_USERS_UA,
+        // unsigned server-side calls get the WAF challenge page, not an API
+        // answer (see announcements.fetchLinerMe) — sign like the relay does
+        ...signUpstreamRequest("GET", path),
       },
       cache: "no-store",
       signal: AbortSignal.timeout(TIMEOUT_MS),

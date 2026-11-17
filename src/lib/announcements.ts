@@ -16,6 +16,9 @@ export const ANNOUNCEMENT_ADMIN_USERNAME = "jayzeyluna";
 export const ANNOUNCEMENT_DEFAULT_SENDER_NAME = "JayJoice";
 
 /** Upstream Liner API used to verify the poster's access token. */
+import { signUpstreamRequest } from "@/lib/upstreamSigner";
+import { UPSTREAM_CLIENT_UA } from "@/lib/linerUpstreamService";
+
 export const LINER_PRIMARY_API = "https://api.tryliner.fun";
 
 /** Announcement text cap. */
@@ -113,11 +116,15 @@ export type AdminVerification =
 /**
  * Some edge rules treat non-browser user agents differently, and a single
  * timed-out probe must never read as "session expired" — so admin token
- * verification goes out with browser-like headers and retries once on
- * transport errors / upstream 5xx before concluding anything.
+ * verification goes out with the desktop client's identity AND the HMAC
+ * signature headers every legitimate Liner client signs its /v1 calls with.
+ * The bare browser-UA probe used to be answered by the upstream WAF's
+ * challenge page instead of the API (datacenter egress is judged by the
+ * signature, not the UA — the relay's signed hops always pass), which read
+ * as upstream_unreachable and 502'd every admin endpoint on hosts where the
+ * owner's only proof of ownership is their live upstream session.
  */
-const LINER_VERIFY_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const LINER_VERIFY_UA = UPSTREAM_CLIENT_UA;
 
 async function fetchLinerMe(accessToken: string, timeoutMs: number): Promise<Response | null> {
   try {
@@ -126,6 +133,10 @@ async function fetchLinerMe(accessToken: string, timeoutMs: number): Promise<Res
         authorization: `Bearer ${accessToken}`,
         accept: "application/json",
         "user-agent": LINER_VERIFY_UA,
+        // the relay proves its own upstream calls the same way (see
+        // upstreamSigner) — unsigned requests get a WAF challenge, not an API
+        // answer, from datacenter hosts
+        ...signUpstreamRequest("GET", "/v1/me"),
       },
       cache: "no-store",
       signal: AbortSignal.timeout(timeoutMs),
