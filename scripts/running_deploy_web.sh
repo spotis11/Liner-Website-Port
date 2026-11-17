@@ -17,13 +17,14 @@ envval() { grep -E "^$1=" "$ROOT/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr
 # 0) build guard
 [ -f "$ROOT/.next/standalone/server.js" ] || { echo "no .next/standalone — run: npm run build" >&2; exit 1; }
 
-# 1) service: reuse or create "liner-web"
+# 1) service: reuse or create "tryliner-web" (renamed on the platform; the
+#    generated URL liner-web-liner-bot-f3eq.running.sh still uses the slug)
 P=prj_qlg6u7iilas32ilkbv4j
 E=env_zw22hwmnsgk42ukvscmn
-S=$(rs "$API/projects/$P/canvas?environmentId=$E" | jq -r '.data.services[]? | select(.name=="liner-web") | .id' | head -1)
+S=$(rs "$API/projects/$P/canvas?environmentId=$E" | jq -r '.data.services[]? | select(.name=="tryliner-web") | .id' | head -1)
 if [ -z "${S:-}" ]; then
-  S=$(rs -X POST "$API/projects/$P/services" -d '{"name":"liner-web","source":{"type":"upload"}}' | jq -r '.data.id')
-  echo "created service $S"
+  S=svc_vkzivjf5qsvnv3sivtbn   # known id — never create a duplicate
+  echo "canvas lookup missed; using known service id $S"
 fi
 echo "service: $S"
 
