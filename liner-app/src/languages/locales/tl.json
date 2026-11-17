@@ -1002,10 +1002,6 @@
       "title": "Miniplayer",
       "description": "Nagbubukas ng mini player kapag pumalit ka sa ibang tab at isinasara ito agad kapag bumalik ka."
     },
-    "sound_wave": {
-      "title": "Sound wave visualizer",
-      "description": "Magpakita ng live na sound wave na naka-sync sa musika sa fullscreen player."
-    },
     "pro": {
       "description": "Ang premium na karanasan ng Liner — mas malaking library, animated na profile, at marami pa.",
       "title": "Liner Pro",

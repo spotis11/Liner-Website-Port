@@ -959,10 +959,6 @@
       "volume_up": "Głośniej",
       "volume_up_desc": "Zwiększa głośność o 5%."
     },
-    "sound_wave": {
-      "title": "Wizualizacja fali dzwiekowej",
-      "description": "Pokaz zywa fale dzwiekowa zsynchronizowana z muzyka w odtwarzaczu pelnoekranowym."
-    },
     "soundcloud_fallback": {
       "title": "Znajdź utwór na SoundCloud",
       "description": "Jeśli utwór nie może być odtworzony, ta sama piosenka jest wyszukiwana na SoundCloud i odtwarzana zamiast niej."

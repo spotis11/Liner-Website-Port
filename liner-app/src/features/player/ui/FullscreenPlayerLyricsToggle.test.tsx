@@ -89,9 +89,8 @@ vi.mock("./KawarpWrapper", () => ({
   default: () => <div data-testid="kawarp" />,
 }));
 
-vi.mock("./SoundWave", () => ({
-  default: () => <div data-testid="sound-wave" />,
-  useSoundWaveEnabled: vi.fn(() => false),
+vi.mock("@/features/visualizer", () => ({
+  SpectrumVisualizer: () => <div data-testid="spectrum-visualizer" />,
 }));
 
 vi.mock("./FullscreenFrameGlass", () => ({

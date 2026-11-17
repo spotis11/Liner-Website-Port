@@ -1315,10 +1315,6 @@
       "volume_up": "Volume up",
       "volume_up_desc": "Increase playback volume by 5%."
     },
-    "sound_wave": {
-      "title": "Sound wave visualizer",
-      "description": "Show a live sound wave synced to the music in the fullscreen player."
-    },
     "soundcloud_fallback": {
       "title": "Find the track on SoundCloud",
       "description": "If a track can't be played, search SoundCloud for the same song and play that version instead."

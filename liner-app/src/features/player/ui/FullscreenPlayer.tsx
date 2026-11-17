@@ -17,7 +17,6 @@ import { PlayerUiElements } from "./PlayerUiElements";
 import { DownLine, Music2Fill } from "@mingcute/react";
 import { preloadCoverArt, useCoverSrc } from "@/features/covers";
 import KawarpWrapper from "./KawarpWrapper";
-import SoundWave, { useSoundWaveEnabled } from "./SoundWave";
 import { SpectrumVisualizer } from "@/features/visualizer";
 import { useTranslation } from "@/languages";
 import { useSettledLyricsLayout } from "../hooks/useSettledLyricsLayout";
@@ -119,10 +118,6 @@ export function FullscreenPlayer({
   const isLyricsLoading = !hasLyrics && lyricsLoading;
   const isLyricsMissing = isMatchingTrack && !hasLyrics && !lyricsLoading;
 
-  // live sound wave — Web Audio analyser tap on the master output bus
-  // (only when enabled in Settings > Playback)
-  const soundWaveEnabled = useSoundWaveEnabled();
-
   // lyrics pane toggle (fork, restored) — top-left notch "Lyrics" pill
   const [lyricsVisible, setLyricsVisible] = useState(readStoredLyricsVisible);
   // every press fires one expanding ring on the pill (see the pulse span below)
@@ -189,22 +184,6 @@ export function FullscreenPlayer({
       </div>
 
       <div className="absolute inset-0 z-[1] bg-black/40" />
-
-      {/* live sound wave visualizer — bottom strip behind the player UI,
-          synced to the real audio graph (fork: Settings > Playback toggle) */}
-      {soundWaveEnabled ? (
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-[38vh]"
-          style={{
-            maskImage:
-              "linear-gradient(to top, black 40%, rgba(0,0,0,0.6) 70%, transparent)",
-            WebkitMaskImage:
-              "linear-gradient(to top, black 40%, rgba(0,0,0,0.6) 70%, transparent)",
-          }}
-        >
-          <SoundWave className="h-full w-full" />
-        </div>
-      ) : null}
 
       {/* Fullscreen Audio Spectrum Visualizer Backdrop (tryliner/desktop PR #343) */}
       <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden select-none">

@@ -900,10 +900,6 @@
     "reset_defaults": "Auf Standard zurücksetzen",
     "save_preferences": "Einstellungen speichern",
     "search_placeholder": "Einstellungen durchsuchen…",
-    "sound_wave": {
-      "title": "Soundwave-Visualisierer",
-      "description": "Zeige eine live Soundwelle, synchron zur Musik, im Vollbild-Player."
-    },
     "soundcloud_fallback": {
       "title": "Titel auf SoundCloud finden",
       "description": "Wenn ein Titel nicht abgespielt werden kann, wird dasselbe Lück auf SoundCloud gesucht und stattdessen abgespielt."

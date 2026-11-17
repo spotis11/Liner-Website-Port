@@ -1009,10 +1009,6 @@
       "volume_up": "Subir volumen",
       "volume_up_desc": "Aumenta el volumen de reproducción un 5 %."
     },
-    "sound_wave": {
-      "title": "Visualizador de onda de sonido",
-      "description": "Muestra una onda de sonido en vivo sincronizada con la musica en el reproductor a pantalla completa."
-    },
     "soundcloud_fallback": {
       "title": "Buscar la canción en SoundCloud",
       "description": "Si una canción no se puede reproducir, se busca la misma canción en SoundCloud y se reproduce esa versión."

@@ -1076,10 +1076,6 @@
       "volume_up": "Monter le volume",
       "volume_up_desc": "Augmente le volume de 5 %."
     },
-    "sound_wave": {
-      "title": "Visualiseur d'onde sonore",
-      "description": "Afficher une onde sonore en direct synchronisee sur la musique dans le lecteur plein ecran."
-    },
     "soundcloud_fallback": {
       "title": "Trouver le titre sur SoundCloud",
       "description": "Si un titre ne peut pas être lu, la même chanson est recherchée sur SoundCloud et cette version est lue à la place."

@@ -67,8 +67,6 @@ export interface SessionState {
   soundcloudFallback: boolean;
   /** Spotify-style cross-tab miniplayer (Document PiP) master switch. */
   miniPlayerEnabled: boolean;
-  /** Live sound-wave visualizer in the fullscreen player (Web Audio analyser). */
-  soundWaveEnabled: boolean;
   trackDoubleClickBehavior: TrackDoubleClickBehavior;
   defaultPlaybackContext: DefaultPlaybackContext;
   fullscreen: boolean;
@@ -129,7 +127,6 @@ export interface PlayerStore extends PlayerState {
   setHoverPreview: (value: boolean) => void;
   setSoundcloudFallback: (value: boolean) => void;
   setMiniPlayerEnabled: (value: boolean) => void;
-  setSoundWaveEnabled: (value: boolean) => void;
   setTrackDoubleClickBehavior: (value: TrackDoubleClickBehavior) => void;
   setDefaultPlaybackContext: (value: DefaultPlaybackContext) => void;
   setFullscreen: (value: boolean) => void;
@@ -205,7 +202,6 @@ export const usePlayerStore = create<PlayerStore>()(
       hoverPreview: true,
       soundcloudFallback: true,
       miniPlayerEnabled: true,
-      soundWaveEnabled: false,
       trackDoubleClickBehavior: "play",
       defaultPlaybackContext: "resume",
       fullscreen: false,
@@ -257,8 +253,6 @@ export const usePlayerStore = create<PlayerStore>()(
         set({ soundcloudFallback }),
       setMiniPlayerEnabled: (miniPlayerEnabled: boolean) =>
         set({ miniPlayerEnabled }),
-      setSoundWaveEnabled: (soundWaveEnabled: boolean) =>
-        set({ soundWaveEnabled }),
       setTrackDoubleClickBehavior: (
         trackDoubleClickBehavior: TrackDoubleClickBehavior,
       ) => set({ trackDoubleClickBehavior }),
@@ -389,9 +383,6 @@ export const usePlayerStore = create<PlayerStore>()(
           if (typeof state.miniPlayerEnabled !== "boolean") {
             state.miniPlayerEnabled = true;
           }
-          if (typeof state.soundWaveEnabled !== "boolean") {
-            state.soundWaveEnabled = false;
-          }
           if (
             typeof state.reverbLevel !== "number" ||
             isNaN(state.reverbLevel)
@@ -430,7 +421,6 @@ export const usePlayerStore = create<PlayerStore>()(
         hoverPreview: state.hoverPreview,
         soundcloudFallback: state.soundcloudFallback,
         miniPlayerEnabled: state.miniPlayerEnabled,
-        soundWaveEnabled: state.soundWaveEnabled,
         trackDoubleClickBehavior: state.trackDoubleClickBehavior,
         defaultPlaybackContext: state.defaultPlaybackContext,
         playbackRate: state.playbackRate,

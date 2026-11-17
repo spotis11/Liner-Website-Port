@@ -24,7 +24,6 @@ const EMPTY_STATE: PlayerState = {
   hoverPreview: true,
   soundcloudFallback: true,
   miniPlayerEnabled: true,
-  soundWaveEnabled: false,
   trackDoubleClickBehavior: "play",
   defaultPlaybackContext: "resume",
   fullscreen: false,

@@ -1010,10 +1010,6 @@
       "volume_up": "Naikkan volume",
       "volume_up_desc": "Naikkan volume pemutaran 5%."
     },
-    "sound_wave": {
-      "title": "Visualizer gelombang suara",
-      "description": "Tampilkan gelombang suara langsung yang sinkron dengan musik di pemutar layar penuh."
-    },
     "soundcloud_fallback": {
       "title": "Cari lagu di SoundCloud",
       "description": "Jika sebuah lagu tidak dapat diputar, lagu yang sama dicari di SoundCloud dan versi itulah yang diputar."
