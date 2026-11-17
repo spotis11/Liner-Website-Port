@@ -30,6 +30,18 @@ const DEFAULTS = () => ({
 });
 
 let data = DEFAULTS();
+// Fresh containers (every deploy) start from the seed baked into the image;
+// the deploy script pulls the live store via /debug/store before each upload.
+const SEED_PATH = path.join(DATA_DIR, "store-seed.json");
+if (!fs.existsSync(STORE_PATH) && fs.existsSync(SEED_PATH)) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.copyFileSync(SEED_PATH, STORE_PATH);
+    console.log("[store] fresh container — seeded from store-seed.json");
+  } catch (e) {
+    console.error("[store] seed copy failed:", e.message);
+  }
+}
 try {
   const raw = JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
   data = { ...DEFAULTS(), ...raw };
@@ -193,6 +205,11 @@ const store = {
   setPresence(p) {
     data.presence = p;
     save();
+  },
+
+  // ---- persistence debug (token-gated GET /debug/store) ----
+  debugDump() {
+    return data;
   },
 
   // ---- warnings / cases ----

@@ -51,33 +51,44 @@ class MusicManager {
   }
 
   async ensureVoice(channel, guild) {
-    let connection = getVoiceConnection(guild.id);
-    if (connection && connection.joinConfig.channelId === channel.id) return connection;
-    if (connection) {
-      connection.destroy();
-      connection = null;
-    }
-    connection = joinVoiceChannel({
-      channelId: channel.id,
-      guildId: guild.id,
-      adapterCreator: guild.voiceAdapterCreator,
-      selfDeaf: true, // CRITICAL for music bots: deafened = no inbound voice data
-      selfMute: false,
-    });
-    await entersState(connection, VoiceConnectionStatus.Ready, 20000);
-    connection.on(VoiceConnectionStatus.Disconnected, async () => {
-      try {
-        await entersState(connection, VoiceConnectionStatus.Signalling, 5000);
-      } catch {
-        // real disconnect — clean up like Python's disconnected handler
-        this.cleanup(guild.id, "voice connection lost");
+    let lastErr = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      let connection = getVoiceConnection(guild.id);
+      if (connection && connection.joinConfig.channelId === channel.id) return connection;
+      if (connection) {
+        try { connection.destroy(); } catch {}
       }
-    });
-    connection.on(VoiceConnectionStatus.Destroyed, () => this.cleanup(guild.id, "voice connection destroyed"));
-    const st = this.getState(guild.id, true);
-    st.connection = connection;
-    if (st.player) st.connection.subscribe(st.player);
-    return connection;
+      connection = joinVoiceChannel({
+        channelId: channel.id,
+        guildId: guild.id,
+        adapterCreator: guild.voiceAdapterCreator,
+        selfDeaf: true, // CRITICAL for music bots: deafened = no inbound voice data
+        selfMute: false,
+      });
+      connection.on(VoiceConnectionStatus.Disconnected, async () => {
+        try {
+          await entersState(connection, VoiceConnectionStatus.Signalling, 5000);
+        } catch {
+          // real disconnect — clean up like Python's disconnected handler
+          this.cleanup(guild.id, "voice connection lost");
+        }
+      });
+      try {
+        // cold containers often miss the first UDP handshake — retry instead of aborting
+        await entersState(connection, VoiceConnectionStatus.Ready, 25000);
+        connection.on(VoiceConnectionStatus.Destroyed, () => this.cleanup(guild.id, "voice connection destroyed"));
+        const st = this.getState(guild.id, true);
+        st.connection = connection;
+        if (st.player) st.connection.subscribe(st.player);
+        return connection;
+      } catch (e) {
+        lastErr = e;
+        log(`voice join attempt ${attempt}/3 for guild=${guild.id} failed: ${e.message}`);
+        try { connection.destroy(); } catch {}
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+    throw new Error(`voice connection failed after 3 attempts (${lastErr?.message || "unknown"}) — try again in a minute`);
   }
 
   ensurePlayer(guildId, channel) {

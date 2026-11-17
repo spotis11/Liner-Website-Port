@@ -246,6 +246,19 @@ const server = http.createServer((req, res) => {
     }));
     return;
   }
+  // persistence: deploy script pulls the live store (captures .prefix, tags,
+  // economy, cases, presence ...) to re-bake the seed for the next container
+  if ((req.url || "/").split("?")[0] === "/debug/store") {
+    const tok = new URL(req.url, "http://x").searchParams.get("token") || "";
+    if (!process.env.STORE_TOKEN || tok !== process.env.STORE_TOKEN) {
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+      return;
+    }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify(store.debugDump()));
+    return;
+  }
   res.writeHead(404, { "content-type": "application/json" });
   res.end(JSON.stringify({ error: "not found", hint: "GET /health" }));
 });
