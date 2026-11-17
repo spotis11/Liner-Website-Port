@@ -181,15 +181,15 @@ export interface AdminMe {
 }
 
 export type AdminAuthResult =
-  | { ok: true; via: "token" | "cookie"; username: string; me: AdminMe }
+  | { ok: true; via: "token" | "cookie" | "secret"; username: string; me: AdminMe }
   | { ok: false; status: 401 | 403 | 502; reason: string };
 
-function cookieAuth(): AdminAuthResult {
+function cookieAuth(via: "cookie" | "secret" = "cookie"): AdminAuthResult {
   return {
     ok: true,
-    via: "cookie",
+    via,
     username: ANNOUNCEMENT_ADMIN_USERNAME,
-    // cookie-auth carries no fresh upstream profile; use stable defaults
+    // cookie/secret auth carries no fresh upstream profile; use stable defaults
     me: {
       username: ANNOUNCEMENT_ADMIN_USERNAME,
       displayName: ANNOUNCEMENT_DEFAULT_SENDER_NAME,
@@ -238,11 +238,47 @@ async function browserVouches(req: NextRequest): Promise<boolean> {
  * unreachable — e.g. the WAF), fall back to a trusted browser cookie. Never
  * throws.
  */
+/**
+ * Constant-time equality for the gate secret proof (hash both sides so
+ * timingSafeEqual can be used regardless of length differences).
+ */
+function secretProofMatches(proof: string): boolean {
+  const expected = process.env.ADMIN_GATE_SECRET?.trim() ?? "";
+  if (!expected) return false;
+  const a = crypto.createHash("sha256").update(proof.trim()).digest();
+  const b = crypto.createHash("sha256").update(expected).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+/**
+ * Authenticate an admin request: verify the caller's Liner token against the
+ * upstream first; when that fails (dead session, missing token, upstream
+ * unreachable — e.g. the WAF), fall back to a trusted browser cookie. Never
+ * throws.
+ *
+ * `secretProof` is the possession-proof escape hatch for hosts where the
+ * upstream WAF blocks datacenter egress entirely (the running.sh deployment):
+ * there, token verification can never succeed AND the admin cookie can never
+ * bootstrap (issuance requires one upstream-verified success), so the owner
+ * would be locked out forever. Matching ADMIN_GATE_SECRET proves possession
+ * of the gate's own trust anchor (see SECURITY MODEL above) and — through the
+ * route's success path — mints the browser cookie, unlocking every admin
+ * endpoint for the next 30 days without further secrets.
+ */
 export async function authenticateAdmin(
   rawToken: string | null | undefined,
   req: NextRequest,
+  secretProof?: string | null,
 ): Promise<AdminAuthResult> {
   const token = typeof rawToken === "string" ? rawToken.trim() : "";
+  const proof = typeof secretProof === "string" ? secretProof.trim() : "";
+
+  if (proof) {
+    if (secretProofMatches(proof)) {
+      return cookieAuth("secret");
+    }
+    // wrong proof — still try the normal anchors below instead of failing hard
+  }
 
   if (token) {
     try {

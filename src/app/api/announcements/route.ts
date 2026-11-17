@@ -33,6 +33,10 @@ export async function POST(req: NextRequest) {
     typeof body?.message === "string" ? body.message.trim().slice(0, ANNOUNCEMENT_MESSAGE_MAX + 1) : "";
   const accessToken =
     typeof body?.accessToken === "string" ? body.accessToken.trim() : "";
+  // possession-proof of ADMIN_GATE_SECRET — the bootstrap path for hosts
+  // where upstream token verification is WAF-blocked (see adminGate.ts)
+  const adminGateSecret =
+    typeof body?.adminGateSecret === "string" ? body.adminGateSecret : null;
 
   if (!message) {
     return NextResponse.json({ error: "message is required" }, { status: 400 });
@@ -44,7 +48,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const auth = await authenticateAdmin(accessToken, req);
+  const auth = await authenticateAdmin(accessToken, req, adminGateSecret);
   if (!auth.ok) {
     // 403 = not the owner, 502 = upstream unreachable (NOT a dead token —
     // the client must show a neutral "try again" instead of "session expired"),

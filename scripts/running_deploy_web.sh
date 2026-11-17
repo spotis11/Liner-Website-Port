@@ -45,7 +45,11 @@ for line in open("/home/z/my-project/.env"):
     if m:
         env[m.group(1)] = m.group(2).strip().strip('"')
 keys = ["DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DB_MIRROR_EXPORT_KEY",
-        "LINER_SERVICE_EMAIL", "SMTP_USER", "SMTP_PASS"]
+        "LINER_SERVICE_EMAIL", "SMTP_USER", "SMTP_PASS",
+        # admin-gate bootstrap secret (announcements/moderation on this host
+        # cannot verify Liner tokens — the upstream WAF blocks datacenter
+        # egress; the owner pastes this value once in the announcement tab)
+        "ADMIN_GATE_SECRET"]
 out = {k: env[k] for k in keys if env.get(k)}
 out["DATABASE_URL"] = "file:/app/db/custom.db"
 print(json.dumps({"set": out}))

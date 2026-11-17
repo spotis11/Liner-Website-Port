@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation, getTranslationsForAllLocales } from "@/languages";
 import Button from "@/shared/ui/Button";
 import {
@@ -22,6 +22,7 @@ import {
 
 const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
 const MESSAGE_MAX = 500;
+const OWNER_GATE_KEY_STORAGE = "liner_owner_gate_key";
 
 const SEARCH_KEYS = [
   "settings.tabs.announcement",
@@ -45,6 +46,27 @@ export function AnnouncementTab({ searchQuery }: { searchQuery?: string }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // possession-proof of ADMIN_GATE_SECRET (owner-only). Some hosts (the
+  // running.sh deployment) are WAF-blocked from the upstream, so the Liner
+  // token can never be verified server-side and the admin cookie can never
+  // bootstrap — this key unlocks the very first broadcast there, and the
+  // server then mints the 30-day admin cookie so it is only needed once.
+  const [ownerKey, setOwnerKey] = useState("");
+  const [showOwnerKey, setShowOwnerKey] = useState(false);
+
+  useEffect(() => {
+    try {
+      setOwnerKey(localStorage.getItem(OWNER_GATE_KEY_STORAGE) ?? "");
+    } catch {}
+  }, []);
+
+  const saveOwnerKey = (value: string) => {
+    setOwnerKey(value);
+    try {
+      if (value.trim()) localStorage.setItem(OWNER_GATE_KEY_STORAGE, value.trim());
+      else localStorage.removeItem(OWNER_GATE_KEY_STORAGE);
+    } catch {}
+  };
 
   const isAdmin = isWebsiteAdmin(user?.username);
   const displayName = userDisplayName(user) ?? "JayJoice";
@@ -74,7 +96,7 @@ export function AnnouncementTab({ searchQuery }: { searchQuery?: string }) {
       // null is fine — the website admin cookie can vouch for the browser
       // when the Liner session is dead (the server decides, not the client)
       const accessToken = await getValidAccessToken().catch(() => null);
-      await sendAnnouncement(trimmed, accessToken);
+      await sendAnnouncement(trimmed, accessToken, 15_000, ownerKey);
       setMessage("");
       setConfirmOpen(true);
     } catch (err) {
@@ -85,6 +107,8 @@ export function AnnouncementTab({ searchQuery }: { searchQuery?: string }) {
           toast(t("settings.announcement.error_forbidden"), "error");
         } else if (err.code === "rate_limited") {
           toast(t("settings.announcement.error_rate_limited"), "error");
+        } else if (err.code === "unreachable") {
+          toast(t("settings.announcement.error_unreachable"), "error");
         } else {
           toast(t("settings.announcement.error_generic"), "error");
         }
@@ -162,6 +186,43 @@ export function AnnouncementTab({ searchQuery }: { searchQuery?: string }) {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* owner gate key — unlocks broadcasting on hosts where the upstream
+              is unreachable (the key proves possession of ADMIN_GATE_SECRET;
+              the first success mints the website admin cookie, so it is only
+              needed once per browser) */}
+          <div className="flex flex-col gap-[4px]">
+            <label
+              htmlFor="announcement-owner-key"
+              className="text-[14px] font-[500] leading-snug text-text-primary"
+            >
+              {t("settings.announcement.owner_key_label")}
+            </label>
+            <div className="flex items-center gap-[8px] rounded-md border border-border-primary bg-bg-primary pr-[10px] transition-[border-color] duration-150 focus-within:border-border-alpha-33">
+              <input
+                id="announcement-owner-key"
+                type={showOwnerKey ? "text" : "password"}
+                value={ownerKey}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={t("settings.announcement.owner_key_placeholder")}
+                onChange={(e) => saveOwnerKey(e.target.value)}
+                className="min-w-0 flex-1 border-0 bg-transparent px-[12px] py-[9px] text-[13px] text-text-primary outline-none placeholder:text-text-tertiary"
+                style={font}
+              />
+              <button
+                type="button"
+                onClick={() => setShowOwnerKey((v) => !v)}
+                className="shrink-0 cursor-pointer border-0 bg-transparent text-[11px] text-text-tertiary outline-none hover:text-text-secondary"
+                style={font}
+              >
+                {showOwnerKey ? t("settings.announcement.owner_key_hide") : t("settings.announcement.owner_key_show")}
+              </button>
+            </div>
+            <span className="text-[11px] leading-snug text-text-tertiary" style={font}>
+              {t("settings.announcement.owner_key_hint")}
+            </span>
           </div>
 
           <div className="flex items-center justify-between gap-[10px]">

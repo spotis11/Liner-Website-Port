@@ -38,7 +38,12 @@ export function isWebsiteAdmin(username: string | null | undefined): boolean {
 
 export class AnnouncementError extends Error {
   constructor(
-    public code: "forbidden" | "unauthorized" | "rate_limited" | "generic",
+    public code:
+      | "forbidden"
+      | "unauthorized"
+      | "rate_limited"
+      | "unreachable"
+      | "generic",
     public status: number,
   ) {
     super(`announcement error: ${code} (${status})`);
@@ -91,16 +96,17 @@ export async function sendAnnouncement(
   message: string,
   accessToken: string | null,
   timeoutMs = 15_000,
+  adminGateSecret?: string | null,
 ): Promise<Announcement> {
   try {
-    return await sendAnnouncementOnce(message, accessToken, timeoutMs);
+    return await sendAnnouncementOnce(message, accessToken, timeoutMs, adminGateSecret);
   } catch (err) {
     if (err instanceof AnnouncementError && err.code === "unauthorized") {
       const refreshed = await refreshAuthSession().catch(() => null);
       // retry with whatever we have — the website admin cookie rides along
       // with the request and can vouch for the browser on its own
       const nextToken = refreshed?.accessToken ?? accessToken;
-      return sendAnnouncementOnce(message, nextToken, timeoutMs);
+      return sendAnnouncementOnce(message, nextToken, timeoutMs, adminGateSecret);
     }
     throw err;
   }
@@ -110,17 +116,25 @@ async function sendAnnouncementOnce(
   message: string,
   accessToken: string | null,
   timeoutMs: number,
+  adminGateSecret?: string | null,
 ): Promise<Announcement> {
   const res = await fetch("/api/announcements", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message, accessToken: accessToken || undefined }),
+    body: JSON.stringify({
+      message,
+      accessToken: accessToken || undefined,
+      // possession-proof of ADMIN_GATE_SECRET — bootstraps the website admin
+      // cookie on hosts where upstream verification is WAF-blocked
+      adminGateSecret: adminGateSecret?.trim() || undefined,
+    }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) {
     if (res.status === 403) throw new AnnouncementError("forbidden", 403);
     if (res.status === 401) throw new AnnouncementError("unauthorized", 401);
     if (res.status === 429) throw new AnnouncementError("rate_limited", 429);
+    if (res.status === 502) throw new AnnouncementError("unreachable", 502);
     throw new AnnouncementError("generic", res.status);
   }
   const data = (await res.json()) as { announcement?: Announcement };
