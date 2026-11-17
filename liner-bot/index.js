@@ -192,11 +192,29 @@ const g = (args) =>
 
 async function repoLabel() {
   const url = await g(["remote", "get-url", REPO_REMOTE]);
-  if (!url.ok) return path.basename(REPO_DIR);
-  const m = String(url.out).trim().match(/github\.com[:/](.+?)(?:\.git)?$/i);
-  return m ? m[1] : path.basename(REPO_DIR);
+  if (url.ok) {
+    const m = String(url.out).trim().match(/github\.com[:/](.+?)(?:\.git)?$/i);
+    if (m) return m[1];
+    // non-github remote (mirror): still take owner/repo from the path
+    const p = String(url.out).trim().replace(/\.git$/, "").split(/[/:]/).filter(Boolean);
+    if (p.length >= 2) return p.slice(-2).join("/");
+  }
+  return REPO_SLUG; // env override / known repo — never a bare dirname like "repo"
 }
-const LABEL = await repoLabel();
+// LABEL is resolved lazily, NOT at boot: the hosted container clones the repo
+// in the background, so a boot-time snapshot races the clone and used to
+// freeze the label to the bare dirname ("repo") — which produced the dead
+// github.com/repo/compare/... buttons.
+const REPO_SLUG = (process.env.WATCH_REPO_SLUG || "spotis11/Liner-Website-Port").replace(/\.git$/, "");
+let _label = process.env.WATCH_REPO_SLUG || null;
+async function label() {
+  if (!_label) {
+    _label = await repoLabel();
+    console.log(`[liner-bot] repo label resolved: ${_label}`);
+    STATUS.watching = `${_label}@${REPO_BRANCH}`;
+  }
+  return _label;
+}
 
 async function remoteSha() {
   const r = await g(["rev-parse", `${REPO_REMOTE}/${REPO_BRANCH}`]);
@@ -313,7 +331,10 @@ async function pollOnce(client) {
     return;
   }
   const fetched = await g(["fetch", REPO_REMOTE, REPO_BRANCH, "--quiet"]);
-  if (!fetched.ok) return; // offline blip — next tick retries
+  if (!fetched.ok) {
+    console.error(`[liner-bot] poll: git fetch failed: ${fetched.error.split("\n")[0]}`);
+    return; // offline blip — next tick retries
+  }
   const cur = await remoteSha();
   if (!cur || cur === state.lastAnnouncedSha) return;
   const commits = await commitsBetween(state.lastAnnouncedSha, cur);
@@ -322,7 +343,8 @@ async function pollOnce(client) {
     writeJsonAtomic(STATE_PATH, state);
     return;
   }
-  const ok = await announce(client, commitEmbed(LABEL, commits), `${commits.length} commit(s) ${commits[0].short}..${commits[commits.length - 1].short}`);
+  const ok = await announce(client, commitEmbed(await label(), commits), `${commits.length} commit(s) ${commits[0].short}..${commits[commits.length - 1].short}`);
+  console.log(`[liner-bot] poll: ${commits.length} new commit(s) ${commits[0].short}..${commits[commits.length - 1].short} — ${ok ? "announced" : "NO CHANNEL, dropped"}`);
   if (ok) {
     state.lastAnnouncedSha = cur;
     writeJsonAtomic(STATE_PATH, state);
@@ -330,7 +352,8 @@ async function pollOnce(client) {
 }
 function startWatcher(client) {
   watching = true;
-  STATUS.watching = `${LABEL}@${REPO_BRANCH}`;
+  STATUS.watching = `${REPO_SLUG}@${REPO_BRANCH}`;
+  console.log(`[liner-bot] commit watcher armed: ${REPO_SLUG}@${REPO_BRANCH} every ${POLL_MS / 1000}s (repo dir: ${REPO_DIR}, clone url: ${process.env.CLONE_URL || "none — using checkout"})`);
   setTimeout(() => pollOnce(client).catch((e) => console.error("[liner-bot] poll error:", e.message)), 5_000);
   setInterval(() => pollOnce(client).catch((e) => console.error("[liner-bot] poll error:", e.message)), POLL_MS);
 }
@@ -527,7 +550,7 @@ client.on(Events.MessageCreate, async (msg) => {
         const gh = email.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/);
         return { full, short, subject, author: gh ? gh[1] : name || email, date };
       });
-      await msg.channel.send(commitEmbed(LABEL, commits));
+      await msg.channel.send(commitEmbed(await label(), commits));
     } else if (lower === "commitchannel") {
       if (!has(msg, PermissionFlagsBits.ManageChannels)) return;
       const ch = msg.mentions.channels.first() || msg.channel;
@@ -538,7 +561,7 @@ client.on(Events.MessageCreate, async (msg) => {
       await msg.reply(`Commit announcements will now post in <#${ch.id}>.`);
     } else if (lower === "status") {
       await msg.reply(
-        `Liner System — online. Watching ${LABEL}@${REPO_BRANCH} every ${Math.round(POLL_MS / 1000)}s.` +
+        `Liner System — online. Watching ${await label()}@${REPO_BRANCH} every ${Math.round(POLL_MS / 1000)}s.` +
           (announceChannelId ? ` Announcing in <#${announceChannelId}>.` : " No announce channel yet.")
       );
     } else if (lower === "help") {
