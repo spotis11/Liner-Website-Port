@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { readWebsiteSessionCookie, WEBSITE_SESSION_COOKIE_NAME } from "@/lib/websiteCookie";
 import {
   ANNOUNCEMENT_ADMIN_USERNAME,
   ANNOUNCEMENT_DEFAULT_SENDER_NAME,
@@ -208,9 +209,34 @@ function verificationFailure(verification: AdminVerification): AdminAuthResult {
 }
 
 /**
+ * Does a trusted browser cookie vouch for this request?
+ *
+ *  - `liner_web_admin`: issued after an upstream-verified owner proof (Task 28).
+ *  - `liner_web_session`: issued by /api/auth/* after a password-authenticated
+ *    login of a website account. Account usernames are unique in the db and
+ *    the cookie is HMAC-signed with the SystemKey secret (only this server
+ *    can mint it), so a session cookie whose username is the owner username
+ *    vouches exactly for the owner's browser.
+ *
+ * The second anchor is what keeps the owner unlocked on hosts where the
+ * upstream WAF blocks datacenter egress entirely (the running.sh deployment):
+ * upstream token verification can never succeed from there, and without this
+ * fallback every moderation/announcement/userfinder call would 401 forever.
+ */
+async function browserVouches(req: NextRequest): Promise<boolean> {
+  const admin = await verifyAdminCookie(req.cookies.get(ADMIN_COOKIE_NAME)?.value);
+  if (admin && admin.u === ANNOUNCEMENT_ADMIN_USERNAME) return true;
+  const session = await readWebsiteSessionCookie(
+    req.cookies.get(WEBSITE_SESSION_COOKIE_NAME)?.value,
+  );
+  return !!session && session.username === ANNOUNCEMENT_ADMIN_USERNAME;
+}
+
+/**
  * Authenticate an admin request: verify the caller's Liner token against the
  * upstream first; when that fails (dead session, missing token, upstream
- * hiccup), fall back to the website admin cookie. Never throws.
+ * unreachable — e.g. the WAF), fall back to a trusted browser cookie. Never
+ * throws.
  */
 export async function authenticateAdmin(
   rawToken: string | null | undefined,
@@ -225,24 +251,18 @@ export async function authenticateAdmin(
       if (verification.ok) {
         return { ok: true, via: "token", username: verification.me.username, me: verification.me };
       }
-      // dead/not-owner token — the cookie still gets its chance below
-      const cookie = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-      const payload = await verifyAdminCookie(cookie);
-      if (payload && payload.u === ANNOUNCEMENT_ADMIN_USERNAME) return cookieAuth();
+      // dead/not-owner token — a trusted browser cookie still gets its chance
+      if (await browserVouches(req)) return cookieAuth();
       return verificationFailure(verification);
     } catch (err) {
       // verification itself blew up (network layer) — treat as unreachable,
       // then fall back to the cookie
       console.error("[adminGate] token verification threw:", err);
-      const cookie = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-      const payload = await verifyAdminCookie(cookie);
-      if (payload && payload.u === ANNOUNCEMENT_ADMIN_USERNAME) return cookieAuth();
+      if (await browserVouches(req)) return cookieAuth();
       return { ok: false, status: 502, reason: "upstream_unreachable" };
     }
   }
 
-  const cookie = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  const payload = await verifyAdminCookie(cookie);
-  if (payload && payload.u === ANNOUNCEMENT_ADMIN_USERNAME) return cookieAuth();
+  if (await browserVouches(req)) return cookieAuth();
   return { ok: false, status: 401, reason: "unauthorized" };
 }

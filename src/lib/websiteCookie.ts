@@ -10,7 +10,8 @@ import type { NextResponse } from "next/server";
  * SystemKey table, so it survives republishes and recycling.
  */
 
-const COOKIE_NAME = "liner_web_session";
+export const WEBSITE_SESSION_COOKIE_NAME = "liner_web_session";
+const COOKIE_NAME = WEBSITE_SESSION_COOKIE_NAME;
 const COOKIE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 interface CookiePayload {

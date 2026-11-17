@@ -151,6 +151,13 @@ export async function fetchLinerMeVerified(
     res = await fetchLinerMe(accessToken, timeoutMs);
   }
   if (!res || res.status >= 500) return { status: "unreachable" };
+  // A 4xx answered with HTML is a WAF / challenge page, not the upstream API
+  // judging the token — that is the network path being blocked (datacenter
+  // egress). Calling it "invalid" would tell the owner "session expired"
+  // when the truth is "the upstream is not reachable from this host".
+  if (!(res.headers.get("content-type") ?? "").includes("json")) {
+    return { status: "unreachable" };
+  }
   if (!res.ok) return { status: "invalid" };
   try {
     const me = (await res.json()) as LinerMe;

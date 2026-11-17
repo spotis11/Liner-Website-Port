@@ -43,6 +43,12 @@ export const FETCH_HOSTS = [
   "api.openai.com",
   "api.anthropic.com",
   "api.mymemory.translated.net",
+  // YTM default playlist artwork (liked-songs / sounds-from-shorts images
+  // under www.gstatic.com/youtube/media/ytm/images/pbg/) — www.gstatic.com
+  // serves them with NO Access-Control-Allow-Origin header, so the SPA's
+  // canvas consumers load them through this same-origin proxy instead
+  // (see sameOriginCoverSrc in liner-app coverArt.ts).
+  "gstatic.com",
 ];
 
 // binary media upstreams (Range-capable audio streams)

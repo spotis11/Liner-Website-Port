@@ -276,8 +276,35 @@ export function preloadCoverArt(url: string | undefined): Promise<void> {
 
   entry = { status: "loading", promise };
   storeEntry(key, entry);
-  img.src = key;
+  img.src = sameOriginCoverSrc(key);
   return promise;
+}
+
+/**
+ * YTM default playlist artwork lives on www.gstatic.com, which serves it
+ * WITHOUT an Access-Control-Allow-Origin header — the CORS-mode first load
+ * fails (console CORS errors) and the cover degrades to an opaque image:
+ * still rendered, but invisible to the blur backdrop and every canvas
+ * consumer. Rewrite those covers to the same-origin /api/fetch proxy
+ * (allowed host: gstatic.com in liner-proxy.ts) so the bytes arrive
+ * same-origin and stay canvas-readable. The registry key stays the original
+ * URL; the proxy URL becomes the entry's effectiveUrl via settle().
+ */
+function sameOriginCoverSrc(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname;
+    if (
+      parsed.protocol === "https:" &&
+      (host === "www.gstatic.com" || host.endsWith(".gstatic.com")) &&
+      parsed.pathname.startsWith("/youtube/media/ytm/images/pbg/")
+    ) {
+      return `/api/fetch?u=${encodeURIComponent(parsed.toString())}`;
+    }
+  } catch {
+    // not a parseable URL — load it as-is
+  }
+  return url;
 }
 
 function useCoverSubscription(url: string | undefined, preload: boolean) {
