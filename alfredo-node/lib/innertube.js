@@ -11,6 +11,28 @@
 "use strict";
 
 const { execFile } = require("child_process");
+const fs = require("fs");
+
+// YouTube cookies (Netscape format) arrive base64-encoded in the YT_COOKIES
+// env var so they never live in the source tree, git, or logs. Decoded once
+// at boot into a private 0600 file, passed to every yt-dlp call below.
+const COOKIE_PATH = "/tmp/.alfredo/yt-cookies.txt";
+let cookieReady = false;
+(function initCookies() {
+  try {
+    const b64 = process.env.YT_COOKIES;
+    if (!b64) return;
+    fs.mkdirSync("/tmp/.alfredo", { recursive: true, mode: 0o700 });
+    fs.writeFileSync(COOKIE_PATH, Buffer.from(b64, "base64"), { mode: 0o600 });
+    cookieReady = true;
+    log(`yt cookies loaded (${b64.length} b64 chars)`);
+  } catch (e) {
+    log("yt cookies bootstrap failed:", e.message);
+  }
+})();
+function ytCookieArgs() {
+  return cookieReady ? ["--cookies", COOKIE_PATH] : [];
+}
 
 const INNERTUBE_TIMEOUT_MS = 12000;
 const PREFERRED_ITAGS = [251, 140, 250, 249, 139];
@@ -236,6 +258,8 @@ async function innertubeResolve(videoId) {
 }
 
 // yt-dlp helper: run with args, parse -J JSON. Never throws.
+// (Callers choose whether to include ytCookieArgs() — cookies are opt-in
+// per attempt, see ytDlpResolve.)
 function ytDlpJson(args) {
   return new Promise((resolve) => {
     execFile("yt-dlp", args, { timeout: 60000, maxBuffer: 64 * 1024 * 1024 }, (err, stdout) => {
@@ -275,7 +299,17 @@ function streamFromInfo(info) {
 }
 
 function ytDlpResolve(watchUrl) {
-  return ytDlpJson(["--no-playlist", "--skip-download", "--no-warnings", "--socket-timeout", "12", "--retries", "2", "-f", "bestaudio/best", "-J", watchUrl]).then(streamFromInfo);
+  const base = ["--no-playlist", "--skip-download", "--no-warnings", "--socket-timeout", "12", "--retries", "2", "-f", "bestaudio/best", "-J", watchUrl];
+  // First attempt: anonymous (datacenter-safe, PO-token-free). Only if that
+  // fails, retry WITH the owner's cookies — logged-in extraction returns zero
+  // formats on some datacenter IPs (PO-token enforcement), so cookies must
+  // never replace the anonymous path, only chase it.
+  return ytDlpJson(base).then((info) => {
+    const stream = streamFromInfo(info);
+    if (stream || !cookieReady) return stream;
+    log("anonymous yt-dlp failed — retrying with owner cookies");
+    return ytDlpJson([...ytCookieArgs(), ...base]).then(streamFromInfo);
+  });
 }
 
 // SoundCloud fallback (alfredo.py Task 23 parity): scsearch is NOT
@@ -328,4 +362,4 @@ async function resolveStream(watchUrl, searchHint) {
   return null;
 }
 
-module.exports = { resolveStream, innertubeResolve, ytDlpResolve, soundcloudResolve, extractVideoId };
+module.exports = { resolveStream, innertubeResolve, ytDlpResolve, soundcloudResolve, extractVideoId, ytCookieArgs };
