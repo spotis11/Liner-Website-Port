@@ -66,6 +66,8 @@ function makeTextCtx(msg) {
   return {
     isSlash: false,
     client,
+    music,
+    msg,
     guild: msg.guild,
     channel: msg.channel,
     member: msg.member,
@@ -83,6 +85,7 @@ function makeSlashCtx(interaction, args) {
   return {
     isSlash: true,
     client,
+    music,
     guild: interaction.guild,
     channel: interaction.channel,
     member: interaction.member,
