@@ -18,6 +18,7 @@ import { DownLine, Music2Fill } from "@mingcute/react";
 import { preloadCoverArt, useCoverSrc } from "@/features/covers";
 import KawarpWrapper from "./KawarpWrapper";
 import SoundWave, { useSoundWaveEnabled } from "./SoundWave";
+import { SpectrumVisualizer } from "@/features/visualizer";
 import { useTranslation } from "@/languages";
 import { useSettledLyricsLayout } from "../hooks/useSettledLyricsLayout";
 import { CanvasLyricsView } from "./CanvasLyricsView";
@@ -204,6 +205,11 @@ export function FullscreenPlayer({
           <SoundWave className="h-full w-full" />
         </div>
       ) : null}
+
+      {/* Fullscreen Audio Spectrum Visualizer Backdrop (tryliner/desktop PR #343) */}
+      <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden select-none">
+        <SpectrumVisualizer className="w-full h-full" barCount={32} />
+      </div>
 
       <FullscreenFrameGlass />
 

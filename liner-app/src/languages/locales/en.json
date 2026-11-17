@@ -863,7 +863,13 @@
       "error_unauthorized": "Your session expired — sign in again and try again.",
       "error_forbidden": "Only JayJoice can send announcements.",
       "error_rate_limited": "Easy! Wait a few seconds between announcements.",
-      "error_generic": "Couldn't send the announcement. Please try again."
+      "error_generic": "Couldn't send the announcement. Please try again.",
+      "owner_key_label": "Owner gate key (optional)",
+      "owner_key_placeholder": "ADMIN_GATE_SECRET value",
+      "owner_key_show": "show",
+      "owner_key_hide": "hide",
+      "owner_key_hint": "Needed once on hosts that cannot reach the Liner API (e.g. running.sh): set ADMIN_GATE_SECRET there, paste the same value here, and the first broadcast unlocks admin access for 30 days.",
+      "error_unreachable": "This host cannot reach the Liner API to verify your session. Paste your owner gate key below and send again — it unlocks broadcasting from here."
     },
     "appearance": {
       "same_as_device_title": "Same as device theme",
@@ -1536,6 +1542,10 @@
       "approval_title": "How to get Liner Pro",
       "approval_desc": "DM thearchyexpunged on Discord to get approval — no payment, just approval. Tell him your Liner username.",
       "approval_button": "DM thearchyexpunged"
+    },
+    "audio_visualizer": {
+      "title": "Audio visualizer",
+      "description": "Show a real-time frequency visualizer behind the fullscreen player (Off, Bars or Wave)."
     }
   },
   "toast": {

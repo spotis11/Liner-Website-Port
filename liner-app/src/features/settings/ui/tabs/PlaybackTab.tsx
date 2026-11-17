@@ -3,6 +3,7 @@ import { useTranslation } from "@/languages";
 import { usePlayerStore } from "@/features/player";
 import { ToggleSwitch } from "@/shared/ui";
 import { SettingRow, SettingSection, SegmentedControl } from "../controls";
+import { useVisualizerStore, type VisualizerMode } from "@/features/visualizer";
 import { PlaybackDiagnosticsPanel } from "./PlaybackDiagnosticsPanel";
 
 export function PlaybackTab({ searchQuery }: { searchQuery?: string }) {
@@ -45,6 +46,8 @@ export function PlaybackTab({ searchQuery }: { searchQuery?: string }) {
     (state) => state.setMiniPlayerEnabled,
   );
   const soundWaveEnabled = usePlayerStore((state) => state.soundWaveEnabled);
+  const visualizerMode = useVisualizerStore((state) => state.mode);
+  const setVisualizerMode = useVisualizerStore((state) => state.setMode);
   const setSoundWaveEnabled = usePlayerStore(
     (state) => state.setSoundWaveEnabled,
   );
@@ -107,6 +110,26 @@ export function PlaybackTab({ searchQuery }: { searchQuery?: string }) {
           <ToggleSwitch
             checked={soundWaveEnabled}
             onChange={setSoundWaveEnabled}
+          />
+        }
+      />
+
+      <SettingRow
+        title={t("settings.audio_visualizer.title")}
+        description={t("settings.audio_visualizer.description")}
+        titleKey="settings.audio_visualizer.title"
+        descKey="settings.audio_visualizer.description"
+        searchQuery={searchQuery}
+        control={
+          <SegmentedControl<VisualizerMode>
+            value={visualizerMode}
+            onChange={setVisualizerMode}
+            options={[
+              { value: "off", label: "Off" },
+              { value: "bars", label: "Bars" },
+              { value: "wave", label: "Wave" },
+            ]}
+            ariaLabel="Audio Visualizer"
           />
         }
       />
