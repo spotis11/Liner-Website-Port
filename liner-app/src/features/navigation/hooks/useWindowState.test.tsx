@@ -10,6 +10,7 @@ describe("useWindowState", () => {
   let latestState: WindowStateHookResult | null = null;
   let mockIsFullScreen: any;
   let mockIsMaximized: any;
+  let mockToggleFullScreen: any;
   let stateListener: ((state: WindowState) => void) | null = null;
   let unsubscribeSpy: any;
 
@@ -37,13 +38,16 @@ describe("useWindowState", () => {
     });
     mockIsFullScreen = vi.fn().mockResolvedValue(false);
     mockIsMaximized = vi.fn().mockResolvedValue(false);
-    document.body.className = "h-full w-full bg-transparent overflow-hidden p-1";
+    mockToggleFullScreen = vi.fn().mockResolvedValue(undefined);
+    document.body.className =
+      "h-full w-full bg-transparent overflow-hidden p-1";
     document.body.removeAttribute("data-edge-to-edge");
 
     (window as any).linerElectron = {
+      platform: "win32",
       isFullScreen: mockIsFullScreen,
       isMaximized: mockIsMaximized,
-      toggleFullScreen: vi.fn().mockResolvedValue(undefined),
+      toggleFullScreen: mockToggleFullScreen,
       onWindowStateChange: (cb: (state: WindowState) => void) => {
         stateListener = cb;
         return unsubscribeSpy;
@@ -183,7 +187,10 @@ describe("useWindowState", () => {
     root = null;
 
     expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
-    expect(removeEventListenerSpy).toHaveBeenCalledWith("resize", expect.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith(
+      "resize",
+      expect.any(Function),
+    );
   });
 
   it("works safely when window.linerElectron is undefined (browser mode)", async () => {
@@ -291,10 +298,55 @@ describe("useWindowState", () => {
   it("prevents default on F11 keydown to disable uncoordinated fullscreen", async () => {
     await mount();
 
-    const event = new KeyboardEvent("keydown", { key: "F11", cancelable: true });
+    const event = new KeyboardEvent("keydown", {
+      key: "F11",
+      cancelable: true,
+    });
     window.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("toggles native fullscreen on F11 when running on Linux", async () => {
+    (window as any).linerElectron.platform = "linux";
+    await mount();
+
+    const event = new KeyboardEvent("keydown", {
+      key: "F11",
+      cancelable: true,
+    });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mockToggleFullScreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps F11 ignored outside Linux while still swallowing the platform default", async () => {
+    await mount();
+
+    const event = new KeyboardEvent("keydown", {
+      key: "F11",
+      cancelable: true,
+    });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mockToggleFullScreen).not.toHaveBeenCalled();
+  });
+
+  it("does not toggle again while F11 auto-repeats", async () => {
+    (window as any).linerElectron.platform = "linux";
+    await mount();
+
+    const event = new KeyboardEvent("keydown", {
+      key: "F11",
+      repeat: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mockToggleFullScreen).not.toHaveBeenCalled();
   });
 
   it("updates document.body classes and data-edge-to-edge attribute", async () => {

@@ -1,5 +1,11 @@
-import { getClientVisitorData } from "../session/visitorSession";
-import { getYoutubeAuthorization } from "../auth/youtubeAuthSession";
+import {
+  getClientVisitorData,
+  resetClientVisitorData,
+} from "../session/visitorSession";
+import {
+  getYoutubeAuthorization,
+  getYoutubePageId,
+} from "../auth/youtubeAuthSession";
 import { USER_AGENT_HEADER_OVERRIDE } from "./userAgentOverride";
 
 export type InnertubeEndpoint =
@@ -24,7 +30,17 @@ export const WEB_REMIX_PROFILE: InnertubeProfile = {
   origin: "https://music.youtube.com",
 };
 
+export const WEB_PROFILE: InnertubeProfile = {
+  clientName: "WEB",
+  clientVersion: "2.20260910.00.00",
+  clientIdHeader: "1",
+  origin: "https://www.youtube.com",
+};
+
 export { USER_AGENT_HEADER_OVERRIDE };
+
+const SESSION_REJECTED = new Set([401, 403]);
+const INNERTUBE_TIMEOUT_MS = 12_000;
 
 export class InnertubeError extends Error {
   constructor(
@@ -58,6 +74,16 @@ function buildClientContext(
   };
 }
 
+export function buildUserContext(
+  authorization: string | null,
+): Record<string, unknown> {
+  const pageId = authorization ? getYoutubePageId() : null;
+  return {
+    lockedSafetyMode: false,
+    ...(pageId ? { onBehalfOfUser: pageId } : {}),
+  };
+}
+
 function buildHeaders(
   profile: InnertubeProfile,
   visitorData: string,
@@ -83,30 +109,42 @@ export async function postInnertube(
   options: InnertubeRequestOptions = {},
 ): Promise<unknown> {
   const profile = options.profile ?? WEB_REMIX_PROFILE;
-  const visitorData = await getClientVisitorData().catch(() => "");
   const authorization = profile.acceptsOAuth
     ? await getYoutubeAuthorization(options.signal).catch(() => null)
     : null;
   const url = `${profile.origin}/youtubei/v1/${endpoint}?prettyPrint=false`;
-  const payload = {
-    ...body,
-    context: {
-      client: buildClientContext(profile, visitorData),
-      user: { lockedSafetyMode: false },
-    },
+
+  const send = async (): Promise<Response> => {
+    const visitorData = await getClientVisitorData().catch(() => "");
+    const payload = {
+      ...body,
+      context: {
+        client: buildClientContext(profile, visitorData),
+        user: buildUserContext(authorization),
+      },
+    };
+    try {
+      return await fetch(url, {
+        method: "POST",
+        headers: buildHeaders(profile, visitorData, authorization),
+        body: JSON.stringify(payload),
+        signal: options.signal
+          ? AbortSignal.any([
+              options.signal,
+              AbortSignal.timeout(INNERTUBE_TIMEOUT_MS),
+            ])
+          : AbortSignal.timeout(INNERTUBE_TIMEOUT_MS),
+      });
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      throw new InnertubeError("YouTube Music is unreachable.", 0);
+    }
   };
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: buildHeaders(profile, visitorData, authorization),
-      body: JSON.stringify(payload),
-      signal: options.signal,
-    });
-  } catch (error) {
-    if (options.signal?.aborted) throw error;
-    throw new InnertubeError("YouTube Music is unreachable.", 0);
+  let response = await send();
+  if (SESSION_REJECTED.has(response.status)) {
+    resetClientVisitorData();
+    response = await send();
   }
 
   if (!response.ok) {

@@ -1,10 +1,14 @@
-import { prepareCoverFallback } from "@/features/covers";
+import { loadCoverElement, prepareCoverFallback } from "@/features/covers";
 import {
   isWindowVisible,
   onWindowVisibilityChange,
 } from "@/shared/utils/windowVisibility";
 
 const BLUR_SIZE = 160;
+const WARP_SCALE = 0.25;
+const MAX_FPS = 30;
+const FRAME_MS = 1000 / MAX_FPS;
+const FRAME_SLACK_MS = 2;
 
 const VERTEX_SHADER = `
   attribute vec2 a_position;
@@ -310,18 +314,27 @@ export class KawarpEngine {
     this.nextAlbumFBO = this.createFramebuffer(BLUR_SIZE, BLUR_SIZE);
     this.transitionFBO = this.createFramebuffer(BLUR_SIZE, BLUR_SIZE);
 
-    const initW = Math.max(1, canvas.width || 640);
-    const initH = Math.max(1, canvas.height || 360);
+    const [initW, initH] = this.warpSize();
     this.warpFBO = this.createFramebuffer(initW, initH);
   }
 
-  public resize() {
-    const width = Math.max(1, this.canvas.width);
-    const height = Math.max(1, this.canvas.height);
+  private warpSize(): [number, number] {
+    return [
+      Math.max(1, Math.round(this.canvas.width * WARP_SCALE)),
+      Math.max(1, Math.round(this.canvas.height * WARP_SCALE)),
+    ];
+  }
+
+  private syncWarpFBO() {
+    const [width, height] = this.warpSize();
     if (this.warpFBO.width !== width || this.warpFBO.height !== height) {
       this.deleteFramebuffer(this.warpFBO);
       this.warpFBO = this.createFramebuffer(width, height);
     }
+  }
+
+  public resize() {
+    this.syncWarpFBO();
     if (this.hasImage) {
       this.render(this.accumulatedTime, performance.now());
     }
@@ -345,51 +358,8 @@ export class KawarpEngine {
         : null;
 
     if (!bitmap) {
-      try {
-        const res = await fetch(src, { mode: "cors" });
-        if (res.ok) {
-          const blob = await res.blob();
-          bitmap = await createImageBitmap(blob);
-        }
-      } catch {}
-    }
-
-    if (!bitmap) {
-      try {
-        bitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-          img.src = src;
-        });
-      } catch (err) {
-        try {
-          const fallback = await prepareCoverFallback(src);
-          if (fallback && fallback !== src) {
-            const res = await fetch(fallback, { mode: "cors" });
-            if (res.ok) {
-              const blob = await res.blob();
-              bitmap = await createImageBitmap(blob);
-            }
-            if (!bitmap) {
-              bitmap = await new Promise<HTMLImageElement>(
-                (resolve, reject) => {
-                  const img = new Image();
-                  img.crossOrigin = "anonymous";
-                  img.onload = () => resolve(img);
-                  img.onerror = () =>
-                    reject(new Error(`Failed to load image: ${fallback}`));
-                  img.src = fallback;
-                },
-              );
-            }
-          }
-        } catch {}
-        if (!bitmap) {
-          throw err;
-        }
-      }
+      bitmap = (await loadCoverElement(src)) ?? null;
+      if (!bitmap) throw new Error(`Failed to load image: ${src}`);
     }
 
     // drop out-of-order stale loads
@@ -553,11 +523,12 @@ export class KawarpEngine {
       this.animationId = null;
       return;
     }
+    this.animationId = requestAnimationFrame(this.renderLoop);
+    if (timestamp - this.lastFrameTime < FRAME_MS - FRAME_SLACK_MS) return;
     const dt = (timestamp - this.lastFrameTime) / 1000;
     this.lastFrameTime = timestamp;
     this.accumulatedTime += dt * this.animationSpeed;
     this.render(this.accumulatedTime, timestamp);
-    this.animationId = requestAnimationFrame(this.renderLoop);
   };
 
   private render(time: number, timestamp: number = performance.now()) {
@@ -566,11 +537,7 @@ export class KawarpEngine {
     const gl = this.gl;
     const width = Math.max(1, this.canvas.width);
     const height = Math.max(1, this.canvas.height);
-
-    if (this.warpFBO.width !== width || this.warpFBO.height !== height) {
-      this.deleteFramebuffer(this.warpFBO);
-      this.warpFBO = this.createFramebuffer(width, height);
-    }
+    this.syncWarpFBO();
 
     let blendFactor = 1.0;
     if (this.isTransitioning) {
@@ -614,7 +581,7 @@ export class KawarpEngine {
     gl.useProgram(this.warpProgram);
     this.setupAttributes();
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.warpFBO.framebuffer);
-    gl.viewport(0, 0, width, height);
+    gl.viewport(0, 0, this.warpFBO.width, this.warpFBO.height);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, currentTexture);
     gl.uniform1i(this.uniforms.warp.texture, 0);

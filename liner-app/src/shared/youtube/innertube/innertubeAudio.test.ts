@@ -20,6 +20,7 @@ vi.mock("../session/visitorSession", () => ({
 import {
   resetPlaybackProfilePreference,
   resolveDirectAudioStream,
+  STREAMS_REFUSED_MESSAGE,
   toVideoId,
 } from "./innertubeAudio";
 import {
@@ -214,8 +215,29 @@ describe("resolveDirectAudioStream", () => {
 
   it("reports every profile failure when nothing is playable", async () => {
     mockPlayerApi([playerResponse([], "UNPLAYABLE")]);
+    const rejection = expect(resolveDirectAudioStream("dQw4w9WgXcQ")).rejects;
+    await rejection.toThrow(/TVHTML5.*VISIONOS.*ANDROID_VR/);
+    await expect(resolveDirectAudioStream("dQw4w9WgXcQ")).rejects.not.toThrow(
+      new RegExp(`^${STREAMS_REFUSED_MESSAGE}`),
+    );
+  });
+
+  it("says the network is refused when googlevideo rejects the stream of every profile", async () => {
+    mockPlayerApi([playerResponse([opus, aac])], () => 403);
     await expect(resolveDirectAudioStream("dQw4w9WgXcQ")).rejects.toThrow(
-      /TVHTML5.*VISIONOS.*ANDROID_VR/,
+      new RegExp(`^${STREAMS_REFUSED_MESSAGE}`),
+    );
+  });
+
+  it("says the network is refused when googlevideo cannot be reached for any profile", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input: FetchInput) => {
+        if (isStreamProbe(input)) throw new TypeError("Failed to fetch");
+        return playerResponse([opus, aac]);
+      },
+    );
+    await expect(resolveDirectAudioStream("dQw4w9WgXcQ")).rejects.toThrow(
+      new RegExp(`^${STREAMS_REFUSED_MESSAGE}.*unreachable: Failed to fetch`),
     );
   });
 

@@ -3,6 +3,7 @@ import type {
   LyricsSyncLevel,
 } from "@/shared/contracts/lyrics";
 import type { LyricsProviderOption } from "./lyricsStore";
+import { parseRawLyrics } from "../engine/lyricsParser";
 
 export interface CachedLyricsItem {
   trackId: string;
@@ -28,22 +29,67 @@ export function isWordLevelSync(syncLevel: LyricsSyncLevel): boolean {
   return syncLevel === "word_level" || syncLevel === "syllable_level";
 }
 
-// strict word-level check for ai/timing providers
+export function isLyricsCandidate(value: unknown): value is LyricsCandidate {
+  const lyrics = (value as { lyrics?: { content?: unknown } } | null)?.lyrics;
+  return typeof lyrics?.content === "string" && lyrics.content.length > 0;
+}
+
+const LRC_ID_TAG = /^\[[a-z#]+:[^\]]*\]$/i;
+const usableLyricsByCandidate = new WeakMap<LyricsCandidate, boolean>();
+
+function parsesIntoReadableLines(content: string, format?: string): boolean {
+  const { braccatoLyrics } = parseRawLyrics(content, format);
+  return braccatoLyrics.some((line) => {
+    const text = (line.words ?? "").trim();
+    return text.length > 0 && !LRC_ID_TAG.test(text);
+  });
+}
+
+export function hasUsableLyrics(candidate?: LyricsCandidate | null): boolean {
+  const content = candidate?.lyrics?.content;
+  if (typeof content !== "string" || !content.trim()) return false;
+  const known = usableLyricsByCandidate.get(candidate!);
+  if (known !== undefined) return known;
+  const usable = parsesIntoReadableLines(content, candidate!.lyrics.format);
+  usableLyricsByCandidate.set(candidate!, usable);
+  return usable;
+}
+
 export function shouldCacheLyricsCandidate(
   candidate?: LyricsCandidate | null,
 ): boolean {
-  if (!candidate || !candidate.lyrics?.content) return false;
+  return hasUsableLyrics(candidate);
+}
+
+export function isProvisionalLyricsCandidate(
+  candidate?: LyricsCandidate | null,
+): boolean {
+  if (!candidate) return false;
   const p = (candidate.provider || "")
     .toLowerCase()
     .trim()
     .replace(/[-_]/g, " ");
-
-  // cadence, polaris, polaris mono: only cache if word-level returned
   if (p === "cadence" || p === "polaris" || p === "polaris mono") {
-    return isWordLevelSync(candidate.syncLevel);
+    return !isWordLevelSync(candidate.syncLevel);
   }
+  return false;
+}
 
-  return true;
+export function mergeLyricsProvider(
+  providers: Record<string, LyricsCandidate>,
+  candidate: LyricsCandidate,
+): void {
+  if (!shouldCacheLyricsCandidate(candidate)) return;
+  const key = normalizeProviderKey(candidate.provider);
+  const existing = providers[key];
+  if (
+    existing &&
+    isProvisionalLyricsCandidate(candidate) &&
+    !isProvisionalLyricsCandidate(existing)
+  ) {
+    return;
+  }
+  providers[key] = candidate;
 }
 
 // ranks lyrics candidates by priority, sync depth, and quality
@@ -228,7 +274,7 @@ class LyricsCache {
     const providers: Record<string, LyricsCandidate> = {
       ...existing?.providers,
     };
-    providers[normalizeProviderKey(candidate.provider)] = candidate;
+    mergeLyricsProvider(providers, candidate);
 
     const validCandidates = Object.values(providers).filter(
       shouldCacheLyricsCandidate,
@@ -272,16 +318,11 @@ class LyricsCache {
       ...existing?.providers,
     };
 
-    if (shouldCacheLyricsCandidate(candidate)) {
-      providers[normalizeProviderKey(candidate.provider)] = candidate;
-    }
+    mergeLyricsProvider(providers, candidate);
 
     if (availableProviders) {
       for (const opt of availableProviders) {
-        if (opt.candidate && shouldCacheLyricsCandidate(opt.candidate)) {
-          providers[normalizeProviderKey(opt.candidate.provider)] =
-            opt.candidate;
-        }
+        if (opt.candidate) mergeLyricsProvider(providers, opt.candidate);
       }
     }
 
@@ -319,7 +360,7 @@ class LyricsCache {
   private saveToStorage(item: CachedLyricsItem) {
     try {
       localStorage.setItem(STORAGE_PREFIX + item.trackId, JSON.stringify(item));
-    } catch (e) {
+    } catch {
       this.evictOldest(20);
       try {
         localStorage.setItem(
@@ -355,6 +396,14 @@ class LyricsCache {
       } catch {}
     }
     this.saveIndex(index);
+  }
+
+  delete(trackId: string) {
+    this.memCache.delete(trackId);
+    try {
+      localStorage.removeItem(STORAGE_PREFIX + trackId);
+    } catch {}
+    this.saveIndex(this.getIndex().filter((id) => id !== trackId));
   }
 
   clear() {

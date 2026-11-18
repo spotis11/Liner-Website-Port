@@ -68,11 +68,17 @@
     "coming_soon": "Em breve",
     "play_all": "Reproduzir tudo",
     "add_to_queue": "Adicionar à fila",
+    "remove_from_queue": "Remover da fila",
+    "remove_from_cache": "Remover do cache",
+    "removed_from_cache": "Removido do cache",
+    "removed_from_queue": "Removido da fila",
+    "undo": "Desfazer",
     "shuffle": "Aleatório",
     "remove_from_library": "Remover da biblioteca",
     "save_to_library": "Salvar na biblioteca",
     "share": "Compartilhar",
     "back": "Voltar",
+    "forward": "Avançar",
     "link_copied": "Link copiado",
     "download": "Baixar",
     "more": "Mais",
@@ -255,6 +261,8 @@
     "btn_continue": "Continuar",
     "btn_back": "Voltar",
     "username_hint": "3 a 30 caracteres, letras minúsculas, números ou sublinhados.",
+    "username_checking": "Verificando se o nome de usuário está livre...",
+    "username_available": "Este nome de usuário está livre.",
     "label_email": "E-mail",
     "label_username": "Nome de usuário (@handle)",
     "placeholder_username": "soundwave",
@@ -392,6 +400,8 @@
     "track_unavailable": "«{title}» está indisponível, pulando...",
     "track_unavailable_title": "Faixa indisponível",
     "playback_stopped_too_many_errors": "Reprodução interrompida — muitas faixas falharam ao carregar.",
+    "youtube_refused_title": "O YouTube está recusando esta conexão",
+    "youtube_refused_description": "O áudio do YouTube está bloqueado nesta rede. Desative sua VPN ou proxy, ou tente outra conexão.",
     "speed_pitch": "Velocidade e Tom",
     "speed": "Velocidade",
     "pitch": "Tom",
@@ -408,7 +418,28 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Reverb",
     "reverb_hint": "Espaço atmosférico e profundidade ambiente",
-    "reverb_amount": "Reverb"
+    "reverb_amount": "Reverb",
+    "beta_visuals": {
+      "label": "Aviso",
+      "ambient_title": "Ambient está em beta",
+      "ambient_body": "Esta faixa tem um fundo animado próprio. Ainda está em beta e pode pesar em aparelhos mais fracos: se o player travar, escolha um modo mais leve.",
+      "settings_title": "Qualidade visual",
+      "settings_body": "Escolha o quanto o player em tela cheia se anima. Modos leves economizam bateria e rodam mais suave em aparelhos mais fracos.",
+      "modes": {
+        "full": {
+          "name": "Todos os efeitos",
+          "hint": "Tudo ligado, com bordas da letra desfocadas"
+        },
+        "balanced": {
+          "name": "Equilibrado",
+          "hint": "Fundos animados, sem desfoque na letra"
+        },
+        "lite": {
+          "name": "Leve",
+          "hint": "Capa parada, letra simples"
+        }
+      }
+    }
   },
   "playlist": {
     "playlist": "Playlist",
@@ -629,6 +660,10 @@
       "label": "Idioma",
       "description": "Selecione o idioma da interface"
     },
+    "remember_window_bounds": {
+      "title": "Lembrar tamanho e posição da janela",
+      "description": "Reabrir a janela com o mesmo tamanho e no mesmo lugar onde você a deixou."
+    },
     "autoplay_similar": {
       "title": "Reproduzir faixas similares automaticamente",
       "description": "Adiciona músicas similares automaticamente quando a sua fila termina."
@@ -704,8 +739,12 @@
         "covers": "Capas",
         "audio": "Faixas de áudio",
         "lyrics": "Letras",
-        "metadata": "Catálogo e pesquisa"
-      }
+        "metadata": "Catálogo e pesquisa",
+        "local": "Música local"
+      },
+      "local_confirm_title": "Apagar também a sua música local?",
+      "local_confirm_desc": "A música local é a sua biblioteca importada, não cache. {tracks} ({size}) serão apagadas do Liner, junto com as capas. Os seus arquivos originais continuam onde estão.",
+      "local_confirm_button": "Apagar música local"
     },
     "theme": {
       "title": "Tema",
@@ -800,7 +839,7 @@
     "about": {
       "liner": "Liner",
       "telegram": "Canal",
-      "support": "Suporte",
+      "discord": "Discord",
       "github": "GitHub",
       "website": "Site",
       "tagline": "Player de música moderno para desktop com letras sincronizadas por sílaba",
@@ -985,6 +1024,7 @@
   "track_sort": {
     "label": "Ordenar",
     "default": "Padrão",
+    "added": "Por data de adição",
     "title": "Por título (A–Z)",
     "duration": "Por duração",
     "popularity": "Por popularidade"

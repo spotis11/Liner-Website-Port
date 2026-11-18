@@ -41,7 +41,14 @@ export interface SongCardProps {
   highlight?: string;
   hideArtists?: boolean;
   trailingAction?: React.ReactNode;
+  /** table mode columns: rendered in fixed-width slots before the duration */
+  albumName?: string;
+  dateAdded?: string;
 }
+
+// fixed widths so a TrackTableHeader can line up with these columns
+export const TRACK_ALBUM_COLUMN = 200;
+export const TRACK_DATE_COLUMN = 110;
 
 function SongCard({
   title,
@@ -67,11 +74,12 @@ function SongCard({
   onNavigate,
   compact = false,
   icon,
-  showReorderHandle,
   onGrabStart,
   highlight,
   hideArtists = false,
   trailingAction,
+  albumName,
+  dateAdded,
 }: SongCardProps) {
   const { t } = useTranslation();
   const [imageLoaded, setImageLoaded] = useState(() => isCoverReady(coverUrl));
@@ -86,8 +94,8 @@ function SongCard({
     : hideArtists
       ? "h-[36px] w-[48px]"
       : "h-[48px] w-[48px]";
-  const titleSizeClass = compact ? "text-[14px]" : "text-[16px]";
-  const artistSizeClass = compact ? "text-[12px]" : "text-[15px]";
+  const titleSizeClass = compact ? "text-label" : "text-[16px]";
+  const artistSizeClass = compact ? "text-caption" : "text-title";
   const gapClass = compact ? "gap-[12px]" : "gap-[16px]";
   const paddingClass = compact
     ? "p-[6px]"
@@ -126,7 +134,7 @@ function SongCard({
 
   return (
     <div
-      className={`group w-full flex items-center justify-between rounded-md ${paddingClass} outline-none transition-colors duration-150 ease-out ${
+      className={`group w-full flex items-center justify-between rounded-control ${paddingClass} outline-none transition-colors duration-150 ease-out ${
         className ?? ""
       } ${onPlay ? "cursor-pointer" : ""} ${onPlay && !className?.includes("hover:bg-") ? "hover:bg-border-alpha-14" : ""}`}
       onClick={handleClick}
@@ -164,7 +172,6 @@ function SongCard({
           <div
             className={`flex ${imageSizeClass} shrink-0 items-center justify-center ${titleSizeClass} text-text-tertiary`}
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
               fontWeight: 400,
             }}
           >
@@ -173,7 +180,7 @@ function SongCard({
         ) : (
           <div
             className={`relative ${imageSizeClass} shrink-0 overflow-hidden bg-bg-panel flex items-center justify-center ${
-              imageShape === "circle" ? "rounded-full" : "rounded-md"
+              imageShape === "circle" ? "rounded-full" : "rounded-control"
             }`}
           >
             {icon ? (
@@ -205,7 +212,6 @@ function SongCard({
             <h3
               className={`m-0 max-w-[min(52vw,560px)] overflow-hidden text-ellipsis whitespace-nowrap ${titleSizeClass} leading-[1.2] text-text-primary`}
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
                 fontWeight: hideArtists ? 500 : 400,
               }}
             >
@@ -217,7 +223,7 @@ function SongCard({
             </h3>
             {repostedBy && (
               <div
-                className="flex items-center gap-[4px] text-text-tertiary text-[13px]"
+                className="flex items-center gap-[4px] text-text-tertiary text-body"
                 title={t("common.reposted_by", { name: repostedBy })}
               >
                 <RepeatFill size={14} />
@@ -229,7 +235,6 @@ function SongCard({
             <p
               className={`m-0 flex min-w-0 items-center ${artistSizeClass} leading-[1.2] text-text-secondary overflow-hidden`}
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
                 fontWeight: 350,
               }}
             >
@@ -253,11 +258,28 @@ function SongCard({
       </div>
 
       <div className="flex items-center shrink-0 ml-[16px] gap-[16px]">
+        {albumName && (
+          <span
+            className="hidden min-[900px]:block w-[200px] truncate text-label text-text-secondary"
+            style={{ fontWeight: 400 }}
+            title={albumName}
+          >
+            {albumName}
+          </span>
+        )}
+        {dateAdded && (
+          <span
+            className="hidden min-[900px]:block w-[110px] truncate text-label text-text-tertiary"
+            style={{ fontWeight: 400 }}
+            title={dateAdded}
+          >
+            {dateAdded}
+          </span>
+        )}
         {releaseDate && (
           <span
-            className="text-[14px] text-text-tertiary"
+            className="text-label text-text-tertiary"
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
               fontWeight: 400,
             }}
           >
@@ -266,9 +288,8 @@ function SongCard({
         )}
         {duration && (
           <span
-            className="text-[14px] text-text-tertiary"
+            className="text-label text-text-tertiary"
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
               fontWeight: 400,
             }}
           >
@@ -281,7 +302,7 @@ function SongCard({
               <button
                 type="button"
                 aria-label={t("common.more_options")}
-                className="rounded-md bg-transparent border-0 p-0 text-text-primary transition-all duration-200 active:scale-[0.96] flex items-center justify-center cursor-pointer"
+                className="rounded-control bg-transparent border-0 p-0 text-text-primary transition-all duration-200 active:scale-[0.96] flex items-center justify-center cursor-pointer"
               >
                 <More2Fill size={22} />
               </button>

@@ -2,7 +2,10 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react";
-import { useGlobalShortcuts, type GlobalShortcutsOptions } from "./useGlobalShortcuts";
+import {
+  useGlobalShortcuts,
+  type GlobalShortcutsOptions,
+} from "./useGlobalShortcuts";
 
 const playerState: {
   volume: number;
@@ -34,8 +37,11 @@ vi.mock("@/features/player", () => ({
 }));
 
 import { playerEngine } from "@/features/player";
+import { useShortcutsStore } from "@/features/shortcuts";
 
-function baseOptions(overrides: Partial<GlobalShortcutsOptions> = {}): GlobalShortcutsOptions {
+function baseOptions(
+  overrides: Partial<GlobalShortcutsOptions> = {},
+): GlobalShortcutsOptions {
   return {
     searchOpen: false,
     openSearch: vi.fn(),
@@ -55,7 +61,10 @@ function Harness({ options }: { options: GlobalShortcutsOptions }) {
   return null;
 }
 
-function mount(options: GlobalShortcutsOptions): { container: HTMLDivElement; root: Root } {
+function mount(options: GlobalShortcutsOptions): {
+  container: HTMLDivElement;
+  root: Root;
+} {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -303,6 +312,43 @@ describe("useGlobalShortcuts", () => {
     expect(playerEngine.seek).toHaveBeenCalledTimes(1);
   });
 
+  describe("volume hotkey settings", () => {
+    afterEach(() => {
+      useShortcutsStore.setState({ volumeStep: 0.05, volumeHoldRepeats: true });
+    });
+
+    it("changes volume once per press when holding is set to one step", () => {
+      useShortcutsStore.setState({ volumeHoldRepeats: false });
+      playerState.volume = 0.5;
+      mounted = mount(baseOptions());
+
+      press("ArrowUp");
+      press("ArrowUp", { repeat: true });
+      press("ArrowUp", { repeat: true });
+      expect(playerEngine.setVolume).toHaveBeenCalledTimes(1);
+
+      const held = press("ArrowUp", { repeat: true });
+      expect(held.defaultPrevented).toBe(true);
+    });
+
+    it("keeps changing volume while held by default", () => {
+      playerState.volume = 0.5;
+      mounted = mount(baseOptions());
+      press("ArrowDown");
+      press("ArrowDown", { repeat: true });
+      press("ArrowDown", { repeat: true });
+      expect(playerEngine.setVolume).toHaveBeenCalledTimes(3);
+    });
+
+    it("uses the chosen volume step", () => {
+      useShortcutsStore.setState({ volumeStep: 0.1 });
+      playerState.volume = 0.5;
+      mounted = mount(baseOptions());
+      press("ArrowUp");
+      expect(playerEngine.setVolume).toHaveBeenLastCalledWith(0.6);
+    });
+  });
+
   describe("Escape priority", () => {
     it("closes Search first when Search, the right panel and Fullscreen are all open", () => {
       const closeSearch = vi.fn();
@@ -344,7 +390,12 @@ describe("useGlobalShortcuts", () => {
     it("closes Fullscreen Player next", () => {
       const closeFullscreen = vi.fn();
       mounted = mount(
-        baseOptions({ searchOpen: false, rightPanelOpen: false, fullscreenOpen: true, closeFullscreen }),
+        baseOptions({
+          searchOpen: false,
+          rightPanelOpen: false,
+          fullscreenOpen: true,
+          closeFullscreen,
+        }),
       );
       press("Escape");
       expect(closeFullscreen).toHaveBeenCalledTimes(1);

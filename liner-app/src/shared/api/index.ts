@@ -1,5 +1,21 @@
-export { api, mediaUrl, toMaxQualityAvatarUrl, ApiError, resolveApiErrorMessage } from "./api";
+export {
+  api,
+  mediaUrl,
+  toMaxQualityAvatarUrl,
+  ApiError,
+  resolveApiErrorMessage,
+} from "./api";
 export { DEFAULT_PRIMARY_API, getApiBaseUrl } from "./baseUrl";
+export { initEdgeKey } from "./edgeKey";
+export {
+  HumanCheckCancelledError,
+  humanCheckOrigin,
+  humanCheckPageUrl,
+  setHumanCheckPrompt,
+  type HumanCheckAction,
+  type HumanCheckMode,
+  type HumanCheckRequest,
+} from "./humanCheck";
 export type {
   SearchType,
   ApiCover,
@@ -63,3 +79,4 @@ export {
   LOCAL_IMPORT_PREFIX,
   type LocalImportHandler,
 } from "./localImports";
+export { registerSignOutTask, runSignOutTasks } from "./signOutTasks";

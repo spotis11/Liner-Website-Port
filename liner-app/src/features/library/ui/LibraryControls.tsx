@@ -51,7 +51,6 @@ export default function LibraryControls({
         role="search"
         data-no-window-drag
         className={`flex h-[32px] w-[220px] items-center gap-[8px] rounded-[9px] px-[10px] text-text-primary ${HERO_GLASS_CLASS}`}
-        style={{ fontFamily: "var(--font-inter), sans-serif" }}
       >
         <Search2Line size={16} className="shrink-0 text-text-secondary" />
         <input
@@ -68,7 +67,7 @@ export default function LibraryControls({
               onQueryChange("");
             }
           }}
-          className="h-[32px] min-w-0 flex-1 border-none bg-transparent p-0 text-[14px] leading-[32px] font-[400] text-text-primary outline-none placeholder:text-text-secondary"
+          className="h-[32px] min-w-0 flex-1 border-none bg-transparent p-0 text-label leading-[32px] font-[400] text-text-primary outline-none placeholder:text-text-secondary"
         />
         {query.length > 0 && (
           <button
@@ -90,7 +89,9 @@ export default function LibraryControls({
         aria-pressed={viewMode === "grid"}
         onClick={() => onViewModeChange("grid")}
         className={`${iconButtonClass} ${
-          viewMode === "grid" ? "" : "!text-text-tertiary hover:!text-text-primary"
+          viewMode === "grid"
+            ? ""
+            : "!text-text-tertiary hover:!text-text-primary"
         }`}
       >
         {viewMode === "grid" ? <GridFill size={16} /> : <GridLine size={16} />}
@@ -102,7 +103,9 @@ export default function LibraryControls({
         aria-pressed={viewMode === "list"}
         onClick={() => onViewModeChange("list")}
         className={`${iconButtonClass} ${
-          viewMode === "list" ? "" : "!text-text-tertiary hover:!text-text-primary"
+          viewMode === "list"
+            ? ""
+            : "!text-text-tertiary hover:!text-text-primary"
         }`}
       >
         {viewMode === "list" ? (

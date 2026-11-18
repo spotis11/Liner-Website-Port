@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -8,6 +9,10 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import {
+  collectionPath,
+  collectionPreviewState,
+} from "@/features/collection/lib/collectionPreview";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Search3Line,
@@ -20,13 +25,14 @@ import {
 } from "@mingcute/react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
-import { cn, usePageBackdropStore } from "@/shared/lib";
-import WindowControls from "./WindowControls";
-import PageTransition from "./PageTransition";
+import { cn } from "@/shared/lib";
+import WindowControlsNotch from "./WindowControlsNotch";
 import RightDrawer from "./RightDrawer";
+import { FullscreenRouteContext } from "../fullscreenRouteContext";
 import DynamicBlurBackground from "./DynamicBlurBackground";
 import { useGlobalShortcuts } from "../hooks/useGlobalShortcuts";
 import { useDisableButtonFocus } from "../hooks/useDisableButtonFocus";
+import { useWindowPresence } from "../hooks/useWindowPresence";
 import { useWindowState } from "../hooks/useWindowState";
 import {
   useSearchTracks,
@@ -41,6 +47,7 @@ import {
   playerEngine,
   MiniPlayer,
   usePlayerStore,
+  useGlassBlur,
 } from "@/features/player";
 import SearchResultsList from "@/features/search/ui/SearchResultsList";
 import { SearchHistoryList, useSearchHistoryStore } from "@/features/search";
@@ -53,19 +60,26 @@ import {
   RemoveFromLibraryModal,
   ImportLikesModal,
   ImportReviewModal,
+  LocalDropZone,
   CreatePlaylistModal,
   useModalStore,
 } from "@/features/library";
-import { SettingsModal } from "@/features/settings";
+import {
+  SettingsModal,
+  useHasPageBackdrop,
+  useEffectiveCoverGlow,
+} from "@/features/settings";
 import { UpdateModal, UpdateToastBridge } from "@/features/updater";
 import { YoutubeSignInNotice } from "@/features/youtube-auth";
+import { HumanCheckNotice } from "@/features/human-check";
+import { useOfflineModeStore } from "@/features/connectivity";
 
 interface AppFrameProps {
   children: React.ReactNode;
 }
 
 const RIGHT_DRAWER_WIDTH = 440;
-const SIDEBAR_WIDTH = 58;
+const SIDEBAR_WIDTH = 232;
 const SHELL_EDGE_GAP = 6;
 const SEARCH_QUERY_CACHE_TTL_MS = 60_000;
 const LEGACY_LAYOUT_STORAGE_KEYS = [
@@ -74,6 +88,28 @@ const LEGACY_LAYOUT_STORAGE_KEYS = [
   "liner_sidebar_width",
   "liner_queue_popup_open",
 ] as const;
+
+const AppOverlays = memo(function AppOverlays() {
+  return (
+    <>
+      <AddToPlaylistModal />
+      <AddToLibraryModal />
+      <RemoveFromPlaylistModal />
+      <RemoveFromLibraryModal />
+      <ImportLikesModal />
+      <CreatePlaylistModal />
+      <ImportReviewModal />
+      <LocalDropZone />
+      <SettingsModal />
+      <UpdateModal />
+      <YoutubeSignInNotice />
+      {/* cloudflare's check when the edge challenges an api call after sign-in;
+          the login page mounts its own */}
+      <HumanCheckNotice />
+      <UpdateToastBridge />
+    </>
+  );
+});
 
 export default function AppFrame({ children }: AppFrameProps) {
   const location = useLocation();
@@ -87,6 +123,7 @@ export default function AppFrame({ children }: AppFrameProps) {
   const closeSearch = useModalStore((state) => state.closeSearch);
   const toggleSearch = useModalStore((state) => state.toggleSearch);
   const openSettings = useModalStore((state) => state.openSettings);
+  const offline = useOfflineModeStore((state) => state.offline);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [queuePopupOpen, setQueuePopupOpen] = useState(false);
@@ -102,6 +139,10 @@ export default function AppFrame({ children }: AppFrameProps) {
       navigate("/", { replace: true });
     }
   }, [pathname, openSettings, navigate]);
+
+  useEffect(() => {
+    if (offline && searchOpen) closeSearch();
+  }, [offline, searchOpen, closeSearch]);
 
   useEffect(() => {
     for (const key of LEGACY_LAYOUT_STORAGE_KEYS) {
@@ -148,14 +189,8 @@ export default function AppFrame({ children }: AppFrameProps) {
   }, [pathname, search, searchOpen, searchQuery, closeSearch]);
 
   useLayoutEffect(() => {
-    if (mainScrollRef.current) {
-      mainScrollRef.current.scrollTop = 0;
-      const innerScrollables =
-        mainScrollRef.current.querySelectorAll(".overflow-y-auto");
-      innerScrollables.forEach((el) => {
-        el.scrollTop = 0;
-      });
-    }
+    const main = mainScrollRef.current;
+    if (main && main.scrollTop !== 0) main.scrollTop = 0;
   }, [pathname, search]);
 
   const updateSearchMask = useCallback(() => {
@@ -225,11 +260,11 @@ export default function AppFrame({ children }: AppFrameProps) {
 
   const openFullscreenPlayer = useCallback(() => {
     setFullscreenPlayerOpen(true);
-  }, []);
+  }, [setFullscreenPlayerOpen]);
 
   const closeFullscreenPlayer = useCallback(() => {
     setFullscreenPlayerOpen(false);
-  }, []);
+  }, [setFullscreenPlayerOpen]);
 
   const handleCloseFullscreen = useCallback(() => {
     if (fullscreenPlayerOpen) {
@@ -237,7 +272,12 @@ export default function AppFrame({ children }: AppFrameProps) {
     } else if (isFullscreenRoute) {
       navigate("/", { replace: true });
     }
-  }, [fullscreenPlayerOpen, isFullscreenRoute, navigate]);
+  }, [
+    fullscreenPlayerOpen,
+    isFullscreenRoute,
+    navigate,
+    setFullscreenPlayerOpen,
+  ]);
 
   useEffect(() => {
     if (isFullscreenPlayer && !hasCurrentTrack) {
@@ -251,6 +291,9 @@ export default function AppFrame({ children }: AppFrameProps) {
   const isBackNavigableRoute =
     pathname === "/artist" ||
     pathname === "/library/playlist" ||
+    pathname === "/library/local" ||
+    pathname === "/library/cached" ||
+    pathname === "/library/saved" ||
     pathname === "/collection";
   const handleEscapeFallback = useCallback(() => {
     if (queuePopupOpen || searchOpen || isFullscreenPlayer) return false;
@@ -267,6 +310,7 @@ export default function AppFrame({ children }: AppFrameProps) {
   ]);
 
   useDisableButtonFocus();
+  useWindowPresence();
 
   useGlobalShortcuts({
     searchOpen,
@@ -505,7 +549,9 @@ export default function AppFrame({ children }: AppFrameProps) {
         target instanceof Element &&
         (target.closest("[data-dialog-container]") ||
           target.closest("[data-dialog-backdrop]") ||
-          target.closest("[data-dropdown-menu]"))
+          target.closest("[data-dropdown-menu]") ||
+          // a toast action (e.g. Undo after removing a queue track) must not close the open drawer
+          target.closest("[data-toast]"))
       ) {
         return;
       }
@@ -544,7 +590,7 @@ export default function AppFrame({ children }: AppFrameProps) {
     return () => {
       document.removeEventListener("mousedown", onGlobalPointerDown, true);
     };
-  }, [searchOpen, queuePopupOpen, handleQueuePopupToggle]);
+  }, [searchOpen, queuePopupOpen, handleQueuePopupToggle, closeSearch]);
 
   const handleSearchToggle = useCallback(() => {
     toggleSearch();
@@ -615,7 +661,13 @@ export default function AppFrame({ children }: AppFrameProps) {
           coverUrl: it.coverUrl,
           itemData: it,
         });
-        navigate(`/collection?type=playlist&id=${encodeURIComponent(it.id)}`);
+        navigate(collectionPath("playlist", it.id), {
+          state: collectionPreviewState({
+            coverUrl: it.coverUrl,
+            title: it.name || it.title,
+            subtitle: it.author || it.owner,
+          }),
+        });
       } else if (
         it._type === "album" ||
         it.totalTracks !== undefined ||
@@ -630,7 +682,13 @@ export default function AppFrame({ children }: AppFrameProps) {
           coverUrl: it.coverUrl,
           itemData: it,
         });
-        navigate(`/collection?type=album&id=${encodeURIComponent(it.id)}`);
+        navigate(collectionPath("album", it.id), {
+          state: collectionPreviewState({
+            coverUrl: it.coverUrl,
+            title: it.name || it.title,
+            subtitle: it.artists || it.artist,
+          }),
+        });
       }
     },
     [activeFilter, closeSearch, navigate, addHistoryItem, t],
@@ -665,20 +723,23 @@ export default function AppFrame({ children }: AppFrameProps) {
       (document.documentElement.getAttribute("data-theme") === "dark" ||
         (!document.documentElement.getAttribute("data-theme") &&
           window.matchMedia?.("(prefers-color-scheme: dark)")?.matches));
-  const hasPageBackdrop = usePageBackdropStore((s) => Boolean(s.coverUrl));
+  const hasPageBackdrop = useHasPageBackdrop();
+  const coverGlow = useEffectiveCoverGlow();
+  const glassBlur = useGlassBlur();
 
   return (
     <div
       ref={appFrameRef}
-      className={`relative flex flex-col h-full w-full overflow-hidden bg-bg-canvas p-1.5 gap-1.5 ${
-        isEdgeToEdge ? "rounded-none" : "rounded-[12px]"
-      }`}
+      className={`app-shell-enter relative flex flex-col h-full w-full overflow-hidden p-1.5 gap-1.5 ${
+        isFullscreenPlayer ? "bg-black" : "bg-bg-canvas"
+      } ${isEdgeToEdge ? "rounded-none" : "rounded-item"}`}
+      style={isEdgeToEdge ? undefined : { clipPath: "inset(0 round 12px)" }}
       onScroll={(e) => {
         if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
         if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
       }}
     >
-      <DynamicBlurBackground isDark={isDark} />
+      {coverGlow ? <DynamicBlurBackground isDark={isDark} /> : null}
 
       <AnimatePresence>
         {!isFullscreenPlayer && (
@@ -688,7 +749,7 @@ export default function AppFrame({ children }: AppFrameProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            className="absolute inset-x-1.5 top-1.5 z-[45]"
+            className="absolute left-[244px] right-1.5 top-1.5 z-[45]"
           >
             <Header
               searchOpen={searchOpen}
@@ -698,10 +759,15 @@ export default function AppFrame({ children }: AppFrameProps) {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 min-h-0 flex flex-row w-full gap-1.5 overflow-hidden relative z-10">
+      <div
+        className={cn(
+          "flex-1 min-h-0 flex flex-row w-full gap-1.5 overflow-hidden relative z-10",
+          fullscreenPlayerOpen && fullscreenEffectsReady && "invisible",
+        )}
+      >
         <aside
           ref={sidebarRef}
-          className="w-[58px] mt-[56px] shrink-0 z-[45] relative flex flex-col"
+          className="w-[232px] shrink-0 z-[45] relative flex flex-col"
         >
           <Sidebar
             searchOpen={searchOpen}
@@ -710,9 +776,12 @@ export default function AppFrame({ children }: AppFrameProps) {
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 h-full relative gap-1.5 overflow-hidden">
-          <main
-            className={cn(
-              "flex-1 min-w-0 flex flex-col relative h-full overflow-hidden [--page-inset-top:56px]",
+            <main
+              className={cn(
+                // the header (nav arrows, search pill) floats over the page top,
+                // so pages start below it to keep the hero clear
+                "flex-1 min-w-0 flex flex-col relative h-full overflow-hidden [--page-inset-top:58px]",
+              "rounded-item",
               shouldShowMiniPlayer && hasPageBackdrop
                 ? "[--page-inset-bottom:64px] [--floating-inset-bottom:70px]"
                 : "[--page-inset-bottom:0px] [--floating-inset-bottom:0px]",
@@ -726,23 +795,17 @@ export default function AppFrame({ children }: AppFrameProps) {
                   : "overflow-y-auto"
               }`}
             >
-              <PageTransition>
+              <div className="h-full w-full">
                 {isFullscreenRoute ? shellChildrenRef.current : children}
-              </PageTransition>
+              </div>
             </div>
 
-            <AnimatePresence>
-              {searchOpen && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 bg-black/12 backdrop-blur-[2px] pointer-events-auto z-[30]"
-                  onClick={() => closeSearch()}
-                />
-              )}
-            </AnimatePresence>
+            {searchOpen && (
+              <div
+                className="absolute inset-0 pointer-events-auto z-[30]"
+                onClick={() => closeSearch()}
+              />
+            )}
 
             {!isFullscreenPlayer && (
               <AnimatePresence initial={false}>
@@ -754,12 +817,10 @@ export default function AppFrame({ children }: AppFrameProps) {
                     animate={{ x: 0 }}
                     exit={{ x: RIGHT_DRAWER_WIDTH }}
                     transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                    className="pointer-events-auto absolute top-(--page-inset-top) bottom-(--floating-inset-bottom) right-0 z-[50]"
+                    className="pointer-events-auto absolute top-[56px] bottom-(--floating-inset-bottom) right-0 z-[50]"
                     style={{ width: RIGHT_DRAWER_WIDTH }}
                   >
-                    <RightDrawer
-                      onClose={closeRightPanel}
-                    />
+                    <RightDrawer onClose={closeRightPanel} />
                   </motion.aside>
                 )}
               </AnimatePresence>
@@ -796,7 +857,9 @@ export default function AppFrame({ children }: AppFrameProps) {
             onAnimationComplete={() =>
               setFullscreenEffectsReady(fullscreenPlayerOpen)
             }
-            className="dark absolute inset-0 z-[70] overflow-hidden bg-black will-change-transform"
+            className={`dark absolute inset-0 z-[70] overflow-hidden rounded-[inherit] bg-black ${
+              fullscreenEffectsReady ? "" : "will-change-transform"
+            }`}
           >
             <FullscreenPlayer
               onClose={closeFullscreenPlayer}
@@ -806,11 +869,28 @@ export default function AppFrame({ children }: AppFrameProps) {
         ) : isFullscreenRoute ? (
           <div
             data-theme="dark"
-            className="dark absolute inset-0 z-[70] overflow-hidden bg-black"
+            className="dark absolute inset-0 z-[70] overflow-hidden rounded-[inherit] bg-black"
           >
-            {children}
+            <FullscreenRouteContext.Provider value>
+              {children}
+            </FullscreenRouteContext.Provider>
           </div>
         ) : null}
+      </AnimatePresence>
+
+      {/* dims the whole window, header and player included; clicks pass through so
+          window controls and dragging keep working, the page is guarded above */}
+      <AnimatePresence>
+        {searchOpen && (
+          <motion.div
+            key="search-dim"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute inset-0 z-[50] bg-black/20 pointer-events-none rounded-[inherit]"
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
@@ -829,7 +909,7 @@ export default function AppFrame({ children }: AppFrameProps) {
               top: 6,
             }}
           >
-            <div className="w-[min(660px,calc(100vw-72px))] h-[54px] rounded-[8px] pointer-events-auto flex items-center px-[18px] gap-[14px] bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl">
+            <div className="w-[min(660px,calc(100vw-72px))] h-[54px] rounded-control pointer-events-auto flex items-center px-[18px] gap-[14px] bg-bg-panel border border-border-primary/50">
               <span className="shrink-0 flex items-center justify-center text-text-tertiary">
                 <AnimatePresence mode="wait" initial={false}>
                   {searchLoading ? (
@@ -873,7 +953,6 @@ export default function AppFrame({ children }: AppFrameProps) {
                 }}
                 className="w-full flex-1 bg-transparent border-none outline-none text-text-primary text-[16px] placeholder:text-text-tertiary font-[400] tracking-tight"
                 style={{
-                  fontFamily: "var(--font-inter), sans-serif",
                   lineHeight: "1.2",
                 }}
               />
@@ -908,7 +987,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.99 }}
                   transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[500px] h-[500px] rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"
+                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[500px] h-[500px] rounded-control pointer-events-auto flex flex-col overflow-hidden bg-bg-panel border border-border-primary/50"
                 >
                   <div className="flex gap-[6px] px-[14px] pt-[12px] pb-[6px] shrink-0 overflow-x-auto">
                     {filterKeys.map((key) => {
@@ -926,7 +1005,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                           type="button"
                           onClick={() => setActiveFilter(key)}
                           className={`
-                            relative flex items-center gap-[7px] px-[13px] py-[7px] rounded-[12px] text-[13.5px] font-normal transition-colors border-none bg-transparent cursor-pointer select-none shrink-0
+                            relative flex items-center gap-[7px] px-[13px] py-[7px] rounded-item text-[13.5px] font-normal transition-colors border-none bg-transparent cursor-pointer select-none shrink-0
                             ${
                               isActive
                                 ? "text-text-primary font-medium"
@@ -934,14 +1013,13 @@ export default function AppFrame({ children }: AppFrameProps) {
                             }
                           `}
                           style={{
-                            fontFamily: "var(--font-inter), sans-serif",
                             lineHeight: "1.2",
                           }}
                         >
                           {isActive && (
                             <motion.div
                               layoutId="activeFilterPill"
-                              className="absolute inset-0 rounded-[12px] bg-border-alpha-14 pointer-events-none z-0"
+                              className="absolute inset-0 rounded-item bg-border-alpha-14 pointer-events-none z-0"
                               transition={{
                                 type: "spring",
                                 stiffness: 450,
@@ -969,20 +1047,10 @@ export default function AppFrame({ children }: AppFrameProps) {
                           transition={{ duration: 0.08 }}
                           className="flex h-full flex-col items-center justify-center gap-[6px] px-[20px] text-center"
                         >
-                          <p
-                            className="m-0 text-[14px] text-text-primary font-medium"
-                            style={{
-                              fontFamily: "var(--font-inter), sans-serif",
-                            }}
-                          >
+                          <p className="m-0 text-label text-text-primary font-medium">
                             {t("common.no_results")}
                           </p>
-                          <p
-                            className="m-0 text-[12px] text-text-tertiary"
-                            style={{
-                              fontFamily: "var(--font-inter), sans-serif",
-                            }}
-                          >
+                          <p className="m-0 text-caption text-text-tertiary">
                             {t("common.try_another_search")}
                           </p>
                         </motion.div>
@@ -1021,7 +1089,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.99 }}
                   transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[480px] h-auto rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"
+                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[480px] h-auto rounded-control pointer-events-auto flex flex-col overflow-hidden bg-bg-panel border border-border-primary/50"
                 >
                   <SearchHistoryList
                     onSelectQuery={handleSelectHistoryQuery}
@@ -1041,31 +1109,15 @@ export default function AppFrame({ children }: AppFrameProps) {
         )}
       </AnimatePresence>
 
-      <AddToPlaylistModal />
-      <AddToLibraryModal />
-      <RemoveFromPlaylistModal />
-      <RemoveFromLibraryModal />
-      <ImportLikesModal />
-      <CreatePlaylistModal />
-      <ImportReviewModal />
-      <SettingsModal />
-      <UpdateModal />
-      <YoutubeSignInNotice />
-      <UpdateToastBridge />
-      <AnimatePresence>
-        {isFullscreenPlayer && (
-          <motion.div
-            key="fullscreen-window-controls"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute top-[6px] right-[6px] z-[80] pointer-events-auto select-none"
-          >
-            <WindowControls isFullscreen embedded />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AppOverlays />
+      {isFullscreenPlayer && (
+        <div
+          data-theme="dark"
+          className="dark absolute top-1.5 right-1.5 z-[80]"
+        >
+          <WindowControlsNotch tone="glass" blur={glassBlur} />
+        </div>
+      )}
     </div>
   );
 }

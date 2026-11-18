@@ -26,14 +26,20 @@ function tryParseRichsync(raw: string): Lyric[] | null {
   if (!trimmed.startsWith("[")) return null;
   try {
     const lines = JSON.parse(trimmed);
-    if (!Array.isArray(lines) || lines.length === 0 || typeof lines[0]?.ts !== "number") {
+    if (
+      !Array.isArray(lines) ||
+      lines.length === 0 ||
+      typeof lines[0]?.ts !== "number"
+    ) {
       return null;
     }
     return lines.map((line: any): Lyric => {
       const startMs = Math.round(line.ts * 1000);
       const endMs = Math.round(line.te * 1000);
       const durationMs = Math.max(0, endMs - startMs);
-      const wordsArray: { c: string; o?: number }[] = Array.isArray(line.l) ? line.l : [];
+      const wordsArray: { c: string; o?: number }[] = Array.isArray(line.l)
+        ? line.l
+        : [];
 
       // Musixmatch richsync emits spaces as standalone tokens { c: " ", o: ... }.
       // Merge whitespace tokens into preceding word so words carry their natural trailing space.
@@ -56,13 +62,14 @@ function tryParseRichsync(raw: string): Lyric[] | null {
 
       const parts: LyricPart[] = mergedWords.map((w, i, arr): LyricPart => {
         const rawOffsetMs = Math.round((w.o ?? 0) * 1000);
-        const wordStart = rawOffsetMs >= startMs ? rawOffsetMs : startMs + rawOffsetMs;
+        const wordStart =
+          rawOffsetMs >= startMs ? rawOffsetMs : startMs + rawOffsetMs;
         const nextRaw = arr[i + 1]?.o;
         const nextWordStart =
           nextRaw !== undefined
-            ? (Math.round((nextRaw ?? 0) * 1000) >= startMs
-                ? Math.round((nextRaw ?? 0) * 1000)
-                : startMs + Math.round((nextRaw ?? 0) * 1000))
+            ? Math.round((nextRaw ?? 0) * 1000) >= startMs
+              ? Math.round((nextRaw ?? 0) * 1000)
+              : startMs + Math.round((nextRaw ?? 0) * 1000)
             : endMs;
         return {
           startTimeMs: wordStart,
@@ -88,7 +95,11 @@ function tryParseMxmSubtitles(raw: string): Lyric[] | null {
   if (!trimmed.startsWith("[")) return null;
   try {
     const lines = JSON.parse(trimmed);
-    if (!Array.isArray(lines) || lines.length === 0 || typeof lines[0]?.time?.total !== "number") {
+    if (
+      !Array.isArray(lines) ||
+      lines.length === 0 ||
+      typeof lines[0]?.time?.total !== "number"
+    ) {
       return null;
     }
     return lines
@@ -108,6 +119,49 @@ function tryParseMxmSubtitles(raw: string): Lyric[] | null {
   }
 }
 
+const TTML_ROOT = /<tt\b[^>]*>/i;
+const TTML_BODY = /<body\b[^>]*>([\s\S]*)<\/body>/i;
+const TTML_PARAGRAPH = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+};
+
+function decodeXmlEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity) => {
+    const lower = String(entity).toLowerCase();
+    if (lower.startsWith("#x")) {
+      return String.fromCodePoint(parseInt(lower.slice(2), 16));
+    }
+    if (lower.startsWith("#")) {
+      return String.fromCodePoint(parseInt(lower.slice(1), 10));
+    }
+    return NAMED_ENTITIES[lower] ?? match;
+  });
+}
+
+function tryParseUntimedTtml(raw: string): Lyric[] | null {
+  if (!TTML_ROOT.test(raw)) return null;
+  const body = TTML_BODY.exec(raw)?.[1] ?? raw;
+  const lines: Lyric[] = [];
+  for (const match of body.matchAll(TTML_PARAGRAPH)) {
+    const paragraph = match[1]
+      .replace(/\s+/g, " ")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]*>/g, "");
+    for (const line of decodeXmlEntities(paragraph).split("\n")) {
+      const text = line.trim();
+      if (text) lines.push({ startTimeMs: 0, durationMs: 0, words: text });
+    }
+  }
+  return lines.length > 0 ? lines : null;
+}
+
 export function parseRawLyrics(
   raw: string,
   _format?: string,
@@ -122,8 +176,14 @@ export function parseRawLyrics(
   try {
     const richsyncLyrics = tryParseRichsync(trimmed);
     const mxmSubtitles = richsyncLyrics ? null : tryParseMxmSubtitles(trimmed);
+    const detectedLyrics: Lyric[] =
+      richsyncLyrics ??
+      mxmSubtitles ??
+      detectParser(trimmed).parse(trimmed, songDurationMs);
     const braccatoLyrics: Lyric[] =
-      richsyncLyrics ?? mxmSubtitles ?? detectParser(trimmed).parse(trimmed, songDurationMs);
+      detectedLyrics && detectedLyrics.length > 0
+        ? detectedLyrics
+        : (tryParseUntimedTtml(trimmed) ?? []);
 
     if (!braccatoLyrics || braccatoLyrics.length === 0) {
       return {
@@ -146,7 +206,10 @@ export function parseRawLyrics(
       })),
     }));
 
-    const plainLyrics = braccatoLyrics.map((l) => l.words).join("\n").trim();
+    const plainLyrics = braccatoLyrics
+      .map((l) => l.words)
+      .join("\n")
+      .trim();
 
     return {
       braccatoLyrics,
@@ -154,7 +217,11 @@ export function parseRawLyrics(
       plainLyrics: plainLyrics || null,
     };
   } catch {
-    return { braccatoLyrics: [], syncedLines: [], plainLyrics: trimmed || null };
+    return {
+      braccatoLyrics: [],
+      syncedLines: [],
+      plainLyrics: trimmed || null,
+    };
   }
 }
 

@@ -14,7 +14,9 @@ import {
   useAuthStore,
 } from "../store/authStore";
 import { useTranslation } from "@/languages";
+import { HumanCheckNotice } from "@/features/human-check";
 import { cn } from "@/shared/lib";
+import { useUsernameAvailability } from "../hooks/useUsernameAvailability";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[a-z0-9_]{3,30}$/;
@@ -36,6 +38,20 @@ export default function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [errorField, setErrorField] = useState<
+    "username" | "displayName" | null
+  >(null);
+  const usernameStatus = useUsernameAvailability(
+    username,
+    mode === "register" && registerStep === 2,
+  );
+  const usernameTaken = usernameStatus === "taken";
+  const usernameHasError =
+    usernameTaken || (Boolean(error) && errorField !== "displayName");
+  const usernameMessageId =
+    (error && errorField !== "displayName") || usernameTaken
+      ? "auth-form-error"
+      : "auth-username-hint";
 
   const selectMode = (next: "login" | "register") => {
     if (submitting || next === mode) return;
@@ -58,6 +74,10 @@ export default function LoginPage() {
     if (code === "invalid_username") return t("login.errors.username_invalid");
     if (code === "invalid_input")
       return t("login.errors.display_name_required");
+    if (code === "human_check_cancelled")
+      return t("login.errors.human_check_cancelled");
+    if (code === "human_check_failed")
+      return t("login.errors.human_check_failed");
     return authErrorMessage(nextError);
   };
 
@@ -100,6 +120,7 @@ export default function LoginPage() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (submitting) return;
+    setErrorField(null);
 
     if (mode === "login") {
       const normalizedEmail = email.trim().toLowerCase();
@@ -136,10 +157,17 @@ export default function LoginPage() {
     const cleanDisplayName = displayName.trim();
 
     if (!USERNAME_RE.test(normalizedUsername)) {
+      setErrorField("username");
       setError(t("login.errors.username_invalid"));
       return;
     }
+    if (usernameTaken) {
+      setErrorField("username");
+      setError(t("login.errors.username_taken"));
+      return;
+    }
     if (!cleanDisplayName) {
+      setErrorField("displayName");
       setError(t("login.errors.display_name_required"));
       return;
     }
@@ -160,6 +188,9 @@ export default function LoginPage() {
         setRegisterStep(1);
         setError(t("login.errors.email_already_used"));
       } else {
+        if (code === "username_taken" || code === "invalid_username")
+          setErrorField("username");
+        if (code === "invalid_input") setErrorField("displayName");
         setError(resolveErrorMessage(nextError));
       }
     } finally {
@@ -186,14 +217,14 @@ export default function LoginPage() {
         "relative flex h-full w-full items-center justify-center overflow-hidden bg-bg-primary",
         isEdgeToEdge
           ? "rounded-none border-0"
-          : "rounded-5xl border border-border-primary",
+          : "rounded-item border border-border-primary",
       )}
     >
       <LoginBackdrop edgeToEdge={isEdgeToEdge} />
 
-      <WindowControls variant="glass" />
+      <WindowControls variant="glass" isFullscreen />
 
-      <section className="relative z-10 mx-4 my-auto grid max-h-[calc(100%-48px)] w-full max-w-[780px] grid-cols-[300px_1fr] gap-[8px] overflow-y-auto rounded-[20px] border border-border-primary bg-bg-panel p-[8px]">
+      <section className="relative z-10 mx-4 my-auto grid max-h-[calc(100%-48px)] w-full max-w-[780px] grid-cols-[300px_1fr] gap-[8px] overflow-y-auto rounded-panel border border-border-primary bg-bg-panel p-[8px]">
         <LoginBrandPanel title={heading} subtitle={subheading} />
 
         <div className="flex w-full flex-col px-[28px] pb-[22px] pt-[26px]">
@@ -239,7 +270,7 @@ export default function LoginPage() {
                       className="overflow-hidden flex flex-col"
                     >
                       <label
-                        className="mb-[7px] text-[12px] font-[500] text-text-secondary"
+                        className="mb-[7px] text-caption font-[500] text-text-secondary"
                         htmlFor="auth-email"
                       >
                         {t("login.label_email")}
@@ -265,7 +296,7 @@ export default function LoginPage() {
                       />
 
                       <label
-                        className="mb-[7px] mt-[15px] text-[12px] font-[500] text-text-secondary"
+                        className="mb-[7px] mt-[15px] text-caption font-[500] text-text-secondary"
                         htmlFor="auth-password"
                       >
                         {t("login.label_password")}
@@ -299,7 +330,7 @@ export default function LoginPage() {
                                 : t("login.show_password")
                             }
                             onClick={() => setShowPassword((v) => !v)}
-                            className="flex h-7 w-7 items-center justify-center rounded-xl text-text-tertiary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-text-secondary cursor-pointer"
+                            className="flex h-7 w-7 items-center justify-center rounded-item text-text-tertiary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-text-secondary cursor-pointer"
                           >
                             {showPassword ? (
                               <EyeCloseLine className="h-4 w-4" />
@@ -323,7 +354,7 @@ export default function LoginPage() {
                             className="overflow-hidden"
                           >
                             <label
-                              className="mb-[7px] mt-[15px] block text-[12px] font-[500] text-text-secondary"
+                              className="mb-[7px] mt-[15px] block text-caption font-[500] text-text-secondary"
                               htmlFor="auth-confirm"
                             >
                               {t("login.label_confirm_password")}
@@ -355,7 +386,7 @@ export default function LoginPage() {
                                   onClick={() =>
                                     setShowConfirmPassword((v) => !v)
                                   }
-                                  className="flex h-7 w-7 items-center justify-center rounded-xl text-text-tertiary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-text-secondary cursor-pointer"
+                                  className="flex h-7 w-7 items-center justify-center rounded-item text-text-tertiary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-text-secondary cursor-pointer"
                                 >
                                   {showConfirmPassword ? (
                                     <EyeCloseLine className="h-4 w-4" />
@@ -382,7 +413,7 @@ export default function LoginPage() {
                       className="overflow-hidden flex flex-col"
                     >
                       <label
-                        className="mb-[7px] block text-[12px] font-[500] text-text-secondary"
+                        className="mb-[7px] block text-caption font-[500] text-text-secondary"
                         htmlFor="auth-username"
                       >
                         {t("login.label_username")}
@@ -397,15 +428,13 @@ export default function LoginPage() {
                         placeholder={t("login.placeholder_username")}
                         value={username}
                         icon={
-                          <span className="text-[14px] font-medium text-text-tertiary select-none">
+                          <span className="text-label font-medium text-text-tertiary select-none">
                             @
                           </span>
                         }
-                        hasError={Boolean(error)}
-                        aria-invalid={Boolean(error)}
-                        aria-describedby={
-                          error ? "auth-form-error" : "auth-username-hint"
-                        }
+                        hasError={usernameHasError}
+                        aria-invalid={usernameHasError}
+                        aria-describedby={usernameMessageId}
                         onChange={(event) => {
                           setUsername(
                             event.target.value
@@ -416,15 +445,32 @@ export default function LoginPage() {
                         }}
                         disabled={submitting}
                       />
-                      <span
-                        id="auth-username-hint"
-                        className="mt-1 text-[11px] text-text-tertiary"
-                      >
-                        {t("login.username_hint")}
-                      </span>
+                      {(error && errorField === "username") || usernameTaken ? (
+                        <span
+                          id="auth-form-error"
+                          role="alert"
+                          className="mt-1 text-[11px] font-[500] text-accent-primary"
+                        >
+                          {error && errorField === "username"
+                            ? error
+                            : t("login.errors.username_taken")}
+                        </span>
+                      ) : (
+                        <span
+                          id="auth-username-hint"
+                          aria-live="polite"
+                          className="mt-1 text-[11px] text-text-tertiary"
+                        >
+                          {usernameStatus === "checking"
+                            ? t("login.username_checking")
+                            : usernameStatus === "available"
+                              ? t("login.username_available")
+                              : t("login.username_hint")}
+                        </span>
+                      )}
 
                       <label
-                        className="mb-[7px] mt-[14px] block text-[12px] font-[500] text-text-secondary"
+                        className="mb-[7px] mt-[14px] block text-caption font-[500] text-text-secondary"
                         htmlFor="auth-display-name"
                       >
                         {t("login.label_display_name")}
@@ -435,8 +481,10 @@ export default function LoginPage() {
                         autoComplete="name"
                         placeholder={t("login.placeholder_display_name")}
                         value={displayName}
-                        hasError={Boolean(error)}
-                        aria-invalid={Boolean(error)}
+                        hasError={Boolean(error) && errorField !== "username"}
+                        aria-invalid={
+                          Boolean(error) && errorField !== "username"
+                        }
                         aria-describedby={error ? "auth-form-error" : undefined}
                         onChange={(event) => {
                           setDisplayName(event.target.value);
@@ -450,7 +498,7 @@ export default function LoginPage() {
 
                 <div className="min-h-[22px] py-[6px]">
                   <AnimatePresence mode="wait" initial={false}>
-                    {error && (
+                    {error && errorField !== "username" && (
                       <motion.p
                         key={error}
                         id="auth-form-error"
@@ -458,7 +506,7 @@ export default function LoginPage() {
                         initial={{ opacity: 0, y: -3 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        className="m-0 text-[12px] font-[500] leading-[1.4] text-accent-primary"
+                        className="m-0 text-caption font-[500] leading-[1.4] text-accent-primary"
                       >
                         {error}
                       </motion.p>
@@ -545,7 +593,7 @@ export default function LoginPage() {
                         </Button>
                         <Button
                           type="submit"
-                          disabled={submitting}
+                          disabled={submitting || usernameTaken}
                           className="flex-1"
                         >
                           {submitting ? (
@@ -589,6 +637,7 @@ export default function LoginPage() {
           </p>
         </div>
       </section>
+      <HumanCheckNotice />
     </main>
   );
 }

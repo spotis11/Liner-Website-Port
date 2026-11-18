@@ -2,8 +2,6 @@ import type { ReactNode } from "react";
 import Button, { type ButtonProps } from "./Button";
 import { cn } from "@/shared/lib";
 
-const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
-
 /**
  * Title + description block for dialogs, so every modal shares one typography.
  */
@@ -19,19 +17,15 @@ export function DialogHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-start justify-between gap-[12px]", className)}>
+    <div
+      className={cn("flex items-start justify-between gap-[12px]", className)}
+    >
       <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
-        <h2
-          className="m-0 text-[18px] font-[600] leading-[1.2] tracking-[-0.01em] text-text-primary"
-          style={font}
-        >
+        <h2 className="m-0 text-heading font-[600] leading-[1.2] tracking-[-0.01em] text-text-primary">
           {title}
         </h2>
         {description && (
-          <p
-            className="m-0 text-[13px] leading-[1.45] text-text-tertiary"
-            style={font}
-          >
+          <p className="m-0 text-body leading-[1.45] text-text-tertiary">
             {description}
           </p>
         )}
@@ -60,16 +54,21 @@ export function DialogActions({
   );
 }
 
-export interface DialogButtonProps extends Omit<ButtonProps, "variant" | "size"> {
+export interface DialogButtonProps extends Omit<
+  ButtonProps,
+  "variant" | "size"
+> {
   variant?: "primary" | "secondary" | "danger";
   /** shows a spinner next to the label and blocks clicks */
   loading?: boolean;
 }
 
-const variantClass: Record<NonNullable<DialogButtonProps["variant"]>, string> = {
+const variantClass: Record<
+  NonNullable<DialogButtonProps["variant"]>,
+  string
+> = {
   primary: "",
-  secondary:
-    "!bg-black/[0.05] dark:!bg-white/[0.08] hover:!bg-black/[0.08] dark:hover:!bg-white/[0.12] !text-text-primary",
+  secondary: "!bg-fill hover:!bg-fill-hover !text-text-primary",
   danger: "!bg-accent-secondary !text-white hover:!opacity-90",
 };
 
@@ -91,7 +90,7 @@ export function DialogButton({
       variant={variant === "primary" ? "primary" : "secondary"}
       disabled={disabled || loading}
       className={cn(
-        "flex-[1_1_0%] min-w-max !h-[44px] !rounded-[12px] !border-0 px-[16px] !text-[14px] !font-[500]",
+        "flex-[1_1_0%] min-w-max !h-[44px] !rounded-item !border-0 px-[16px] !text-label !font-[500]",
         variantClass[variant],
         loading && "pointer-events-none",
         className,

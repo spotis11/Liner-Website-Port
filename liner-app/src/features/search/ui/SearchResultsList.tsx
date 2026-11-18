@@ -70,7 +70,8 @@ export const SearchResultsList = memo(function SearchResultsList({
             isArtist && it.followers
               ? t("common.followers", { count: it.followers.toLocaleString() })
               : isAlbumOrPlaylist &&
-                  (it.totalTracks !== undefined || it.total_tracks !== undefined)
+                  (it.totalTracks !== undefined ||
+                    it.total_tracks !== undefined)
                 ? `${it.totalTracks ?? it.total_tracks} ${t("common.tracks")}`
                 : it.artists || it.artist || it.owner || "";
 
@@ -121,7 +122,7 @@ export const SearchResultsList = memo(function SearchResultsList({
         })}
       </div>
       {partialWarning ? (
-        <div className="text-accent-tertiary text-[12px] px-[8px] py-[6px] mt-[6px]">
+        <div className="text-accent-tertiary text-caption px-[8px] py-[6px] mt-[6px]">
           {partialWarning}
         </div>
       ) : null}

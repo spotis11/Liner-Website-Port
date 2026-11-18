@@ -4,11 +4,44 @@
  */
 export const CYRILLIC_TO_QWERTY_MAP: Record<string, string> = {
   // Russian standard JCUKEN
-  "й": "Q", "ц": "W", "у": "E", "к": "R", "е": "T", "н": "Y", "г": "U", "ш": "I", "щ": "O", "з": "P", "х": "[", "ъ": "]",
-  "ф": "A", "ы": "S", "в": "D", "а": "F", "п": "G", "р": "H", "о": "J", "л": "K", "д": "L", "ж": ";", "э": "'",
-  "я": "Z", "ч": "X", "с": "C", "м": "V", "и": "B", "т": "N", "ь": "M", "б": ",", "ю": ".", "ё": "`",
+  й: "Q",
+  ц: "W",
+  у: "E",
+  к: "R",
+  е: "T",
+  н: "Y",
+  г: "U",
+  ш: "I",
+  щ: "O",
+  з: "P",
+  х: "[",
+  ъ: "]",
+  ф: "A",
+  ы: "S",
+  в: "D",
+  а: "F",
+  п: "G",
+  р: "H",
+  о: "J",
+  л: "K",
+  д: "L",
+  ж: ";",
+  э: "'",
+  я: "Z",
+  ч: "X",
+  с: "C",
+  м: "V",
+  и: "B",
+  т: "N",
+  ь: "M",
+  б: ",",
+  ю: ".",
+  ё: "`",
   // Ukrainian additions
-  "і": "S", "ї": "]", "є": "'", "ґ": "\\",
+  і: "S",
+  ї: "]",
+  є: "'",
+  ґ: "\\",
 };
 
 /**
@@ -16,6 +49,22 @@ export const CYRILLIC_TO_QWERTY_MAP: Record<string, string> = {
  * Uses event.code first to ensure layout-independent physical key detection,
  * with fallbacks for non-standard environments.
  */
+const NAMED_KEY_FALLBACK: Record<string, string> = {
+  ArrowUp: "Up",
+  ArrowDown: "Down",
+  ArrowLeft: "Left",
+  ArrowRight: "Right",
+  Enter: "Return",
+  Tab: "Tab",
+  Backspace: "Backspace",
+  Delete: "Delete",
+  Insert: "Insert",
+  Home: "Home",
+  End: "End",
+  PageUp: "PageUp",
+  PageDown: "PageDown",
+};
+
 export function getEnglishKeyFromEvent(e: KeyboardEvent): string | null {
   const code = e.code;
 
@@ -96,6 +145,8 @@ export function getEnglishKeyFromEvent(e: KeyboardEvent): string | null {
       break;
   }
 
+  if (NAMED_KEY_FALLBACK[e.key]) return NAMED_KEY_FALLBACK[e.key];
+
   // 2. Fallback: check Cyrillic characters to map them to QWERTY
   const lowerKey = e.key.toLowerCase();
   if (CYRILLIC_TO_QWERTY_MAP[lowerKey]) {
@@ -120,19 +171,31 @@ export function getEnglishKeyFromEvent(e: KeyboardEvent): string | null {
 export function normalizeShortcutToEnglish(shortcut: string): string {
   if (!shortcut || typeof shortcut !== "string") return "";
 
-  const parts = shortcut.split("+").map((p) => p.trim()).filter(Boolean);
+  const parts = shortcut
+    .split("+")
+    .map((p) => p.trim())
+    .filter(Boolean);
   const modifiers: string[] = [];
   let mainKey = "";
 
   for (const part of parts) {
     const lower = part.toLowerCase();
-    if (lower === "control" || lower === "ctrl" || lower === "commandorcontrol") {
+    if (
+      lower === "control" ||
+      lower === "ctrl" ||
+      lower === "commandorcontrol"
+    ) {
       if (!modifiers.includes("Control")) modifiers.push("Control");
     } else if (lower === "alt" || lower === "option") {
       if (!modifiers.includes("Alt")) modifiers.push("Alt");
     } else if (lower === "shift") {
       if (!modifiers.includes("Shift")) modifiers.push("Shift");
-    } else if (lower === "command" || lower === "cmd" || lower === "meta" || lower === "super") {
+    } else if (
+      lower === "command" ||
+      lower === "cmd" ||
+      lower === "meta" ||
+      lower === "super"
+    ) {
       if (!modifiers.includes("Command")) modifiers.push("Command");
     } else {
       // Map main key to English QWERTY if it's Cyrillic
@@ -169,7 +232,9 @@ export interface KeyCapDisplay {
  * Returns formatted labels and symbols for pretty keycap rendering.
  */
 export function getKeyDisplay(part: string): KeyCapDisplay {
-  const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /Mac|iPod|iPhone|iPad/.test(navigator.platform);
   const p = part.toLowerCase();
 
   if (p === "control" || p === "ctrl" || p === "commandorcontrol") {
@@ -182,7 +247,11 @@ export function getKeyDisplay(part: string): KeyCapDisplay {
     return { label: "Shift", symbol: "⇧", isModifier: true };
   }
   if (p === "command" || p === "cmd" || p === "meta") {
-    return { label: isMac ? "Cmd" : "Win", symbol: isMac ? "⌘" : "⊞", isModifier: true };
+    return {
+      label: isMac ? "Cmd" : "Win",
+      symbol: isMac ? "⌘" : "⊞",
+      isModifier: true,
+    };
   }
   if (p === "return" || p === "enter") {
     return { label: "Enter", symbol: "↵", isModifier: false };
@@ -201,5 +270,8 @@ export function getKeyDisplay(part: string): KeyCapDisplay {
  */
 export function splitShortcutParts(shortcut: string): string[] {
   if (!shortcut) return [];
-  return shortcut.split("+").map((p) => p.trim()).filter(Boolean);
+  return shortcut
+    .split("+")
+    .map((p) => p.trim())
+    .filter(Boolean);
 }

@@ -54,7 +54,7 @@ function SectionSkeleton({
       <div className="flex gap-[28px] pl-3 pr-3 mt-[12px] overflow-hidden pb-[2px]">
         {Array.from({ length: cardsCount }).map((_, i) => (
           <div key={i} className="flex-shrink-0 w-[175px]">
-            <div className="relative aspect-square w-full overflow-hidden rounded-md bg-border-alpha-14">
+            <div className="relative aspect-square w-full overflow-hidden rounded-control bg-border-alpha-14">
               <div className="skeleton-shimmer w-full h-full" />
             </div>
 
@@ -73,18 +73,24 @@ function SectionSkeleton({
   );
 }
 
+export const MixesSectionSkeleton = memo(function MixesSectionSkeleton() {
+  return (
+    <SectionSkeleton
+      headingMarginTop="mt-0"
+      titleWidth="w-[190px]"
+      titleHeight="h-[36px]"
+      hasIcon={true}
+      iconClassName="w-[32px] h-[32px] rounded-[10px]"
+      gapClassName="gap-3"
+      cardsCount={7}
+    />
+  );
+});
+
 function HomePageSkeletonComponent() {
   return (
     <div className="relative min-h-full w-full bg-transparent pb-[16px] select-none overflow-hidden">
-      <SectionSkeleton
-        headingMarginTop="mt-0"
-        titleWidth="w-[190px]"
-        titleHeight="h-[36px]"
-        hasIcon={true}
-        iconClassName="w-[32px] h-[32px] rounded-[10px]"
-        gapClassName="gap-3"
-        cardsCount={7}
-      />
+      <MixesSectionSkeleton />
       <SectionSkeleton
         headingMarginTop="mt-[22px]"
         titleWidth="w-[170px]"

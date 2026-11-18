@@ -64,11 +64,17 @@
     "coming_soon": "Prossimamente",
     "play_all": "Riproduci tutto",
     "add_to_queue": "Aggiungi alla coda",
+    "remove_from_queue": "Rimuovi dalla coda",
+    "remove_from_cache": "Rimuovi dalla cache",
+    "removed_from_cache": "Rimosso dalla cache",
+    "removed_from_queue": "Rimosso dalla coda",
+    "undo": "Annulla",
     "shuffle": "Riproduzione casuale",
     "remove_from_library": "Rimuovi dalla libreria",
     "save_to_library": "Salva in libreria",
     "share": "Condividi",
     "back": "Indietro",
+    "forward": "Avanti",
     "link_copied": "Link copiato",
     "download": "Scarica",
     "more": "Altro",
@@ -249,6 +255,8 @@
     "btn_continue": "Continua",
     "btn_back": "Indietro",
     "username_hint": "3-30 caratteri tra lettere minuscole, numeri o trattini bassi.",
+    "username_checking": "Verifico se il nome utente è libero...",
+    "username_available": "Questo nome utente è libero.",
     "label_email": "Email",
     "label_username": "Nome utente (@handle)",
     "placeholder_username": "soundwave",
@@ -381,6 +389,8 @@
     "track_unavailable": "\"{title}\" non è disponibile, lo salto...",
     "track_unavailable_title": "Brano non disponibile",
     "playback_stopped_too_many_errors": "Riproduzione interrotta: non è stato possibile caricare troppi brani.",
+    "youtube_refused_title": "YouTube rifiuta questa connessione",
+    "youtube_refused_description": "L'audio di YouTube è bloccato su questa rete. Disattiva VPN o proxy, oppure prova un'altra connessione.",
     "speed_pitch": "Velocità e tonalità",
     "speed": "Velocità",
     "pitch": "Tonalità",
@@ -397,7 +407,28 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Riverbero",
     "reverb_hint": "Spazio atmosferico e profondità ambientale",
-    "reverb_amount": "Riverbero"
+    "reverb_amount": "Riverbero",
+    "beta_visuals": {
+      "label": "Attenzione",
+      "ambient_title": "Ambient è in beta",
+      "ambient_body": "Questo brano ha uno sfondo animato tutto suo. È ancora in beta e può appesantire i dispositivi meno potenti: se il player scatta, scegli una modalità più leggera.",
+      "settings_title": "Qualità visiva",
+      "settings_body": "Scegli quanto si anima il player a schermo intero. Le modalità leggere risparmiano batteria e sono più fluide sui dispositivi meno potenti.",
+      "modes": {
+        "full": {
+          "name": "Tutti gli effetti",
+          "hint": "Tutto attivo, bordi del testo sfocati inclusi"
+        },
+        "balanced": {
+          "name": "Bilanciato",
+          "hint": "Sfondi animati, senza sfocatura del testo"
+        },
+        "lite": {
+          "name": "Leggero",
+          "hint": "Copertina fissa, testo semplice"
+        }
+      }
+    }
   },
   "playlist": {
     "playlist": "Playlist",
@@ -545,7 +576,6 @@
         "description": "Mantieni l'overlay sopra le altre finestre."
       }
     },
-
     "audio_data": {
       "description": "Qualità dello streaming, cache offline e diagnostica della connessione."
     },
@@ -566,6 +596,10 @@
     "language": {
       "label": "Lingua",
       "description": "Seleziona la lingua dell'interfaccia"
+    },
+    "remember_window_bounds": {
+      "title": "Ricorda dimensione e posizione della finestra",
+      "description": "Riapri la finestra con le stesse dimensioni e nella stessa posizione in cui l'hai lasciata."
     },
     "autoplay_similar": {
       "title": "Riproduci automaticamente brani simili",
@@ -642,8 +676,12 @@
         "covers": "Copertine",
         "audio": "Tracce audio",
         "lyrics": "Testi",
-        "metadata": "Catalogo e ricerca"
-      }
+        "metadata": "Catalogo e ricerca",
+        "local": "Musica locale"
+      },
+      "local_confirm_title": "Eliminare anche la tua musica locale?",
+      "local_confirm_desc": "La musica locale è la tua libreria importata, non cache. {tracks} ({size}) verranno eliminati da Liner, insieme alle copertine. I tuoi file originali restano dove sono.",
+      "local_confirm_button": "Elimina musica locale"
     },
     "theme": {
       "title": "Tema",
@@ -738,7 +776,7 @@
     "about": {
       "liner": "Liner",
       "telegram": "Canale",
-      "support": "Supporto",
+      "discord": "Discord",
       "github": "GitHub",
       "website": "Sito web",
       "tagline": "Player desktop moderno per lo streaming musicale con testi sincronizzati per sillaba",
@@ -921,6 +959,7 @@
   "track_sort": {
     "label": "Ordina",
     "default": "Predefinito",
+    "added": "Per data di aggiunta",
     "title": "Per titolo (A–Z)",
     "duration": "Per durata",
     "popularity": "Per popolarità"

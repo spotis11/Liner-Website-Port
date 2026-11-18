@@ -1,5 +1,7 @@
 import { memo } from "react";
+import { useTheme } from "next-themes";
 import { useCoverFluidColors } from "../hooks/useCoverFluidColors";
+import { withLightness } from "../lib/lightFluidColors";
 import styles from "./MixFluidSquare.module.css";
 
 export interface MixFluidSquareProps {
@@ -8,7 +10,11 @@ export interface MixFluidSquareProps {
 }
 
 function MixFluidSquare({ coverUrl, className = "" }: MixFluidSquareProps) {
-  const { color1, color2 } = useCoverFluidColors(coverUrl);
+  const fluid = useCoverFluidColors(coverUrl);
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === "light";
+  const color1 = isLight ? withLightness(fluid.color1, 0.62) : fluid.color1;
+  const color2 = isLight ? withLightness(fluid.color2, 0.74) : fluid.color2;
 
   return (
     <div className={`${styles.container} ${className}`}>

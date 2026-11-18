@@ -38,7 +38,11 @@ export default function RemoveFromPlaylistModal() {
   }, [detail, toast, removeTracks, t, close]);
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (!next ? close() : undefined)} maxWidth={380}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => (!next ? close() : undefined)}
+      maxWidth={380}
+    >
       <div className="flex flex-col px-[20px] pb-[20px]">
         <DialogHeader
           className="mb-[16px]"
@@ -48,8 +52,8 @@ export default function RemoveFromPlaylistModal() {
 
         {/* Track preview */}
         {detail && (
-          <div className="flex items-center gap-[14px] p-[10px] rounded-[14px] bg-black/[0.05] dark:bg-white/[0.07] mb-[20px]">
-            <div className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-md bg-border-alpha-14">
+          <div className="flex items-center gap-[14px] p-[10px] rounded-[14px] bg-fill mb-[20px]">
+            <div className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-control bg-border-alpha-14">
               {detail.trackCoverUrl && (
                 <CoverImage
                   src={detail.trackCoverUrl}
@@ -62,10 +66,10 @@ export default function RemoveFromPlaylistModal() {
               )}
             </div>
             <div className="flex flex-col min-w-0 gap-[2px]">
-              <span className="text-[14px] font-[500] text-text-primary truncate">
+              <span className="text-label font-[500] text-text-primary truncate">
                 {detail.trackTitle}
               </span>
-              <span className="text-[12px] text-text-tertiary truncate">
+              <span className="text-caption text-text-tertiary truncate">
                 {detail.trackArtists}
               </span>
             </div>
@@ -82,7 +86,9 @@ export default function RemoveFromPlaylistModal() {
             loading={removeTracks.isPending}
             disabled={!detail?.playlistId || !detail?.playlistItemId}
           >
-            {removeTracks.isPending ? t("common.removing") : t("common.confirm")}
+            {removeTracks.isPending
+              ? t("common.removing")
+              : t("common.confirm")}
           </DialogButton>
         </DialogActions>
       </div>

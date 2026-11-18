@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import {
+  DiscordFill,
   GithubFill,
   World2Line,
-  QuestionFill,
   TelegramFill,
 } from "@mingcute/react";
 import { useTranslation } from "@/languages";
@@ -28,10 +28,10 @@ export function AboutTabLinks() {
       icon: <TelegramFill size={17} />,
     },
     {
-      id: "support",
-      url: "https://t.me/liner_app?direct",
-      label: t("settings.about.support"),
-      icon: <QuestionFill size={17} />,
+      id: "discord",
+      url: "https://discord.gg/liner",
+      label: t("settings.about.discord"),
+      icon: <DiscordFill size={17} />,
     },
     {
       id: "github",
@@ -54,7 +54,7 @@ export function AboutTabLinks() {
           key={link.id}
           type="button"
           onClick={() => openUrl(link.url)}
-          className="flex h-[38px] items-center gap-[8px] rounded-[11px] border-0 bg-black/[0.05] px-[14px] text-[14px] font-[500] text-text-primary transition-colors hover:bg-black/[0.08] dark:bg-white/[0.08] dark:hover:bg-white/[0.12]"
+          className="flex h-[38px] items-center gap-[8px] rounded-item border-0 bg-fill px-[14px] text-label font-[500] text-text-primary transition-colors hover:bg-fill-hover"
         >
           {link.icon}
           {link.label}

@@ -4,10 +4,10 @@ import { debouncedStorage } from "@/shared/utils/storage";
 import {
   parseRawLyrics,
   applyLyricsOffset,
-  type WordData,
   type SyncedLine,
 } from "../engine/lyricsParser";
 import type { Lyric } from "@braccato/parsers";
+import { hasUsableLyrics } from "./lyricsCache";
 import type {
   LyricsCandidate,
   LyricsSyncLevel,
@@ -39,7 +39,6 @@ export function hasSyncedLyricsSources(
     return true;
   }
   if (
-    braccatoLyrics.length > 0 &&
     braccatoLyrics.some(
       (l) => (l.startTimeMs ?? 0) > 0 || (l.durationMs ?? 0) > 0,
     )
@@ -52,6 +51,12 @@ export function hasSyncedLyricsSources(
   return false;
 }
 
+export function withUsableLyrics(
+  providers: LyricsProviderOption[],
+): LyricsProviderOption[] {
+  return providers.filter((p) => hasUsableLyrics(p.candidate));
+}
+
 export interface LyricsState {
   lyricsLoading: boolean;
   lyricsError: string | null;
@@ -62,6 +67,8 @@ export interface LyricsState {
   braccatoLyrics: Lyric[];
   syncedLines: SyncedLine[];
   plainLyrics: string | null;
+  // the server says the track has no words, shown instead of "no lyrics"
+  instrumental: boolean;
   lyricsQuality: number;
   currentLyricsTrackId: string | null;
   activeProvider: string | null;
@@ -106,6 +113,7 @@ export const useLyricsStore = create<LyricsState>()(
       braccatoLyrics: [],
       syncedLines: [],
       plainLyrics: null,
+      instrumental: false,
       lyricsQuality: 0,
       currentLyricsTrackId: null,
       activeProvider: null,
@@ -154,12 +162,31 @@ export const useLyricsStore = create<LyricsState>()(
 
         set({
           ...state,
+          ...(state.availableProviders
+            ? { availableProviders: withUsableLyrics(state.availableProviders) }
+            : {}),
+          // a new track or any words clear an instrumental answer unless it is set again
+          instrumental:
+            state.instrumental ??
+            (isNewTrack || state.rawLyrics ? false : current.instrumental),
           offsetMs: offset,
           baseBraccatoLyrics: baseBraccato,
           baseSyncedLines: baseSynced,
           braccatoLyrics: adjusted.braccatoLyrics,
           syncedLines: adjusted.syncedLines,
         });
+
+        const next = get();
+        const activeIsListed = next.availableProviders.some(
+          (p) => p.provider === next.activeProvider,
+        );
+        if (
+          next.braccatoLyrics.length === 0 &&
+          next.availableProviders.length > 0 &&
+          !activeIsListed
+        ) {
+          next.selectProvider(next.availableProviders[0].provider);
+        }
       },
 
       selectProvider: (providerName: string) => {
@@ -167,7 +194,7 @@ export const useLyricsStore = create<LyricsState>()(
         const option = availableProviders.find(
           (p) => p.provider === providerName,
         );
-        if (!option) return;
+        if (!option || !hasUsableLyrics(option.candidate)) return;
 
         try {
           const parsed = parseRawLyrics(
@@ -259,6 +286,7 @@ export const useLyricsStore = create<LyricsState>()(
           braccatoLyrics: [],
           syncedLines: [],
           plainLyrics: null,
+          instrumental: false,
           lyricsQuality: 0,
           currentLyricsTrackId: null,
           activeProvider: null,

@@ -7,7 +7,19 @@ import {
 } from "../store/playerStore";
 import { playerRuntime } from "./playerRuntime";
 import { isRadioContext, shouldRefillRadio } from "./radioMode";
+import {
+  LazyShuffle,
+  SHUFFLE_REFILL_AT,
+  SHUFFLE_REFILL_CHUNK,
+  SHUFFLE_WINDOW,
+  drawShuffled,
+  isPlaylistContext,
+  mergeLoadedTracks,
+  sourceIndexOf,
+  type PlaylistSource,
+} from "./playlistShuffle";
 import { pitchShifter } from "./pitchShifter";
+import { EQ_MAX_CUSTOM_PRESETS, EQ_PRESET_NAME_MAX } from "./equalizer";
 import {
   api,
   type ApiRadioTrack,
@@ -22,17 +34,26 @@ import {
   parseRawLyrics,
   useLyricsStore,
   lyricsCache,
+  isLyricsCandidate,
   shouldCacheLyricsCandidate,
+  isProvisionalLyricsCandidate,
   compareLyricsCandidates,
   isBetterLyricsCandidate,
   type CachedLyricsItem,
 } from "@/features/lyrics";
 import { preloadCoverArt } from "@/features/covers";
+import { preloadArtistAvatars } from "@/features/artist/lib/artistAvatar";
 import { linerDb, type CachedLyricsRecord } from "@/shared/storage";
 import { debouncedStorage } from "@/shared/utils/storage";
 import { showToast } from "@/shared/ui";
 import { createTranslatorSync, getStoredLocale } from "@/languages";
 import type { Track } from "@/shared/types";
+import { isLocalTrackId } from "@/shared/media/local";
+import { readSavedLyrics } from "@/shared/media/saved";
+import { loadAmbientScript } from "@/shared/media/ambient";
+import { STREAMS_REFUSED_MESSAGE } from "@/shared/youtube";
+import { OFFLINE_UNAVAILABLE_MESSAGE } from "@/features/connectivity/store/offlineModeStore";
+import { noteYoutubeTrouble } from "@/features/connectivity/engine/offlineController";
 
 const MAX_CONSECUTIVE_AUTO_SKIPS = 3;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -87,6 +108,10 @@ function parsePlaybackContext(
 
 // fresh station instance id so the backend can tell paginated waves apart
 // even when seed + history windows coincide
+function continuesWithSimilar(state: PlayerState): boolean {
+  return state.autoplaySimilar && state.repeat === "off";
+}
+
 function newRadioWaveId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -96,12 +121,21 @@ function newRadioWaveId(): string {
 
 type LyricsHint = { title: string; artist: string; durationMs?: number };
 
+function lyricsArtistName(raw: string): string {
+  const cleaned = raw
+    .replace(/(^|\s)[#@][^\s#@]+/g, " ")
+    .replace(/\s+-\s+topic$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || raw.trim();
+}
+
 function lyricsHint(track: Track): LyricsHint {
   const artist =
     track.artistList?.[0]?.name || track.artists.split(",")[0] || "";
   return {
     title: track.title,
-    artist: artist.trim(),
+    artist: lyricsArtistName(artist),
     durationMs: track.durationMs,
   };
 }
@@ -225,17 +259,18 @@ class PlaybackTelemetryTracker {
     const completionRate = Math.min(1.0, Math.max(0.0, rawRate));
     const isSkipped = !this.completed && this.playedDurationMs < 30000;
 
-    if (this.playedDurationMs >= 3000 || this.completed) {
+    if (
+      (this.playedDurationMs >= 3000 || this.completed) &&
+      !isLocalTrackId(this.activeTrackId)
+    ) {
       const snap = this.activeTrack;
       const artistsList = snap?.artistList?.length
         ? snap.artistList.map((a) => ({ id: a.id || "unknown", name: a.name }))
         : snap?.artists
-          ? snap.artists
-              .split(",")
-              .map((name) => ({
-                id: snap?.artistId || "unknown",
-                name: name.trim(),
-              }))
+          ? snap.artists.split(",").map((name) => ({
+              id: snap?.artistId || "unknown",
+              name: name.trim(),
+            }))
           : [{ id: "unknown", name: "Unknown Artist" }];
 
       reported = this.sendEvent({
@@ -280,13 +315,16 @@ class PlaybackTelemetryTracker {
   }
 
   private sendEvent(payload: RecordPlaybackEventRequest): Promise<void> {
-    return api.recordPlaybackEvent(payload).then(() => undefined, (err) => {
-      log(
-        "yellow",
-        "telemetry",
-        `playback event report failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
+    return api.recordPlaybackEvent(payload).then(
+      () => undefined,
+      (err) => {
+        log(
+          "yellow",
+          "telemetry",
+          `playback event report failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      },
+    );
   }
 }
 
@@ -297,12 +335,14 @@ class PlayerEngine {
   private currentLyricsTrackId: string | null = null;
   private masterPlaylist: Track[] = [];
   private originalUpcomingQueue: Track[] = [];
+  private playlistSource: PlaylistSource | null = null;
   private telemetry = new PlaybackTelemetryTracker();
   private radioAppendTimeout: ReturnType<typeof setTimeout> | null = null;
   private radioWaveId: string | null = null;
   // single in-flight similar-tracks request, so a refill and an end-of-queue wait share it
   private radioFetchInFlight: Promise<void> | null = null;
   private consecutiveAutoSkips = 0;
+  private consecutiveOfflineSkips = 0;
   private lastPreloadKey: string | null = null;
   private inFlightLyricsPrefetches = new Map<string, Promise<void>>();
 
@@ -361,6 +401,7 @@ class PlayerEngine {
           if (state.status === "playing") {
             this.telemetry.onPlaying();
             this.consecutiveAutoSkips = 0;
+            this.consecutiveOfflineSkips = 0;
           } else if (state.status === "paused" || state.status === "idle") {
             this.telemetry.onPausedOrStopped();
           }
@@ -482,9 +523,30 @@ class PlayerEngine {
 
     if (!isSelectingFromCurrentQueue) {
       this.masterPlaylist = [...nextQueue];
+      this.playlistSource = isPlaylistContext(context)
+        ? { context, tracks: nextQueue, shuffle: null }
+        : null;
     }
 
-    if (!isSelectingFromCurrentQueue && store.shuffle && nextQueue.length > 1) {
+    const source = this.playlistSource;
+    if (
+      !isSelectingFromCurrentQueue &&
+      store.shuffle &&
+      source &&
+      nextQueue.length > 1
+    ) {
+      source.shuffle = new LazyShuffle(nextQueue.length, nextIndex);
+      finalQueue = [
+        nextQueue[nextIndex] ?? track,
+        ...drawShuffled(source, SHUFFLE_WINDOW),
+      ];
+      finalIndex = 0;
+      this.originalUpcomingQueue = [];
+    } else if (
+      !isSelectingFromCurrentQueue &&
+      store.shuffle &&
+      nextQueue.length > 1
+    ) {
       const played = nextQueue.slice(0, nextIndex);
       const selectedTrackItem = nextQueue[nextIndex] ?? track;
       const upcoming = nextQueue.slice(nextIndex + 1);
@@ -531,15 +593,27 @@ class PlayerEngine {
         ? startIndex
         : Math.floor(Math.random() * tracks.length);
     const seedTrack = tracks[seedIndex];
-    const remaining = [
-      ...tracks.slice(0, seedIndex),
-      ...tracks.slice(seedIndex + 1),
-    ];
-    const shuffledRemaining = shuffleArray(remaining);
-    const finalQueue = [seedTrack, ...shuffledRemaining];
+    let finalQueue: Track[];
 
     this.masterPlaylist = [...tracks];
-    this.originalUpcomingQueue = [...remaining];
+    if (isPlaylistContext(context)) {
+      const source: PlaylistSource = {
+        context,
+        tracks: [...tracks],
+        shuffle: new LazyShuffle(tracks.length, seedIndex),
+      };
+      this.playlistSource = source;
+      this.originalUpcomingQueue = [];
+      finalQueue = [seedTrack, ...drawShuffled(source, SHUFFLE_WINDOW)];
+    } else {
+      const remaining = [
+        ...tracks.slice(0, seedIndex),
+        ...tracks.slice(seedIndex + 1),
+      ];
+      this.playlistSource = null;
+      this.originalUpcomingQueue = [...remaining];
+      finalQueue = [seedTrack, ...shuffleArray(remaining)];
+    }
 
     store.setShuffle(true);
     if (context !== undefined) {
@@ -567,6 +641,7 @@ class PlayerEngine {
   }
 
   public async startRadioStation(track: Track): Promise<void> {
+    if (isLocalTrackId(track.id)) return;
     const store = usePlayerStore.getState();
     this.sessionId += 1;
     const mySession = this.sessionId;
@@ -580,6 +655,7 @@ class PlayerEngine {
     store.setPlaybackContextCover(track.coverUrl ?? null);
     store.setQueue([track]);
     this.originalUpcomingQueue = [];
+    this.playlistSource = null;
 
     store.setCurrentTrack(track, 0);
     store.setPosition(0);
@@ -823,6 +899,38 @@ class PlayerEngine {
     usePlayerStore.getState().setReverbLevel(level);
   }
 
+  public setIsEqEnabled(enabled: boolean): void {
+    pitchShifter.resumeContext();
+    usePlayerStore.getState().setIsEqEnabled(enabled);
+  }
+
+  public setEqGains(gains: number[]): void {
+    pitchShifter.resumeContext();
+    usePlayerStore.getState().setEqGains(gains);
+  }
+
+  // saves the current curve under a name; same name overwrites, the list is capped
+  public saveEqPreset(name: string): void {
+    const store = usePlayerStore.getState();
+    const trimmed = name.trim().slice(0, EQ_PRESET_NAME_MAX);
+    if (!trimmed) return;
+    const others = store.eqCustomPresets.filter(
+      (preset) => preset.name.toLowerCase() !== trimmed.toLowerCase(),
+    );
+    if (others.length >= EQ_MAX_CUSTOM_PRESETS) return;
+    store.setEqCustomPresets([
+      ...others,
+      { id: crypto.randomUUID(), name: trimmed, gains: [...store.eqGains] },
+    ]);
+  }
+
+  public deleteEqPreset(id: string): void {
+    const store = usePlayerStore.getState();
+    store.setEqCustomPresets(
+      store.eqCustomPresets.filter((preset) => preset.id !== id),
+    );
+  }
+
   public resetSpeedAndPitch(): void {
     usePlayerStore.getState().resetSpeedAndPitch();
   }
@@ -835,6 +943,7 @@ class PlayerEngine {
     const store = usePlayerStore.getState();
     if (store.shuffle === enabled) return;
     store.setShuffle(enabled);
+    if (this.reshufflePlaylist(enabled)) return;
 
     const { queue, currentIndex } = store;
     if (queue.length > 0 && currentIndex >= 0) {
@@ -903,6 +1012,7 @@ class PlayerEngine {
   }
 
   public addToQueue(track: Track): void {
+    this.drawRestOfShuffle();
     const store = usePlayerStore.getState();
     const newQueue = [...store.queue, track];
     store.setQueue(newQueue);
@@ -962,8 +1072,10 @@ class PlayerEngine {
     this.currentLyricsTrackId = null;
     this.masterPlaylist = [];
     this.originalUpcomingQueue = [];
+    this.playlistSource = null;
     this.lastPreloadKey = null;
     this.consecutiveAutoSkips = 0;
+    this.consecutiveOfflineSkips = 0;
     playerRuntime?.stop();
     usePlayerStore.getState().resetPlayback();
     useLyricsStore.getState().reset();
@@ -975,6 +1087,89 @@ class PlayerEngine {
     usePlayerStore.getState().clearQueue();
     this.masterPlaylist = [];
     this.originalUpcomingQueue = [];
+    this.playlistSource = null;
+  }
+
+  public syncPlaylistTracks(context: string, tracks: Track[]): void {
+    const source = this.playlistSource;
+    if (!source || source.context !== context) return;
+    const lastBefore = source.tracks[source.tracks.length - 1];
+    const added = mergeLoadedTracks(source, tracks);
+    if (added.length === 0) return;
+    if (source.shuffle) {
+      this.refillShuffleWindow();
+      return;
+    }
+    const store = usePlayerStore.getState();
+    if (store.queue[store.queue.length - 1] !== lastBefore) return;
+    store.setQueue([...store.queue, ...added]);
+    this.preloadNextTrack(usePlayerStore.getState());
+  }
+
+  private reshufflePlaylist(enabled: boolean): boolean {
+    const source = this.playlistSource;
+    const store = usePlayerStore.getState();
+    const current = store.currentTrack;
+    if (!source || !current || store.currentIndex < 0) return false;
+    const at = sourceIndexOf(source, current);
+    if (at < 0) return false;
+
+    const sourceIds = new Set(source.tracks.map((track) => track.id));
+    const extras = store.queue
+      .slice(store.currentIndex + 1)
+      .filter((track) => !sourceIds.has(track.id));
+
+    this.originalUpcomingQueue = [];
+    if (enabled) {
+      source.shuffle = new LazyShuffle(source.tracks.length, at);
+      usePlayerStore.setState({
+        queue: [current, ...extras, ...drawShuffled(source, SHUFFLE_WINDOW)],
+        currentIndex: 0,
+      });
+    } else {
+      source.shuffle = null;
+      usePlayerStore.setState({
+        queue: [
+          ...source.tracks.slice(0, at),
+          current,
+          ...extras,
+          ...source.tracks.slice(at + 1),
+        ],
+        currentIndex: at,
+      });
+    }
+    const after = usePlayerStore.getState();
+    this.preloadNextTrack(after);
+    this.maybeExtendQueue(
+      this.sessionId,
+      current.id,
+      after.currentIndex,
+      after.queue.length,
+    );
+    return true;
+  }
+
+  private refillShuffleWindow(): void {
+    const source = this.playlistSource;
+    if (!source?.shuffle || source.shuffle.remaining === 0) return;
+    const store = usePlayerStore.getState();
+    if (store.currentIndex < 0) return;
+    const ahead = store.queue.length - 1 - store.currentIndex;
+    if (ahead > SHUFFLE_REFILL_AT) return;
+    store.setQueue([
+      ...store.queue,
+      ...drawShuffled(source, SHUFFLE_REFILL_CHUNK),
+    ]);
+  }
+
+  private drawRestOfShuffle(): void {
+    const source = this.playlistSource;
+    if (!source?.shuffle || source.shuffle.remaining === 0) return;
+    const store = usePlayerStore.getState();
+    store.setQueue([
+      ...store.queue,
+      ...drawShuffled(source, source.shuffle.remaining),
+    ]);
   }
 
   public reorderQueue(fromIndex: number, toIndex: number): void {
@@ -1015,6 +1210,53 @@ class PlayerEngine {
     this.preloadNextTrack(store);
   }
 
+  // the playing track is not removable from here: skip it instead
+  // returns the undo, or null when nothing was removed
+  public removeFromQueue(index: number): (() => void) | null {
+    const store = usePlayerStore.getState();
+    if (
+      index < 0 ||
+      index >= store.queue.length ||
+      index === store.currentIndex
+    )
+      return null;
+
+    const track = store.queue[index];
+    const queue = store.queue.filter((_, i) => i !== index);
+    store.setQueue(queue);
+    if (index < store.currentIndex) {
+      store.setCurrentTrack(store.currentTrack, store.currentIndex - 1);
+    }
+    const after = usePlayerStore.getState();
+    this.preloadNextTrack(after);
+    // removing the last upcoming track makes the playing one the last: refill like skipNext does
+    if (after.currentTrack)
+      this.maybeExtendQueue(
+        this.sessionId,
+        after.currentTrack.id,
+        after.currentIndex,
+        after.queue.length,
+      );
+    // undo only applies to the queue it was made on, not to a queue started or edited since
+    return () => {
+      if (usePlayerStore.getState().queue === queue)
+        this.insertIntoQueue(index, track);
+    };
+  }
+
+  // undo for removeFromQueue: puts the track back at the position it had
+  public insertIntoQueue(index: number, track: Track): void {
+    const store = usePlayerStore.getState();
+    const at = Math.max(0, Math.min(index, store.queue.length));
+    const queue = [...store.queue];
+    queue.splice(at, 0, track);
+    store.setQueue(queue);
+    if (store.currentIndex >= 0 && at <= store.currentIndex) {
+      store.setCurrentTrack(store.currentTrack, store.currentIndex + 1);
+    }
+    this.preloadNextTrack(usePlayerStore.getState());
+  }
+
   public snapshotQueue(): Track[] {
     return [...usePlayerStore.getState().queue];
   }
@@ -1043,6 +1285,33 @@ class PlayerEngine {
 
     const track = store.currentTrack;
     const translate = createTranslatorSync(getStoredLocale());
+    if (info.message.startsWith(OFFLINE_UNAVAILABLE_MESSAGE)) {
+      this.consecutiveOfflineSkips += 1;
+      if (this.consecutiveOfflineSkips > store.queue.length) {
+        showToast(translate("offline.nothing_playable"), "info", {
+          id: "offline-skip",
+        });
+        this.consecutiveOfflineSkips = 0;
+        this.stopPlayback();
+        store.setStatus("idle");
+        store.setPosition(0);
+        store.setDuration(0);
+        store.setCurrentTrack(null, -1);
+        return;
+      }
+      showToast(translate("offline.skipped_title"), "info", {
+        id: "offline-skip",
+        description: translate("offline.skipped_desc"),
+      });
+      void this.skipNext(false);
+      return;
+    }
+    // youtube refusing every stream is about the connection (vpn, proxy, flagged ip), not this track
+    const refused = info.message.startsWith(STREAMS_REFUSED_MESSAGE);
+    noteYoutubeTrouble(refused ? "refused" : "failed");
+    const refusedToast = {
+      description: translate("player.youtube_refused_description"),
+    };
     this.consecutiveAutoSkips += 1;
 
     if (this.consecutiveAutoSkips > MAX_CONSECUTIVE_AUTO_SKIPS) {
@@ -1051,7 +1320,17 @@ class PlayerEngine {
         "playback",
         `${this.consecutiveAutoSkips} consecutive tracks failed to play — stopping instead of skipping further`,
       );
-      showToast(translate("player.playback_stopped_too_many_errors"), "error");
+      if (refused)
+        showToast(
+          translate("player.youtube_refused_title"),
+          "error",
+          refusedToast,
+        );
+      else
+        showToast(
+          translate("player.playback_stopped_too_many_errors"),
+          "error",
+        );
       this.consecutiveAutoSkips = 0;
       this.stopPlayback();
       store.setStatus("idle");
@@ -1067,11 +1346,18 @@ class PlayerEngine {
       "playback",
       `"${track.title}" failed (${info.message}) — skipping to next`,
     );
-    showToast(translate("player.track_unavailable_title"), "error", {
-      description: track.artists
-        ? `${track.title} — ${track.artists}`
-        : track.title,
-    });
+    if (refused)
+      showToast(
+        translate("player.youtube_refused_title"),
+        "error",
+        refusedToast,
+      );
+    else
+      showToast(translate("player.track_unavailable_title"), "error", {
+        description: track.artists
+          ? `${track.title} — ${track.artists}`
+          : track.title,
+      });
     void this.skipNext(false);
   }
 
@@ -1095,10 +1381,13 @@ class PlayerEngine {
     index: number,
     queueLength: number,
   ): void {
+    this.refillShuffleWindow();
+    const length = Math.max(
+      queueLength,
+      usePlayerStore.getState().queue.length,
+    );
     const radio = isRadioContext(usePlayerStore.getState().playbackContext);
-    const due = radio
-      ? shouldRefillRadio(queueLength, index)
-      : index === queueLength - 1;
+    const due = radio ? shouldRefillRadio(length, index) : index === length - 1;
     if (due) this.scheduleAppendSimilarTracks(session, seedTrackId);
   }
 
@@ -1137,10 +1426,13 @@ class PlayerEngine {
     const currentState = usePlayerStore.getState();
     // radio always continues; plain lists only when "autoplay similar" is on
     const radio = isRadioContext(currentState.playbackContext);
-    if (!radio && !currentState.autoplaySimilar) return;
+    if (!radio && !continuesWithSimilar(currentState)) return;
+    if (isLocalTrackId(seedTrackId)) return;
     const startContext = currentState.playbackContext;
 
-    const historyIds = currentState.queue.map((track) => track.id);
+    const historyIds = currentState.queue
+      .map((track) => track.id)
+      .filter((id) => !isLocalTrackId(id));
     // keep paginating the same wave instance across queue generations
     if (!this.radioWaveId) this.radioWaveId = newRadioWaveId();
     const waveId = this.radioWaveId;
@@ -1171,7 +1463,7 @@ class PlayerEngine {
         : session !== this.sessionId
     )
       return;
-    if (!radio && !state.autoplaySimilar) return;
+    if (!radio && !continuesWithSimilar(state)) return;
 
     const queuedIds = new Set(state.queue.map((track) => track.id));
     const additions = items
@@ -1226,10 +1518,14 @@ class PlayerEngine {
     if (nextTrack.coverUrl) {
       void preloadCoverArt(nextTrack.coverUrl);
     }
+    if (!isLocalTrackId(nextTrack.id)) {
+      void preloadArtistAvatars(nextTrack.artistId, nextTrack.artistList);
+    }
 
     if (!lyricsCache.has(nextTrack.id)) {
       void this.prefetchLyrics(nextTrack.id, lyricsHint(nextTrack));
     }
+    void loadAmbientScript(nextTrack.id);
 
     void linerDb.putTrack(nextTrack);
 
@@ -1242,7 +1538,7 @@ class PlayerEngine {
     trackId: string,
     hint?: LyricsHint,
   ): Promise<void> {
-    if (!trackId) return;
+    if (!trackId || isLocalTrackId(trackId)) return;
 
     if (lyricsCache.has(trackId)) return;
     if (this.inFlightLyricsPrefetches.has(trackId)) {
@@ -1285,8 +1581,9 @@ class PlayerEngine {
               candidate,
             });
             if (
-              !bestCandidate ||
-              isBetterLyricsCandidate(candidate, bestCandidate)
+              shouldCacheLyricsCandidate(candidate) &&
+              (!bestCandidate ||
+                isBetterLyricsCandidate(candidate, bestCandidate))
             ) {
               bestCandidate = candidate;
             }
@@ -1321,6 +1618,46 @@ class PlayerEngine {
     return prefetchPromise;
   }
 
+  private showLyricsCandidate(
+    trackId: string,
+    candidate: LyricsCandidate,
+    availableProviders: CachedLyricsItem["availableProviders"],
+  ): void {
+    const parsed = parseRawLyrics(
+      candidate.lyrics.content,
+      candidate.lyrics.format,
+    );
+    useLyricsStore.getState().setLyricsState({
+      lyricsLoading: false,
+      lyricsError: null,
+      rawLyrics: candidate.lyrics.content,
+      rawFormat: candidate.lyrics.format,
+      braccatoLyrics: parsed.braccatoLyrics,
+      syncedLines: parsed.syncedLines,
+      plainLyrics: parsed.plainLyrics,
+      lyricsQuality: candidate.quality.total,
+      currentLyricsTrackId: trackId,
+      activeProvider: candidate.provider,
+      availableProviders,
+    });
+  }
+
+  private showNoLyrics(trackId: string, lyricsError: string | null): void {
+    useLyricsStore.getState().setLyricsState({
+      lyricsLoading: false,
+      lyricsError,
+      rawLyrics: null,
+      rawFormat: null,
+      braccatoLyrics: [],
+      syncedLines: [],
+      plainLyrics: null,
+      lyricsQuality: 0,
+      currentLyricsTrackId: trackId,
+      activeProvider: null,
+      availableProviders: [],
+    });
+  }
+
   private async fetchLyricsForTrack(track: Track | null): Promise<void> {
     const lyricsStore = useLyricsStore.getState();
 
@@ -1335,6 +1672,14 @@ class PlayerEngine {
       this.currentLyricsTrackId === trackId &&
       lyricsStore.currentLyricsTrackId === trackId
     ) {
+      return;
+    }
+    if (isLocalTrackId(trackId)) {
+      this.currentLyricsTrackId = trackId;
+      ++this.lyricsLoadToken;
+      this.lyricsAbort?.abort();
+      this.lyricsAbort = null;
+      this.showNoLyrics(trackId, null);
       return;
     }
 
@@ -1353,6 +1698,20 @@ class PlayerEngine {
         cached = await linerDb.getLyrics(trackId);
       } catch {
         cached = null;
+      }
+    }
+    if (!cached) {
+      const saved = await readSavedLyrics(trackId, isLyricsCandidate);
+      if (saved) {
+        cached = { trackId, candidate: saved, timestamp: Date.now() };
+        lyricsCache.set(trackId, saved, [
+          {
+            provider: saved.provider,
+            syncLevel: saved.syncLevel,
+            quality: saved.quality.total,
+            candidate: saved,
+          },
+        ]);
       }
     }
 
@@ -1391,7 +1750,9 @@ class PlayerEngine {
         `cache hit for "${track.title}" (age: ${Math.round((Date.now() - lastChecked) / 1000)}s)`,
       );
       const isStale = Date.now() - lastChecked >= SEVEN_DAYS_MS;
-      if (!isStale || (cached as any).userLocked) {
+      const needsRefresh =
+        isStale || isProvisionalLyricsCandidate(cached.candidate);
+      if (!needsRefresh || (cached as any).userLocked) {
         return;
       }
 
@@ -1473,8 +1834,9 @@ class PlayerEngine {
           }
 
           if (
-            !bestCandidate ||
-            isBetterLyricsCandidate(candidate, bestCandidate)
+            shouldCacheLyricsCandidate(candidate) &&
+            (!bestCandidate ||
+              isBetterLyricsCandidate(candidate, bestCandidate))
           ) {
             bestCandidate = candidate;
 
@@ -1549,12 +1911,17 @@ class PlayerEngine {
               updatedAt: Date.now(),
             });
           }
+          if (!bestCandidate && event.instrumental) {
+            useLyricsStore.getState().setLyricsState({ instrumental: true });
+          }
           log(
             "cyan",
             "lyrics",
             event.best
               ? `done, best=${event.best.provider} q=${event.best.quality}`
-              : "done, no lyrics found",
+              : event.instrumental
+                ? "done, instrumental"
+                : "done, no lyrics found",
           );
           break;
         }

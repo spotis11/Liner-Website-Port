@@ -26,3 +26,10 @@ export {
   type DominantDarkColor,
 } from "./useDominantDarkColor";
 export { useScrollFade, type ScrollFade } from "./useScrollFade";
+
+export { useTweenedNumber, SMOOTH_EASE } from "./useTweenedNumber";
+export {
+  useElementSize,
+  type ElementSize,
+  type MeasuredElement,
+} from "./useElementSize";

@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useTranslation } from "@/languages";
 import { motion } from "framer-motion";
 import { SkipNext, SkipPrevious } from "@solar-icons/react";
 import {
@@ -11,9 +10,25 @@ import { HeartFill, HeartLine } from "@mingcute/react";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import { ScrollableText } from "@/shared/ui/ScrollableText";
 import { useDisableButtonFocus } from "@/features/navigation/hooks/useDisableButtonFocus";
-import { getAuthSession } from "@/shared/api/auth-session";
 import type { OverlayAction, OverlayStatePayload } from "../contracts";
 import { useShortcutsStore, matchesShortcut } from "@/features/shortcuts";
+import { isLocalTrackId } from "@/shared/media/local/localTrackIds";
+
+function sampledPositionMs({
+  status,
+  positionMs,
+  positionAt,
+  playbackRate,
+}: Pick<
+  OverlayStatePayload,
+  "status" | "positionMs" | "positionAt" | "playbackRate"
+>): number {
+  if (status !== "playing" || typeof positionAt !== "number") {
+    return positionMs;
+  }
+  const rate = playbackRate && playbackRate > 0 ? playbackRate : 1;
+  return positionMs + Math.max(0, Date.now() - positionAt) * rate;
+}
 
 const OVERLAY_CARD_TRANSITION = {
   duration: 0.08,
@@ -22,7 +37,6 @@ const OVERLAY_CARD_TRANSITION = {
 
 export function OverlayPlayer() {
   useDisableButtonFocus();
-  const { t } = useTranslation();
 
   const [state, setState] = useState<OverlayStatePayload>({
     status: "idle",
@@ -35,26 +49,29 @@ export function OverlayPlayer() {
 
   const [isInfoHovered, setIsInfoHovered] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const [isShown, setIsShown] = useState(
+    () => !window.linerElectron?.onOverlayVisibility,
+  );
 
   const anchorPosRef = useRef(state.positionMs);
   const anchorTimeRef = useRef(performance.now());
   const [interpolatedPosMs, setInterpolatedPosMs] = useState(state.positionMs);
   const lastTrackIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!getAuthSession()) {
-      window.linerElectron?.closeOverlay?.();
-      return;
-    }
-
+  const pullLatestState = useCallback(() => {
     window.linerElectron?.getOverlayInitialState?.().then((initial) => {
       if (initial) {
-        anchorPosRef.current = initial.positionMs;
+        const pos = sampledPositionMs(initial);
+        anchorPosRef.current = pos;
         anchorTimeRef.current = performance.now();
-        setInterpolatedPosMs(initial.positionMs);
+        setInterpolatedPosMs(pos);
         setState(initial);
       }
     });
+  }, []);
+
+  useEffect(() => {
+    pullLatestState();
 
     if (window.linerElectron?.onOverlayState) {
       const cleanupState = window.linerElectron.onOverlayState((newState) => {
@@ -62,7 +79,7 @@ export function OverlayPlayer() {
       });
       return cleanupState;
     }
-  }, []);
+  }, [pullLatestState]);
 
   useEffect(() => {
     const signal = setTimeout(() => window.linerElectron?.overlayReady?.(), 0);
@@ -74,56 +91,84 @@ export function OverlayPlayer() {
     const cleanupVisibility = window.linerElectron.onOverlayVisibility(
       (visible) => {
         setIsVisible(visible);
+        setIsShown(visible);
+        if (visible) pullLatestState();
       },
     );
     return cleanupVisibility;
-  }, []);
+  }, [pullLatestState]);
 
   const sendAction = useCallback((action: OverlayAction) => {
     window.linerElectron?.sendOverlayAction?.(action);
   }, []);
 
   const isPlaying = state.status === "playing";
+  const rate =
+    state.playbackRate && state.playbackRate > 0 ? state.playbackRate : 1;
   const durationMs = Math.max(
     1,
     state.durationMs || state.track?.durationMs || 1,
   );
 
+  const interpolatedPosRef = useRef(interpolatedPosMs);
   useEffect(() => {
-    if (state.track?.id !== lastTrackIdRef.current) {
-      lastTrackIdRef.current = state.track?.id ?? null;
-      setInterpolatedPosMs(state.positionMs);
-      anchorPosRef.current = state.positionMs;
+    interpolatedPosRef.current = interpolatedPosMs;
+  }, [interpolatedPosMs]);
+
+  const {
+    status: stateStatus,
+    positionMs: statePositionMs,
+    positionAt: statePositionAt,
+    playbackRate: statePlaybackRate,
+  } = state;
+  const stateTrackId = state.track?.id;
+
+  useEffect(() => {
+    const syncedPos = sampledPositionMs({
+      status: stateStatus,
+      positionMs: statePositionMs,
+      positionAt: statePositionAt,
+      playbackRate: statePlaybackRate,
+    });
+    if (stateTrackId !== lastTrackIdRef.current) {
+      lastTrackIdRef.current = stateTrackId ?? null;
+      setInterpolatedPosMs(syncedPos);
+      anchorPosRef.current = syncedPos;
       anchorTimeRef.current = performance.now();
       return;
     }
 
-    if (state.status === "paused") {
-      const pos = state.positionMs > 0 ? state.positionMs : interpolatedPosMs;
+    if (stateStatus === "paused") {
+      const pos = syncedPos > 0 ? syncedPos : interpolatedPosRef.current;
       setInterpolatedPosMs(pos);
       anchorPosRef.current = pos;
       anchorTimeRef.current = performance.now();
       return;
     }
 
-    if (state.positionMs > 0 || interpolatedPosMs === 0) {
-      setInterpolatedPosMs(state.positionMs);
-      anchorPosRef.current = state.positionMs;
+    if (syncedPos > 0 || interpolatedPosRef.current === 0) {
+      setInterpolatedPosMs(syncedPos);
+      anchorPosRef.current = syncedPos;
       anchorTimeRef.current = performance.now();
     }
-  }, [state.positionMs, state.status, state.track?.id]);
+  }, [
+    statePositionMs,
+    statePositionAt,
+    stateStatus,
+    statePlaybackRate,
+    stateTrackId,
+  ]);
 
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || !isShown) return;
     let animId: number;
 
     const step = () => {
-      if (document.hidden) {
-        animId = requestAnimationFrame(step);
-        return;
-      }
       const elapsed = performance.now() - anchorTimeRef.current;
-      const current = Math.min(durationMs, anchorPosRef.current + elapsed);
+      const current = Math.min(
+        durationMs,
+        anchorPosRef.current + elapsed * rate,
+      );
       setInterpolatedPosMs(current);
       animId = requestAnimationFrame(step);
     };
@@ -133,11 +178,11 @@ export function OverlayPlayer() {
       const elapsed = performance.now() - anchorTimeRef.current;
       anchorPosRef.current = Math.min(
         durationMs,
-        anchorPosRef.current + elapsed,
+        anchorPosRef.current + elapsed * rate,
       );
       anchorTimeRef.current = performance.now();
     };
-  }, [isPlaying, durationMs]);
+  }, [isPlaying, isShown, durationMs, rate]);
 
   const currentPosMs = interpolatedPosMs;
   const progressRatio = Math.min(1, Math.max(0, currentPosMs / durationMs));
@@ -147,17 +192,19 @@ export function OverlayPlayer() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
 
-      const { miniplayer } = useShortcutsStore.getState();
+      const { miniplayer, volumeHoldRepeats } = useShortcutsStore.getState();
 
       // Sound up / down shortcuts
       if (matchesShortcut(e, miniplayer.volumeUp)) {
         e.preventDefault();
+        if (e.repeat && !volumeHoldRepeats) return;
         sendAction({ type: "volumeUp" });
         return;
       }
 
       if (matchesShortcut(e, miniplayer.volumeDown)) {
         e.preventDefault();
+        if (e.repeat && !volumeHoldRepeats) return;
         sendAction({ type: "volumeDown" });
         return;
       }
@@ -198,7 +245,7 @@ export function OverlayPlayer() {
       // Like
       if (matchesShortcut(e, miniplayer.likeTrack)) {
         e.preventDefault();
-        sendAction({ type: "like" });
+        if (!isLocalTrackId(stateTrackId)) sendAction({ type: "like" });
         return;
       }
 
@@ -219,7 +266,7 @@ export function OverlayPlayer() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPosMs, durationMs, sendAction, state.volume]);
+  }, [currentPosMs, durationMs, sendAction, state.volume, stateTrackId]);
 
   return (
     <div
@@ -259,7 +306,7 @@ export function OverlayPlayer() {
             onMouseEnter={() => setIsInfoHovered(true)}
             onMouseLeave={() => setIsInfoHovered(false)}
           >
-            <div className="relative h-[32px] w-[32px] shrink-0 overflow-hidden rounded-[12px] bg-[#16161a]">
+            <div className="relative h-[32px] w-[32px] shrink-0 overflow-hidden rounded-item bg-[#16161a]">
               {state.track?.coverUrl || state.track?.cover ? (
                 <CoverImage
                   key={state.track.coverUrl || state.track.cover}
@@ -270,7 +317,7 @@ export function OverlayPlayer() {
                   priority
                   unoptimized
                   draggable={false}
-                  className="rounded-[12px] object-cover pointer-events-none select-none"
+                  className="rounded-item object-cover pointer-events-none select-none"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-[11px] text-white/30 select-none">
@@ -283,14 +330,12 @@ export function OverlayPlayer() {
               <ScrollableText
                 text={state.track?.title || "No track playing"}
                 isParentHovered={isInfoHovered}
-                className="text-[13px] font-normal leading-[16px] text-white tracking-tight"
-                style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                className="text-body font-normal leading-[16px] text-white tracking-tight"
               />
               <ScrollableText
                 text={state.track?.artist || ""}
                 isParentHovered={isInfoHovered}
                 className="mt-[1px] text-[11px] font-light leading-[14px] text-white/50"
-                style={{ fontFamily: "var(--font-inter), sans-serif" }}
               />
             </div>
           </div>
@@ -301,30 +346,32 @@ export function OverlayPlayer() {
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              tabIndex={-1}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                sendAction({ type: "like" });
-              }}
-              className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-0 bg-transparent transition-colors outline-none cursor-pointer active:scale-90 ${
-                state.isLiked
-                  ? "text-[#ff3b5c]"
-                  : "text-white/40 hover:text-white"
-              }`}
-              aria-label={state.isLiked ? "Unlike" : "Like"}
-            >
-              {state.isLiked ? (
-                <HeartFill size={16} />
-              ) : (
-                <HeartLine size={16} />
-              )}
-            </button>
+            {!isLocalTrackId(state.track?.id) && (
+              <button
+                type="button"
+                tabIndex={-1}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  sendAction({ type: "like" });
+                }}
+                className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-0 bg-transparent transition-colors outline-none cursor-pointer active:scale-90 ${
+                  state.isLiked
+                    ? "text-[#ff3b5c]"
+                    : "text-white/40 hover:text-white"
+                }`}
+                aria-label={state.isLiked ? "Unlike" : "Like"}
+              >
+                {state.isLiked ? (
+                  <HeartFill size={16} />
+                ) : (
+                  <HeartLine size={16} />
+                )}
+              </button>
+            )}
 
             <button
               type="button"

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import PopularTracksSection from "./PopularTracksSection";
 import DailyMixesSection from "./DailyMixesSection";
-import HomePageSkeleton from "./HomePageSkeleton";
+import HomePageSkeleton, { MixesSectionSkeleton } from "./HomePageSkeleton";
 import { usePopularTracksAllTime } from "../hooks/usePopularTracks";
 import { useListeningNow } from "../hooks/useListeningNow";
 import ListeningNowSection from "./ListeningNowSection";
@@ -9,7 +9,9 @@ import { useRecentlyPlayed } from "../hooks/useRecentlyPlayed";
 import { useDailyMixes } from "../hooks/useDailyMixes";
 import { useMostSaved, usePopularAlbums } from "../hooks/useExploreCollections";
 import { useTranslation } from "@/languages";
+import Button from "@/shared/ui/Button";
 import { usePageBackdrop } from "@/shared/lib";
+import { useHomeBackdrop } from "../hooks/useHomeBackdrop";
 import {
   AlbumFill,
   BookmarkFill,
@@ -19,6 +21,11 @@ import {
 } from "@mingcute/react";
 
 export default function HomePage() {
+  const [attempt, setAttempt] = useState(0);
+  return <HomeFeed key={attempt} onRetry={() => setAttempt((n) => n + 1)} />;
+}
+
+function HomeFeed({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
 
   const { tracks: listeningNow, isLoading: tracksLoading } = useListeningNow();
@@ -28,18 +35,21 @@ export default function HomePage() {
     useRecentlyPlayed(20);
   const { items: popularAlbums, isLoading: albumsLoading } = usePopularAlbums();
   const { items: mostSaved, isLoading: savedLoading } = useMostSaved();
-  const { data: dailyMixes } = useDailyMixes();
-  const hasMixes = Boolean(dailyMixes && dailyMixes.length > 0);
+  const { data: dailyMixes, isLoading: mixesLoading } = useDailyMixes();
+  const hasMixes = dailyMixes.length > 0;
   const firstAlbum = popularAlbums[0];
   const firstAlbumCover =
     firstAlbum?.type === "album" ? firstAlbum.item.coverUrl : undefined;
+  const homeBackdrop = useHomeBackdrop(dailyMixes);
+  const usesMixBackdrop = hasMixes || mixesLoading;
   usePageBackdrop(
-    dailyMixes?.[0]?.coverUrl ||
-      firstAlbumCover ||
-      listeningNow[0]?.coverUrl ||
-      undefined,
+    usesMixBackdrop
+      ? homeBackdrop.backdrop
+      : firstAlbumCover || listeningNow[0]?.coverUrl || undefined,
+    usesMixBackdrop ? { blur: 56, dim: 0.22 } : undefined,
   );
 
+  const hasMixesSlot = hasMixes || mixesLoading;
   const isDataLoading =
     tracksLoading ||
     allTimeLoading ||
@@ -48,6 +58,14 @@ export default function HomePage() {
     savedLoading;
 
   const isReady = !isDataLoading;
+  const nothingLoaded =
+    !mixesLoading &&
+    !hasMixes &&
+    popularAlbums.length === 0 &&
+    listeningNow.length === 0 &&
+    !recentlyPlayed?.length &&
+    !popularTracksAllTime?.length &&
+    mostSaved.length === 0;
   const [skeletonExited, setSkeletonExited] = useState(() => !isDataLoading);
 
   useEffect(() => {
@@ -60,30 +78,62 @@ export default function HomePage() {
   }, [isReady, skeletonExited]);
 
   return (
+    // pages start below the floating header, whose height --page-inset-top
+    // carries, and scroll under it
     <div className="relative h-full w-full overflow-y-auto overflow-x-hidden bg-transparent pt-(--page-inset-top) pb-(--page-inset-bottom)">
       <div className="relative z-1 grid grid-cols-1 items-start w-full">
-        {isReady && (
+        {isReady && nothingLoaded && (
+          <div className="col-start-1 row-start-1 flex min-h-[60vh] w-full flex-col items-center justify-center gap-[6px] px-[24px] text-center">
+            <span className="text-title font-[600] text-text-primary">
+              {t("home.load_failed")}
+            </span>
+            <span className="text-body text-text-secondary">
+              {t("playlist.load_failed_desc")}
+            </span>
+            <Button
+              variant="secondary"
+              onClick={onRetry}
+              className="mt-[10px] !h-[36px] !rounded-[10px] !border-0 px-[16px]"
+            >
+              {t("offline.try_again")}
+            </Button>
+          </div>
+        )}
+
+        {isReady && !nothingLoaded && (
           <div className="col-start-1 row-start-1 w-full pb-[16px]">
-            {dailyMixes && hasMixes && (
-              <DailyMixesSection mixes={dailyMixes} headingMarginTop="mt-0" />
+            {mixesLoading ? (
+              <MixesSectionSkeleton />
+            ) : (
+              hasMixes && (
+                <div style={{ animation: "page-enter 200ms ease-out" }}>
+                  <DailyMixesSection
+                    mixes={dailyMixes}
+                    headingMarginTop="mt-0"
+                    accentCoverUrl={homeBackdrop.cover}
+                  />
+                </div>
+              )
             )}
 
             {popularAlbums.length > 0 && (
               <PopularTracksSection
                 title={t("home.popularAlbums")}
-                icon={<AlbumFill className="w-6 h-6 text-emerald-400" />}
+                icon={<AlbumFill />}
                 items={popularAlbums}
-                headingMarginTop={hasMixes ? "mt-[22px]" : "mt-0"}
+                headingMarginTop={hasMixesSlot ? "mt-[22px]" : "mt-0"}
               />
             )}
 
             {listeningNow.length > 0 && (
               <ListeningNowSection
                 title={t("home.whatEveryonesOn")}
-                icon={<FireFill className="w-6 h-6 text-amber-500" />}
+                icon={<FireFill />}
                 tracks={listeningNow}
                 headingMarginTop={
-                  hasMixes || popularAlbums.length > 0 ? "mt-[22px]" : "mt-0"
+                  hasMixesSlot || popularAlbums.length > 0
+                    ? "mt-[22px]"
+                    : "mt-0"
                 }
               />
             )}
@@ -91,7 +141,7 @@ export default function HomePage() {
             {recentlyPlayed && recentlyPlayed.length > 0 && (
               <PopularTracksSection
                 title={t("home.jumpBackIn")}
-                icon={<TimeFill className="w-6 h-6 text-sky-400" />}
+                icon={<TimeFill />}
                 items={recentlyPlayed}
                 headingMarginTop="mt-[22px]"
               />
@@ -100,7 +150,7 @@ export default function HomePage() {
             {popularTracksAllTime && popularTracksAllTime.length > 0 && (
               <PopularTracksSection
                 title={t("home.mostListened")}
-                icon={<TrophyFill className="w-6 h-6 text-yellow-500" />}
+                icon={<TrophyFill />}
                 items={popularTracksAllTime}
                 headingMarginTop="mt-[22px]"
               />
@@ -109,12 +159,11 @@ export default function HomePage() {
             {mostSaved.length > 0 && (
               <PopularTracksSection
                 title={t("home.mostSaved")}
-                icon={<BookmarkFill className="w-6 h-6 text-rose-400" />}
+                icon={<BookmarkFill />}
                 items={mostSaved}
                 headingMarginTop="mt-[22px]"
               />
             )}
-
           </div>
         )}
 
@@ -125,7 +174,9 @@ export default function HomePage() {
                 ? "opacity-0 pointer-events-none"
                 : "opacity-100 pointer-events-auto"
             }`}
-            onTransitionEnd={() => setSkeletonExited(true)}
+            onTransitionEnd={(event) => {
+              if (event.target === event.currentTarget) setSkeletonExited(true);
+            }}
           >
             <HomePageSkeleton />
           </div>

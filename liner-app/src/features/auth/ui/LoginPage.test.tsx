@@ -7,6 +7,11 @@ import LoginPage from "./LoginPage";
 const mockNavigate = vi.fn();
 const mockLogin = vi.fn();
 const mockRegister = vi.fn();
+const mockUsernameStatus = vi.fn(() => "idle");
+
+vi.mock("../hooks/useUsernameAvailability", () => ({
+  useUsernameAvailability: () => mockUsernameStatus(),
+}));
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
@@ -36,18 +41,22 @@ vi.mock("../store/authStore", () => ({
       status: "anonymous",
       user: null,
     }),
-  getAuthErrorCode: (err: any) => (err?.code ? err.code.toLowerCase() : "server_unavailable"),
+  getAuthErrorCode: (err: any) =>
+    err?.code ? err.code.toLowerCase() : "server_unavailable",
   authErrorMessage: (err: any) => err?.message || "An error occurred",
 }));
 
 vi.mock("@/languages", () => {
   const translations: Record<string, string> = {
     "login.auth_title_login": "Your music, your way",
-    "login.auth_subtitle_login": "Sign in and pick up right where you left off.",
+    "login.auth_subtitle_login":
+      "Sign in and pick up right where you left off.",
     "login.auth_title_register": "Join Liner",
-    "login.auth_subtitle_register": "Create an account and start building your personal library.",
+    "login.auth_subtitle_register":
+      "Create an account and start building your personal library.",
     "login.profile_setup_title": "Set up your profile",
-    "login.profile_setup_subtitle": "Choose your unique handle and display name.",
+    "login.profile_setup_subtitle":
+      "Choose your unique handle and display name.",
     "login.btn_continue": "Continue",
     "login.btn_back": "Back",
     "login.label_email": "Email",
@@ -73,12 +82,17 @@ vi.mock("@/languages", () => {
     "login.legal_and": "and",
     "login.legal_pp": "Privacy Policy",
     "login.errors.email_invalid": "Enter a valid email address.",
-    "login.errors.password_min_8": "Password must contain at least 8 characters.",
+    "login.errors.password_min_8":
+      "Password must contain at least 8 characters.",
     "login.errors.password_mismatch": "Passwords do not match.",
-    "login.errors.username_invalid": "Username must be 3-30 lowercase letters, numbers, or underscores.",
-    "login.errors.username_taken": "This username is already taken. Please choose another.",
+    "login.errors.username_invalid":
+      "Username must be 3-30 lowercase letters, numbers, or underscores.",
+    "login.errors.username_taken":
+      "This username is already taken. Please choose another.",
     "login.errors.display_name_required": "Display name is required.",
     "login.username_hint": "3-30 lowercase characters, numbers or underscores.",
+    "login.username_checking": "Checking if this username is free...",
+    "login.username_available": "This username is free.",
   };
 
   return {
@@ -117,6 +131,7 @@ describe("LoginPage Multi-Step Registration Flow", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUsernameStatus.mockReturnValue("idle");
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -142,7 +157,9 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     expect(container.querySelector("#auth-username")).toBeNull();
 
     const buttons = Array.from(container.querySelectorAll("button"));
-    const createAccBtn = buttons.find((b) => b.textContent?.includes("Create account"));
+    const createAccBtn = buttons.find((b) =>
+      b.textContent?.includes("Create account"),
+    );
     expect(createAccBtn).toBeDefined();
   });
 
@@ -154,14 +171,21 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     const form = container.querySelector("form") as HTMLFormElement;
     expect(form.noValidate).toBe(true);
 
-    const emailInput = container.querySelector("#auth-email") as HTMLInputElement;
-    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    const emailInput = container.querySelector(
+      "#auth-email",
+    ) as HTMLInputElement;
+    const setValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!;
     await act(async () => {
       setValue.call(emailInput, "dsf");
       emailInput.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await act(async () => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
 
     expect(container.querySelector("#auth-form-error")?.textContent).toContain(
@@ -176,7 +200,9 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     });
 
     const buttons = Array.from(container.querySelectorAll("button"));
-    const createAccBtn = buttons.find((b) => b.textContent?.includes("Create account"));
+    const createAccBtn = buttons.find((b) =>
+      b.textContent?.includes("Create account"),
+    );
 
     await act(async () => {
       createAccBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -195,8 +221,8 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     });
 
     // Go to register mode
-    const createAccBtn = Array.from(container.querySelectorAll("button")).find((b) =>
-      b.textContent?.includes("Create account"),
+    const createAccBtn = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Create account"),
     );
     await act(async () => {
       createAccBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -205,7 +231,9 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     // Try to continue with empty email
     const form = container.querySelector("form");
     await act(async () => {
-      form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
 
     expect(container.querySelector("#auth-form-error")?.textContent).toContain(
@@ -214,9 +242,15 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     expect(container.textContent).toContain("Join Liner");
 
     // Enter valid email and mismatched passwords
-    const emailInput = container.querySelector("#auth-email") as HTMLInputElement;
-    const passInput = container.querySelector("#auth-password") as HTMLInputElement;
-    const confirmInput = container.querySelector("#auth-confirm") as HTMLInputElement;
+    const emailInput = container.querySelector(
+      "#auth-email",
+    ) as HTMLInputElement;
+    const passInput = container.querySelector(
+      "#auth-password",
+    ) as HTMLInputElement;
+    const confirmInput = container.querySelector(
+      "#auth-confirm",
+    ) as HTMLInputElement;
 
     await act(async () => {
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -232,7 +266,9 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     });
 
     await act(async () => {
-      form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
 
     expect(container.querySelector("#auth-form-error")?.textContent).toContain(
@@ -251,7 +287,9 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     });
 
     await act(async () => {
-      form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
 
     // Successfully transitioned to Step 2!
@@ -267,17 +305,23 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     });
 
     // Go to register mode
-    const createAccBtn = Array.from(container.querySelectorAll("button")).find((b) =>
-      b.textContent?.includes("Create account"),
+    const createAccBtn = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Create account"),
     );
     await act(async () => {
       createAccBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     // Fill valid credentials
-    const emailInput = container.querySelector("#auth-email") as HTMLInputElement;
-    const passInput = container.querySelector("#auth-password") as HTMLInputElement;
-    const confirmInput = container.querySelector("#auth-confirm") as HTMLInputElement;
+    const emailInput = container.querySelector(
+      "#auth-email",
+    ) as HTMLInputElement;
+    const passInput = container.querySelector(
+      "#auth-password",
+    ) as HTMLInputElement;
+    const confirmInput = container.querySelector(
+      "#auth-confirm",
+    ) as HTMLInputElement;
 
     await act(async () => {
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -294,7 +338,9 @@ describe("LoginPage Multi-Step Registration Flow", () => {
 
     const form = container.querySelector("form");
     await act(async () => {
-      form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
 
     expect(container.textContent).toContain("Set up your profile");
@@ -308,14 +354,19 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     });
 
     expect(container.textContent).toContain("Join Liner");
-    expect((container.querySelector("#auth-email") as HTMLInputElement)?.value).toBe(
-      "bob@example.com",
-    );
+    expect(
+      (container.querySelector("#auth-email") as HTMLInputElement)?.value,
+    ).toBe("bob@example.com");
   });
 
   it("submits registration on Step 2", async () => {
     mockRegister.mockResolvedValueOnce({
-      user: { id: "1", email: "carol@example.com", username: "carol_sound", displayName: "Carol" },
+      user: {
+        id: "1",
+        email: "carol@example.com",
+        username: "carol_sound",
+        displayName: "Carol",
+      },
     });
 
     await act(async () => {
@@ -323,17 +374,23 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     });
 
     // Register mode
-    const createAccBtn = Array.from(container.querySelectorAll("button")).find((b) =>
-      b.textContent?.includes("Create account"),
+    const createAccBtn = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Create account"),
     );
     await act(async () => {
       createAccBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     // Credentials
-    const emailInput = container.querySelector("#auth-email") as HTMLInputElement;
-    const passInput = container.querySelector("#auth-password") as HTMLInputElement;
-    const confirmInput = container.querySelector("#auth-confirm") as HTMLInputElement;
+    const emailInput = container.querySelector(
+      "#auth-email",
+    ) as HTMLInputElement;
+    const passInput = container.querySelector(
+      "#auth-password",
+    ) as HTMLInputElement;
+    const confirmInput = container.querySelector(
+      "#auth-confirm",
+    ) as HTMLInputElement;
 
     await act(async () => {
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -350,12 +407,18 @@ describe("LoginPage Multi-Step Registration Flow", () => {
 
     const form = container.querySelector("form");
     await act(async () => {
-      form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
 
     // Step 2 inputs
-    const usernameInput = container.querySelector("#auth-username") as HTMLInputElement;
-    const displayNameInput = container.querySelector("#auth-display-name") as HTMLInputElement;
+    const usernameInput = container.querySelector(
+      "#auth-username",
+    ) as HTMLInputElement;
+    const displayNameInput = container.querySelector(
+      "#auth-display-name",
+    ) as HTMLInputElement;
 
     await act(async () => {
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -369,7 +432,9 @@ describe("LoginPage Multi-Step Registration Flow", () => {
     });
 
     await act(async () => {
-      form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
 
     expect(mockRegister).toHaveBeenCalledWith(
@@ -379,5 +444,140 @@ describe("LoginPage Multi-Step Registration Flow", () => {
       "Carol Music",
     );
     expect(mockNavigate).toHaveBeenCalledWith("/", { replace: true });
+  });
+
+  it("shows a taken username under the username field, not under the display name", async () => {
+    mockRegister.mockRejectedValueOnce({ code: "USERNAME_TAKEN" });
+    await act(async () => {
+      root.render(<LoginPage />);
+    });
+
+    const setValue = (selector: string, value: string) => {
+      const input = container.querySelector(selector) as HTMLInputElement;
+      Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set?.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const submitForm = async () => {
+      await act(async () => {
+        container
+          .querySelector("form")
+          ?.dispatchEvent(
+            new Event("submit", { bubbles: true, cancelable: true }),
+          );
+      });
+    };
+
+    const createAccBtn = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Create account"),
+    );
+    await act(async () => {
+      createAccBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      setValue("#auth-email", "carol@example.com");
+      setValue("#auth-password", "password123");
+      setValue("#auth-confirm", "password123");
+    });
+    await submitForm();
+    await act(async () => {
+      setValue("#auth-username", "admin");
+      setValue("#auth-display-name", "Carol");
+    });
+    await submitForm();
+
+    const errorEl = container.querySelector("#auth-form-error");
+    const usernameInput = container.querySelector("#auth-username");
+    const displayNameInput = container.querySelector("#auth-display-name");
+    expect(errorEl?.textContent).toBeTruthy();
+    expect(container.querySelector("#auth-username-hint")).toBeNull();
+    expect(
+      usernameInput!.compareDocumentPosition(errorEl!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      errorEl!.compareDocumentPosition(displayNameInput!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(displayNameInput?.getAttribute("aria-invalid")).toBe("false");
+  });
+
+  async function openProfileStep() {
+    await act(async () => {
+      root.render(<LoginPage />);
+    });
+    const setValue = (selector: string, value: string) => {
+      const input = container.querySelector(selector) as HTMLInputElement;
+      Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set?.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const createAccBtn = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Create account"),
+    );
+    await act(async () => {
+      createAccBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      setValue("#auth-email", "carol@example.com");
+      setValue("#auth-password", "password123");
+      setValue("#auth-confirm", "password123");
+    });
+    await act(async () => {
+      container
+        .querySelector("form")
+        ?.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+    });
+    return setValue;
+  }
+
+  it("says a username is taken while typing and blocks creating the account", async () => {
+    mockUsernameStatus.mockReturnValue("taken");
+    await openProfileStep();
+
+    const errorEl = container.querySelector("#auth-form-error");
+    expect(errorEl?.textContent).toBe(
+      "This username is already taken. Please choose another.",
+    );
+    expect(errorEl?.getAttribute("role")).toBe("alert");
+    expect(
+      container.querySelector("#auth-username")?.getAttribute("aria-invalid"),
+    ).toBe("true");
+
+    const submit = Array.from(
+      container.querySelectorAll('button[type="submit"]'),
+    ).at(-1) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+
+    await act(async () => {
+      container
+        .querySelector("form")
+        ?.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+    });
+    expect(mockRegister).not.toHaveBeenCalled();
+  });
+
+  it("tells the user while checking and when the username is free", async () => {
+    mockUsernameStatus.mockReturnValue("checking");
+    const setValue = await openProfileStep();
+    expect(container.querySelector("#auth-username-hint")?.textContent).toBe(
+      "Checking if this username is free...",
+    );
+
+    mockUsernameStatus.mockReturnValue("available");
+    await act(async () => {
+      setValue("#auth-username", "carol_free");
+    });
+    expect(container.querySelector("#auth-username-hint")?.textContent).toBe(
+      "This username is free.",
+    );
   });
 });

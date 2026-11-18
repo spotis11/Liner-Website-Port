@@ -92,39 +92,43 @@ export const SpeedPitchPicker = memo(function SpeedPitchPicker({
           ariaLabel={t("player.keep_speed_across_tracks")}
           onChange={(keep) => playerEngine.setKeepSpeedAcrossTracks(keep)}
         />
-        <OptionToggle
-          title={
-            <>
-              {t("player.reverb")}
-              <SparklesFill size={13} className="shrink-0 text-amber-400" />
-            </>
-          }
-          hint={t("player.reverb_hint")}
-          checked={isReverbEnabled}
-          ariaLabel={t("player.reverb")}
-          onChange={toggleReverb}
-        />
-        <AnimatePresence initial={false}>
-          {isReverbEnabled && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden"
-            >
-              <RulerControl
-                label={t("player.reverb_amount")}
-                value={reverbLevel}
-                min={0.05}
-                max={1}
-                step={0.05}
-                format={formatPercent}
-                onChange={(level) => playerEngine.setReverbLevel(level)}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div>
+          <OptionToggle
+            title={
+              <>
+                {t("player.reverb")}
+                <SparklesFill size={13} className="shrink-0 text-amber-400" />
+              </>
+            }
+            hint={t("player.reverb_hint")}
+            checked={isReverbEnabled}
+            ariaLabel={t("player.reverb")}
+            onChange={toggleReverb}
+          />
+          <AnimatePresence initial={false}>
+            {isReverbEnabled && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="pt-[12px]">
+                  <RulerControl
+                    label={t("player.reverb_amount")}
+                    value={reverbLevel}
+                    min={0.05}
+                    max={1}
+                    step={0.05}
+                    format={formatPercent}
+                    onChange={(level) => playerEngine.setReverbLevel(level)}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

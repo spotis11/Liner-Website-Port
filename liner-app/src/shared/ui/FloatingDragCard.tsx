@@ -22,16 +22,14 @@ function FloatingDragCard({
 
   return createPortal(
     <div
-      className="fixed top-0 left-0 pointer-events-none z-[99999] select-none rounded-md bg-bg-primary border border-border-primary overflow-hidden"
+      className="fixed top-0 left-0 pointer-events-none z-[99999] select-none rounded-control bg-bg-primary border border-border-primary overflow-hidden"
       style={{
         width: `${width}px`,
         transform: `translate3d(${x - offsetX}px, ${y - offsetY}px, 0)`,
         willChange: "transform",
       }}
     >
-      <div className="w-full h-full bg-border-alpha-14">
-        {children}
-      </div>
+      <div className="w-full h-full bg-border-alpha-14">{children}</div>
     </div>,
     document.body,
   );

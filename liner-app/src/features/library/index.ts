@@ -6,6 +6,7 @@ export { default as LibraryGrid } from "./ui/LibraryGrid";
 export { default as LibraryTabs } from "./ui/LibraryTabs";
 export {
   default as PlaylistCard,
+  CoverCollage,
   type PlaylistCardProps,
 } from "./ui/PlaylistCard";
 
@@ -28,3 +29,6 @@ export * from "./hooks";
 export * from "./store/modalStore";
 export * from "./store/importStore";
 
+export { LocalTracksPage, LocalFilesCard, LocalDropZone } from "./local";
+export { CachedTracksPage, CachedSongsCard } from "./cached";
+export { SavedLikesPage } from "./saved";

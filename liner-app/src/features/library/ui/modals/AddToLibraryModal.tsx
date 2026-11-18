@@ -28,7 +28,12 @@ export default function AddToLibraryModal() {
     const cover = item.coverUrl ? { url: item.coverUrl } : undefined;
     const snapshot =
       item.type === "artist"
-        ? { id: item.id, name: item.title, title: item.title, ...(cover ? { cover } : {}) }
+        ? {
+            id: item.id,
+            name: item.title,
+            title: item.title,
+            ...(cover ? { cover } : {}),
+          }
         : {
             id: item.id,
             title: item.title,
@@ -51,20 +56,26 @@ export default function AddToLibraryModal() {
   }, [item, toast, saveExternal, t, close]);
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (!next ? close() : undefined)} maxWidth={380}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => (!next ? close() : undefined)}
+      maxWidth={380}
+    >
       <div className="flex flex-col px-[20px] pb-[20px]">
         <DialogHeader
           className="mb-[16px]"
           title={t("common.add_to_library")}
-          description={t("common.add_to_library_desc") || t("common.add_to_library")}
+          description={
+            t("common.add_to_library_desc") || t("common.add_to_library")
+          }
         />
 
         {/* Target item preview */}
         {item && (
-          <div className="flex items-center gap-[14px] p-[10px] rounded-[14px] bg-black/[0.05] dark:bg-white/[0.07] mb-[20px]">
+          <div className="flex items-center gap-[14px] p-[10px] rounded-[14px] bg-fill mb-[20px]">
             <div
               className={`relative h-[52px] w-[52px] shrink-0 overflow-hidden ${
-                item.type === "artist" ? "rounded-full" : "rounded-md"
+                item.type === "artist" ? "rounded-full" : "rounded-control"
               } bg-border-alpha-14`}
             >
               {item.coverUrl && (
@@ -79,10 +90,10 @@ export default function AddToLibraryModal() {
               )}
             </div>
             <div className="flex flex-col min-w-0 gap-[2px]">
-              <span className="text-[14px] font-[500] text-text-primary truncate">
+              <span className="text-label font-[500] text-text-primary truncate">
                 {item.title}
               </span>
-              <span className="text-[12px] text-text-tertiary capitalize">
+              <span className="text-caption text-text-tertiary capitalize">
                 {item.type}
               </span>
             </div>

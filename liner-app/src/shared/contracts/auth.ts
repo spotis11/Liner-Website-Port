@@ -22,6 +22,12 @@ export interface AuthTokens {
   expiresAt?: number;
 }
 
+export interface UsernameAvailability {
+  username: string;
+  valid: boolean;
+  available: boolean;
+}
+
 export interface AuthResult {
   accessToken: string;
   refreshToken: string;
@@ -40,4 +46,3 @@ export interface LoginInput {
   email: string;
   password: string;
 }
-

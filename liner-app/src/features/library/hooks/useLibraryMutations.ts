@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { api } from "@/shared/api";
 import { notifyLibraryChanged, evictPlaylistFromCache } from "./usePlaylists";
-import { applyOptimisticLike, applyOptimisticUnlike } from "./useLikedTracks";
+import { setTrackLiked, toggleTrackLike } from "./useLikedTracks";
 
 type Options = {
   onSuccess?: (...args: any[]) => void;
@@ -22,7 +22,7 @@ function useMutation<T, R = unknown>(action: (input: T) => Promise<R>) {
         setIsPending(false);
       }
     },
-    [action]
+    [action],
   );
   const mutate = useCallback(
     (input: T, options?: Options) => {
@@ -31,20 +31,22 @@ function useMutation<T, R = unknown>(action: (input: T) => Promise<R>) {
         .catch((error) => options?.onError?.(error))
         .finally(() => options?.onSettled?.());
     },
-    [mutateAsync]
+    [mutateAsync],
   );
   return { mutate, mutateAsync, isPending };
 }
 
 export function useAddPlaylistTracks() {
-  return useMutation(({ playlistId, trackId }: { playlistId: string; trackId: string }) =>
-    api.addPlaylistTrack(playlistId, trackId)
+  return useMutation(
+    ({ playlistId, trackId }: { playlistId: string; trackId: string }) =>
+      api.addPlaylistTrack(playlistId, trackId),
   );
 }
 
 export function useRemovePlaylistTracks() {
-  return useMutation(({ playlistId, itemId }: { playlistId: string; itemId: string }) =>
-    api.removePlaylistItem(playlistId, itemId)
+  return useMutation(
+    ({ playlistId, itemId }: { playlistId: string; itemId: string }) =>
+      api.removePlaylistItem(playlistId, itemId),
   );
 }
 
@@ -60,20 +62,21 @@ export function useReorderPlaylistTracks() {
       itemId: string;
       beforeItemId: string | null;
       revision: number;
-    }) => api.movePlaylistItem(playlistId, itemId, beforeItemId, revision)
+    }) => api.movePlaylistItem(playlistId, itemId, beforeItemId, revision),
   );
 }
 
 export function useCreatePlaylist() {
-  return useMutation(({ title, description }: { title: string; description?: string }) =>
-    api.createPlaylist({ title, description })
+  return useMutation(
+    ({ title, description }: { title: string; description?: string }) =>
+      api.createPlaylist({ title, description }),
   );
 }
 
 export function useDeletePlaylist() {
   return useMutation(async ({ playlistId }: { playlistId: string }) => {
     evictPlaylistFromCache(playlistId);
-    return api.deletePlaylist(playlistId);
+    await api.deletePlaylist(playlistId);
   });
 }
 
@@ -87,7 +90,12 @@ export function useSaveExternalItem() {
       type: "album" | "artist" | "playlist";
       id: string;
       snapshot?: Record<string, unknown>;
-    }) => api.saveCollection(`${type}s` as "albums" | "artists" | "playlists", id, snapshot),
+    }) =>
+      api.saveCollection(
+        `${type}s` as "albums" | "artists" | "playlists",
+        id,
+        snapshot,
+      ),
   );
 }
 
@@ -129,25 +137,11 @@ type TrackMutationInput = string | { trackId: string; [key: string]: unknown };
 const trackIdFrom = (input: TrackMutationInput) =>
   typeof input === "string" ? input : input.trackId;
 
-export function useLikeTrack() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = useCallback(async (input: TrackMutationInput) => {
-    const trackId = trackIdFrom(input);
-    setIsPending(true);
-    const rollback = applyOptimisticLike(trackId);
-    try {
-      const result = await api.likeTrack(trackId);
-      notifyLibraryChanged();
-      return result;
-    } catch (err) {
-      rollback();
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  }, []);
-
+function useTrackLikeMutation(liked: boolean) {
+  const mutateAsync = useCallback(
+    (input: TrackMutationInput) => setTrackLiked(trackIdFrom(input), liked),
+    [liked],
+  );
   const mutate = useCallback(
     (input: TrackMutationInput, options?: Options) => {
       void mutateAsync(input)
@@ -155,40 +149,35 @@ export function useLikeTrack() {
         .catch((error) => options?.onError?.(error))
         .finally(() => options?.onSettled?.());
     },
-    [mutateAsync]
+    [mutateAsync],
   );
+  return { mutate, mutateAsync, isPending: false };
+}
 
-  return { mutate, mutateAsync, isPending };
+export function useLikeTrack() {
+  return useTrackLikeMutation(true);
 }
 
 export function useUnlikeTrack() {
-  const [isPending, setIsPending] = useState(false);
+  return useTrackLikeMutation(false);
+}
 
-  const mutateAsync = useCallback(async (input: TrackMutationInput) => {
-    const trackId = trackIdFrom(input);
-    setIsPending(true);
-    const rollback = applyOptimisticUnlike(trackId);
-    try {
-      const result = await api.unlikeTrack(trackId);
-      notifyLibraryChanged();
-      return result;
-    } catch (err) {
-      rollback();
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  }, []);
-
-  const mutate = useCallback(
-    (input: TrackMutationInput, options?: Options) => {
-      void mutateAsync(input)
-        .then((value) => options?.onSuccess?.(value))
-        .catch((error) => options?.onError?.(error))
-        .finally(() => options?.onSettled?.());
+export function useToggleTrackLike() {
+  return useCallback(
+    (
+      trackId: string,
+      options?: {
+        onSuccess?: (liked: boolean) => void;
+        onError?: (error: unknown) => void;
+      },
+    ): boolean => {
+      const { liked, settled } = toggleTrackLike(trackId);
+      settled.then(
+        () => options?.onSuccess?.(liked),
+        (error) => options?.onError?.(error),
+      );
+      return liked;
     },
-    [mutateAsync]
+    [],
   );
-
-  return { mutate, mutateAsync, isPending };
 }

@@ -1,4 +1,5 @@
 import { useSearchParams } from "react-router-dom";
+import { preloadCoverArt } from "@/features/covers/lib/coverArt";
 import {
   useCallback,
   useEffect,
@@ -18,13 +19,16 @@ import {
   EntityHero,
   HERO_TITLE_CLASS,
   HERO_SUBTITLE_CLASS,
-  HERO_CHIP_CLASS,
+  HeroMeta,
   HERO_BUTTON_CLASS,
   HERO_GLASS_BUTTON_CLASS,
   HERO_GLASS_CLASS,
+  ListPanel,
 } from "@/shared/ui";
 import { usePageBackdrop } from "@/shared/lib";
-import likesCover from "@/assets/likes-cover.svg";
+import { useLikesCover } from "../hooks/useLikesCover";
+import { useSavedTracksStore } from "../saved";
+import { isSavedTrack } from "@/shared/media/saved";
 import { useAuthStore } from "@/features/auth";
 import { userDisplayName } from "@/entities/user";
 import {
@@ -32,8 +36,6 @@ import {
   PlayFill,
   More1Fill,
   PlaylistFill,
-  PlaylistLine,
-  MusicLine,
   CheckLine,
   ShareForwardLine,
 } from "@mingcute/react";
@@ -47,9 +49,12 @@ import CoverImage from "@/features/covers/ui/CoverImage";
 import { useModalStore } from "../store/modalStore";
 import {
   usePlaylist,
+  usePlaylistsList,
   useLikedTracks,
   useReorderPlaylistTracks,
+  reloadLikedTracks,
 } from "../hooks";
+import { statusOf } from "@/features/connectivity";
 import { useListReorder } from "@/shared/hooks";
 import { playerEngine } from "@/features/player";
 import type { Track } from "@/shared/types";
@@ -121,10 +126,72 @@ const TrackItem = memo(function TrackItem({
   );
 });
 
+function PlaylistHeroCover({
+  urls,
+  title,
+  likesCover,
+}: {
+  urls: string[];
+  title: string;
+  likesCover?: string;
+}) {
+  if (urls.length === 0) {
+    return likesCover ? (
+      <img
+        src={likesCover}
+        alt={title}
+        draggable={false}
+        className="absolute inset-0 h-full w-full object-cover select-none"
+      />
+    ) : (
+      <PlaylistFill size={48} className="text-border-alpha-33" />
+    );
+  }
+  if (urls.length === 1) {
+    return (
+      <CoverImage
+        src={urls[0]}
+        alt={title}
+        fill
+        sizes="180px"
+        className="object-cover"
+        draggable={false}
+        unoptimized
+      />
+    );
+  }
+  const cells = urls.slice(0, 4);
+  return (
+    <div className="absolute inset-0 grid grid-cols-2 gap-[1.5px] bg-border-alpha-8">
+      {cells.map((url, i) => {
+        const spanFull = cells.length === 3 && i === 0;
+        return (
+          <div
+            key={i}
+            className={`relative overflow-hidden${spanFull ? " row-span-2" : ""}`}
+          >
+            <CoverImage
+              src={url}
+              alt={`${title} cover ${i + 1}`}
+              fill
+              sizes="140px"
+              className="object-cover"
+              draggable={false}
+              unoptimized
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function LibraryPlaylistContent() {
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
   const isLikesMode = id === "likes";
+  const saveLikedEnabled = useSavedTracksStore((state) => state.enabled);
+  useSavedTracksStore((state) => state.records);
   const currentUser = useAuthStore((state) => state.user);
   const likesOwnerName = userDisplayName(currentUser);
   const decodedId = id ? decodeURIComponent(id) : null;
@@ -143,9 +210,17 @@ function LibraryPlaylistContent() {
     error: playlistError,
   } = usePlaylist(isLikesMode ? null : decodedId);
 
-  const { data: likesData, isLoading: likesLoading } = useLikedTracks(
-    isLikesMode ? { limit: 1000, offset: 0 } : undefined,
-  );
+  const {
+    data: likesData,
+    isLoading: likesLoading,
+    error: likesError,
+  } = useLikedTracks(isLikesMode ? { limit: 1000, offset: 0 } : undefined);
+
+  const loadFailed = isLikesMode
+    ? likesError && likesData.tracks.length === 0
+    : !playlistDetail &&
+      playlistError !== undefined &&
+      statusOf(playlistError) !== 404;
 
   const isLoading = isLikesMode ? likesLoading : playlistLoading;
 
@@ -177,11 +252,39 @@ function LibraryPlaylistContent() {
         playlistDetail.coverUrls ??
         (playlistDetail.coverUrl ? [playlistDetail.coverUrl] : []),
       tracks: playlistDetail.tracks,
+      durationMs: playlistDetail.durationMs,
       revision: playlistDetail.revision,
     };
   })();
+  const likesCover = useLikesCover();
+  const { data: playlistList } = usePlaylistsList();
+  const summary = isLikesMode
+    ? undefined
+    : playlistList?.playlists?.find((playlist) => playlist.id === decodedId);
+  const preview = isLikesMode
+    ? {
+        title: t("playlist.liked_songs"),
+        subtitle: likesOwnerName || undefined,
+        coverUrls: [] as string[],
+      }
+    : summary
+      ? {
+          title: summary.title || t("playlist.untitled_playlist"),
+          subtitle: summary.description?.trim() || undefined,
+          coverUrls:
+            summary.coverUrls?.length > 0
+              ? summary.coverUrls
+              : summary.coverUrl
+                ? [summary.coverUrl]
+                : [],
+        }
+      : undefined;
   usePageBackdrop(
-    isLikesMode ? likesCover : (viewData?.coverUrls?.[0] ?? viewData?.coverUrl),
+    isLikesMode
+      ? likesCover
+      : (viewData?.coverUrls?.[0] ??
+          (viewData?.coverUrl || undefined) ??
+          preview?.coverUrls[0]),
   );
 
   useEffect(() => {
@@ -236,6 +339,11 @@ function LibraryPlaylistContent() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [search.activeQuery, sort.option]);
+
+  useEffect(() => {
+    if (!decodedId || sortedTracks.length === 0) return;
+    playerEngine.syncPlaylistTracks(`playlist:${decodedId}`, sortedTracks);
+  }, [decodedId, sortedTracks]);
 
   const handleSearchSubmit = useCallback(() => {
     const first = search.matches?.[0];
@@ -341,10 +449,20 @@ function LibraryPlaylistContent() {
   });
 
   const [listScrollMargin, setListScrollMargin] = useState(0);
+  const listShown =
+    currentTracks.length > 0 &&
+    !(search.matches && search.matches.length === 0);
   useLayoutEffect(() => {
-    const el = trackListContainerRef.current;
-    if (el) setListScrollMargin(el.offsetTop);
-  });
+    const list = trackListContainerRef.current;
+    const hero = scrollRef.current?.firstElementChild;
+    if (!list) return;
+    const measure = () => setListScrollMargin(list.offsetTop);
+    measure();
+    if (!hero || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(hero);
+    return () => observer.disconnect();
+  }, [listShown, viewData]);
 
   const rowVirtualizer = useVirtualizer({
     scrollMargin: listScrollMargin,
@@ -370,8 +488,12 @@ function LibraryPlaylistContent() {
     return Array.from(urls);
   }, [viewData]);
 
-  const [imagesLoaded, setImagesLoaded] = useState(false);
-  const [skeletonExited, setSkeletonExited] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState(
+    () => !isLoading && !!viewData,
+  );
+  const [skeletonExited, setSkeletonExited] = useState(
+    () => !isLoading && !!viewData,
+  );
 
   useEffect(() => {
     if (isLoading || !viewData) {
@@ -392,19 +514,7 @@ function LibraryPlaylistContent() {
       }
     }, 150);
 
-    const promises = urlsToPreload.map(
-      (url) =>
-        new Promise<void>((resolve) => {
-          const img = new Image();
-          img.src = url;
-          if (img.complete) {
-            resolve();
-            return;
-          }
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-        }),
-    );
+    const promises = urlsToPreload.map((url) => preloadCoverArt(url));
 
     Promise.all(promises).then(() => {
       if (active && !settled) {
@@ -421,15 +531,48 @@ function LibraryPlaylistContent() {
   }, [isLoading, viewData, urlsToPreload]);
 
   const isReady = !isLoading && !!viewData && imagesLoaded;
+  const contentLayerRef = useRef<HTMLDivElement>(null);
+  const swapsInPlace = Boolean(preview);
 
   useEffect(() => {
-    if (isReady && !skeletonExited) {
-      const timer = setTimeout(() => {
-        setSkeletonExited(true);
-      }, 250);
-      return () => clearTimeout(timer);
-    }
-  }, [isReady, skeletonExited]);
+    if (!isReady || skeletonExited) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const settle = () => {
+      const layer = contentLayerRef.current;
+      const shown =
+        !swapsInPlace ||
+        !layer ||
+        Number(getComputedStyle(layer).opacity) >= 0.99;
+      if (shown) setSkeletonExited(true);
+      else timer = setTimeout(settle, 120);
+    };
+    timer = setTimeout(settle, 250);
+    return () => clearTimeout(timer);
+  }, [isReady, skeletonExited, swapsInPlace]);
+
+  if (!isLoading && loadFailed) {
+    return (
+      <div className="h-full w-full bg-transparent flex flex-col items-center justify-center gap-[6px] px-[24px] text-center">
+        <span className="text-title font-[600] text-text-primary">
+          {t(
+            isLikesMode ? "playlist.likes_load_failed" : "playlist.load_failed",
+          )}
+        </span>
+        <span className="text-body text-text-secondary">
+          {t("playlist.load_failed_desc")}
+        </span>
+        {isLikesMode ? (
+          <Button
+            variant="secondary"
+            onClick={() => void reloadLikedTracks()}
+            className="mt-[10px] !h-[36px] !rounded-[10px] !border-0 px-[16px]"
+          >
+            {t("offline.try_again")}
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
 
   if (!isLoading && !viewData) {
     return (
@@ -446,75 +589,39 @@ function LibraryPlaylistContent() {
       <div className="relative z-1 grid grid-cols-1 w-full h-full min-h-0 overflow-hidden">
         {viewData && (
           <div
-            className={`col-start-1 row-start-1 w-full h-full min-h-0 overflow-hidden transition-opacity duration-200 ease-out ${
-              isReady ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
+            className={`col-start-1 row-start-1 w-full h-full min-h-0 overflow-hidden ${
+              swapsInPlace
+                ? "relative z-20 transition-opacity duration-[180ms] ease-out"
+                : "transition-opacity duration-200 ease-out"
+            } ${isReady ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            ref={contentLayerRef}
+            onTransitionEnd={(event) => {
+              if (
+                swapsInPlace &&
+                isReady &&
+                event.target === event.currentTarget
+              )
+                setSkeletonExited(true);
+            }}
           >
             <div
               ref={scrollRef}
               data-no-window-drag
-              className="relative z-10 h-full w-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain box-border pt-(--page-inset-top) pb-(--page-inset-bottom)"
+              className="relative z-10 flex flex-col h-full w-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain box-border pt-(--page-inset-top) pb-(--page-inset-bottom)"
               style={{ willChange: "scroll-position" }}
             >
-              <div className="pl-[16px] pr-[12px] pt-[8px]" data-no-window-drag>
+              <div
+                className="shrink-0 pl-[16px] pr-[12px] pt-[8px]"
+                data-no-window-drag
+              >
                 <EntityHero
-                  cover={(() => {
-                    const urls =
-                      viewData.coverUrls ??
-                      (viewData.coverUrl ? [viewData.coverUrl] : []);
-                    if (urls.length === 0) {
-                      return isLikesMode ? (
-                        <img
-                          src={likesCover}
-                          alt={viewData.title}
-                          draggable={false}
-                          className="absolute inset-0 h-full w-full object-cover select-none"
-                        />
-                      ) : (
-                        <PlaylistFill
-                          size={48}
-                          className="text-border-alpha-33"
-                        />
-                      );
-                    }
-                    if (urls.length === 1) {
-                      return (
-                        <CoverImage
-                          src={urls[0]}
-                          alt={viewData.title}
-                          fill
-                          sizes="180px"
-                          className="object-cover"
-                          draggable={false}
-                          unoptimized
-                        />
-                      );
-                    }
-                    const cells = urls.slice(0, 4);
-                    return (
-                      <div className="absolute inset-0 grid grid-cols-2 gap-[1.5px] bg-border-alpha-8">
-                        {cells.map((url, i) => {
-                          const spanFull = cells.length === 3 && i === 0;
-                          return (
-                            <div
-                              key={i}
-                              className={`relative overflow-hidden${spanFull ? " row-span-2" : ""}`}
-                            >
-                              <CoverImage
-                                src={url}
-                                alt={`${viewData.title} cover ${i + 1}`}
-                                fill
-                                sizes="140px"
-                                className="object-cover"
-                                draggable={false}
-                                unoptimized
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
+                  cover={
+                    <PlaylistHeroCover
+                      urls={viewData.coverUrls}
+                      title={viewData.title}
+                      likesCover={isLikesMode ? likesCover : undefined}
+                    />
+                  }
                   title={
                     <h1
                       ref={titleRef}
@@ -606,43 +713,43 @@ function LibraryPlaylistContent() {
                       <button
                         type="button"
                         onClick={() => setIsEditingDescription(true)}
-                        className="cursor-pointer border-0 bg-transparent p-0 text-left text-[13px] font-[400] text-text-tertiary transition-colors hover:text-text-primary"
-                        style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                        className="cursor-pointer border-0 bg-transparent p-0 text-left text-body font-[400] text-text-tertiary transition-colors hover:text-text-primary"
                       >
                         {t("common.add_description")}
                       </button>
                     )
                   }
                   meta={
-                    <div className="flex items-center flex-wrap gap-[6px]">
-                      <div className={HERO_CHIP_CLASS}>
-                        <MusicLine
-                          size={13}
-                          className="text-text-secondary shrink-0"
-                        />
-                        <span>{viewData.countLabel}</span>
-                        <span
-                          className="w-[3px] h-[3px] rounded-full shrink-0 bg-text-secondary/50"
-                          aria-hidden
-                        />
-                        <span>
-                          {(() => {
-                            const totalMs = viewData.tracks.reduce(
+                    <HeroMeta
+                      items={[
+                        viewData.countLabel,
+                        (() => {
+                          const totalMs =
+                            viewData.durationMs ??
+                            viewData.tracks.reduce(
                               (acc, t) => acc + (t.durationMs || 0),
                               0,
                             );
-                            const totalMins = Math.floor(totalMs / 60000);
-                            if (totalMins > 60) {
-                              return `${Math.floor(totalMins / 60)} ${t("playlist.hr")} ${totalMins % 60} ${t("playlist.min")}`;
-                            }
-                            const totalSecs = Math.floor(
-                              (totalMs % 60000) / 1000,
-                            );
-                            return `${totalMins} ${t("playlist.min")} ${totalSecs} ${t("playlist.sec")}`;
-                          })()}
-                        </span>
-                      </div>
-                    </div>
+                          const totalMins = Math.floor(totalMs / 60000);
+                          if (totalMins > 60) {
+                            return `${Math.floor(totalMins / 60)} ${t("playlist.hr")} ${totalMins % 60} ${t("playlist.min")}`;
+                          }
+                          const totalSecs = Math.floor(
+                            (totalMs % 60000) / 1000,
+                          );
+                          return `${totalMins} ${t("playlist.min")} ${totalSecs} ${t("playlist.sec")}`;
+                        })(),
+                        isLikesMode &&
+                          saveLikedEnabled &&
+                          viewData.tracks.length > 0 &&
+                          t("library.saved_count", {
+                            saved: viewData.tracks.filter((track) =>
+                              isSavedTrack(track.id),
+                            ).length,
+                            total: viewData.tracks.length,
+                          }),
+                      ]}
+                    />
                   }
                   actions={
                     <>
@@ -772,21 +879,15 @@ function LibraryPlaylistContent() {
                 />
               </div>
 
-              <div className="mt-[20px] mx-[4px] mb-[78px] rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04] backdrop-blur-xl overflow-hidden p-[8px]">
+              <ListPanel>
                 {currentTracks.length === 0 ? (
                   <div className="flex min-h-[50vh] flex-col items-center justify-center gap-[12px] text-center">
                     <PlaylistFill size={40} className="text-border-alpha-33" />
                     <div className="flex flex-col gap-[4px]">
-                      <p
-                        className="m-0 text-[15px] font-[500] text-text-primary"
-                        style={{ fontFamily: "var(--font-inter), sans-serif" }}
-                      >
+                      <p className="m-0 text-title font-[500] text-text-primary">
                         {t("playlist.empty_title")}
                       </p>
-                      <p
-                        className="m-0 text-[13px] text-text-tertiary"
-                        style={{ fontFamily: "var(--font-inter), sans-serif" }}
-                      >
+                      <p className="m-0 text-body text-text-tertiary">
                         {t("playlist.empty_subtitle")}
                       </p>
                     </div>
@@ -928,19 +1029,37 @@ function LibraryPlaylistContent() {
                     />
                   </FloatingDragCard>
                 )}
-              </div>
+              </ListPanel>
             </div>
           </div>
         )}
 
         {!skeletonExited && (
           <div
-            className={`col-start-1 row-start-1 w-full h-full z-10 transition-opacity duration-200 ease-out overflow-hidden pointer-events-none ${
-              isReady ? "opacity-0" : "opacity-100"
+            className={`col-start-1 row-start-1 w-full h-full overflow-hidden pointer-events-none ${
+              swapsInPlace
+                ? "z-0"
+                : `z-10 transition-opacity duration-200 ease-out ${
+                    isReady ? "opacity-0" : "opacity-100"
+                  }`
             }`}
-            onTransitionEnd={() => setSkeletonExited(true)}
+            onTransitionEnd={(event) => {
+              if (event.target === event.currentTarget) setSkeletonExited(true);
+            }}
           >
-            <PlaylistPageSkeleton />
+            <PlaylistPageSkeleton
+              cover={
+                preview ? (
+                  <PlaylistHeroCover
+                    urls={preview.coverUrls}
+                    title={preview.title}
+                    likesCover={isLikesMode ? likesCover : undefined}
+                  />
+                ) : undefined
+              }
+              title={preview?.title}
+              subtitle={preview?.subtitle}
+            />
           </div>
         )}
       </div>

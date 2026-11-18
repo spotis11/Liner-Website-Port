@@ -64,11 +64,17 @@
     "coming_soon": "Wkrótce",
     "play_all": "Odtwórz wszystko",
     "add_to_queue": "Dodaj do kolejki",
+    "remove_from_queue": "Usuń z kolejki",
+    "remove_from_cache": "Usuń z pamięci podręcznej",
+    "removed_from_cache": "Usunięto z pamięci podręcznej",
+    "removed_from_queue": "Usunięto z kolejki",
+    "undo": "Cofnij",
     "shuffle": "Losowo",
     "remove_from_library": "Usuń z biblioteki",
     "save_to_library": "Zapisz w bibliotece",
     "share": "Udostępnij",
     "back": "Wstecz",
+    "forward": "Dalej",
     "link_copied": "Skopiowano link",
     "download": "Pobierz",
     "more": "Więcej",
@@ -253,6 +259,8 @@
     "btn_continue": "Dalej",
     "btn_back": "Wstecz",
     "username_hint": "3–30 znaków: małe litery, cyfry lub podkreślenia.",
+    "username_checking": "Sprawdzanie, czy nazwa użytkownika jest wolna...",
+    "username_available": "Ta nazwa użytkownika jest wolna.",
     "label_email": "E-mail",
     "label_username": "Nazwa użytkownika (@identyfikator)",
     "placeholder_username": "soundwave",
@@ -385,6 +393,8 @@
     "track_unavailable": "„{title}” jest niedostępny, pomijam...",
     "track_unavailable_title": "Utwór niedostępny",
     "playback_stopped_too_many_errors": "Odtwarzanie zatrzymane: zbyt wielu utworów nie udało się wczytać.",
+    "youtube_refused_title": "YouTube odrzuca to połączenie",
+    "youtube_refused_description": "Dźwięk z YouTube jest zablokowany w tej sieci. Wyłącz VPN lub proxy albo spróbuj innego połączenia.",
     "speed_pitch": "Tempo i wysokość",
     "speed": "Tempo",
     "pitch": "Wysokość",
@@ -401,7 +411,28 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Pogłos",
     "reverb_hint": "Przestrzeń i głębia brzmienia",
-    "reverb_amount": "Pogłos"
+    "reverb_amount": "Pogłos",
+    "beta_visuals": {
+      "label": "Uwaga",
+      "ambient_title": "Ambient jest w becie",
+      "ambient_body": "Ten utwór ma własne animowane tło. Jest wciąż w wersji beta i może obciążać słabsze urządzenia, więc jeśli odtwarzacz przycina, wybierz lżejszy tryb.",
+      "settings_title": "Jakość wizualna",
+      "settings_body": "Wybierz, jak bardzo animowany ma być odtwarzacz pełnoekranowy. Lżejsze tryby oszczędzają baterię i działają płynniej na słabszych urządzeniach.",
+      "modes": {
+        "full": {
+          "name": "Wszystkie efekty",
+          "hint": "Wszystko włączone, z rozmytymi krawędziami tekstu"
+        },
+        "balanced": {
+          "name": "Zrównoważony",
+          "hint": "Ruchome tła, bez rozmycia tekstu"
+        },
+        "lite": {
+          "name": "Lekki",
+          "hint": "Nieruchoma okładka, zwykły tekst"
+        }
+      }
+    }
   },
   "playlist": {
     "playlist": "Playlista",
@@ -549,7 +580,6 @@
         "description": "Utrzymuje nakładkę nad innymi oknami."
       }
     },
-
     "audio_data": {
       "description": "Jakość streamingu, pamięć podręczna offline i diagnostyka połączenia."
     },
@@ -570,6 +600,10 @@
     "language": {
       "label": "Język",
       "description": "Wybierz język interfejsu"
+    },
+    "remember_window_bounds": {
+      "title": "Zapamiętuj rozmiar i położenie okna",
+      "description": "Otwieraj okno w tym samym rozmiarze i miejscu, w którym zostało zamknięte."
     },
     "autoplay_similar": {
       "title": "Automatycznie odtwarzaj podobne utwory",
@@ -646,8 +680,12 @@
         "covers": "Okładki",
         "audio": "Ścieżki audio",
         "lyrics": "Teksty",
-        "metadata": "Katalog i wyszukiwanie"
-      }
+        "metadata": "Katalog i wyszukiwanie",
+        "local": "Muzyka lokalna"
+      },
+      "local_confirm_title": "Usunąć też muzykę lokalną?",
+      "local_confirm_desc": "Muzyka lokalna to twoja zaimportowana biblioteka, a nie pamięć podręczna. {tracks} ({size}) zostanie usuniętych z Liner razem z okładkami. Oryginalne pliki zostaną na miejscu.",
+      "local_confirm_button": "Usuń muzykę lokalną"
     },
     "theme": {
       "title": "Motyw",
@@ -742,7 +780,7 @@
     "about": {
       "liner": "Liner",
       "telegram": "Kanał",
-      "support": "Pomoc techniczna",
+      "discord": "Discord",
       "github": "GitHub",
       "website": "Strona",
       "tagline": "Nowoczesny desktopowy odtwarzacz muzyki ze streamingu z tekstami zsynchronizowanymi co do sylaby",
@@ -925,6 +963,7 @@
   "track_sort": {
     "label": "Sortowanie",
     "default": "Domyślnie",
+    "added": "Według daty dodania",
     "title": "Według tytułu (A–Z)",
     "duration": "Według długości",
     "popularity": "Według popularności"

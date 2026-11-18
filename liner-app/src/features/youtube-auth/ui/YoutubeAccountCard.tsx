@@ -2,15 +2,20 @@ import { useState } from "react";
 import { YoutubeFill } from "@mingcute/react";
 import { useTranslation } from "@/languages";
 import { cn } from "@/shared/lib";
-import { AccountCard, accountCardActionClassName } from "@/shared/ui";
+import {
+  AccountCard,
+  ConfirmPill,
+  accountCardActionClassName,
+} from "@/shared/ui";
 import { AppImage } from "@/features/covers";
 import { signOutYoutube } from "@/shared/youtube";
 import { useYoutubeAccount } from "../hooks/useYoutubeAccount";
 import { useYoutubeSignInStore } from "../store/youtubeSignInStore";
+import YoutubeAccountSwitcher from "./YoutubeAccountSwitcher";
 
 export default function YoutubeAccountCard() {
   const { t } = useTranslation();
-  const { signedIn, account, loading } = useYoutubeAccount();
+  const { signedIn, account, accounts, loading } = useYoutubeAccount();
   const showSignIn = useYoutubeSignInStore((state) => state.show);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -34,23 +39,24 @@ export default function YoutubeAccountCard() {
           <AppImage src={account.photoUrl} alt="" fill />
         ) : undefined
       }
-      placeholderIcon={<YoutubeFill size={24} />}
+      placeholderIcon={<YoutubeFill size={18} />}
       title={title}
+      titleAccessory={
+        signedIn && accounts.length > 1 ? (
+          <YoutubeAccountSwitcher accounts={accounts} />
+        ) : undefined
+      }
       subtitle={subtitle}
       loading={loading}
       action={
         signedIn ? (
-          <button
-            type="button"
-            onClick={signOut}
+          <ConfirmPill
+            label={t("settings.youtube.sign_out") || "Sign out"}
+            actionLabel={t("settings.youtube.sign_out") || "Sign out"}
+            confirmLabel={t("common.confirm") || "Confirm"}
+            onConfirm={signOut}
             disabled={signingOut}
-            className={cn(
-              accountCardActionClassName,
-              "bg-text-primary/70 text-bg-primary/85 hover:bg-text-primary/85",
-            )}
-          >
-            {t("settings.youtube.sign_out") || "Sign out"}
-          </button>
+          />
         ) : (
           <button
             type="button"

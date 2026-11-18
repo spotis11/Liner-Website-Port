@@ -5,6 +5,14 @@ import { getAuthSession } from "@/shared/api";
 import AppFrame from "@/features/navigation/ui/AppFrame";
 import { useWindowState } from "@/features/navigation/hooks/useWindowState";
 
+// design-preview harness: with `?_design=1` in a dev build the shell renders
+// without a session so screens can be screenshotted; prod builds compile this
+// whole branch out (import.meta.env.DEV === false)
+const DESIGN_PREVIEW =
+  import.meta.env.DEV &&
+  typeof window !== "undefined" &&
+  window.location.hash.includes("_design=1");
+
 export function AuthLock({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -12,9 +20,21 @@ export function AuthLock({ children }: { children: React.ReactNode }) {
   const initialize = useAuthStore((state) => state.initialize);
   // keeps the body's outer padding in step with maximize / fullscreen on every screen,
   // including login and the startup spinner (the app frame mounts its own copy too)
-  useWindowState();
+  const { isEdgeToEdge } = useWindowState();
 
   useEffect(() => {
+    if (DESIGN_PREVIEW) {
+      useAuthStore.setState({
+        status: "authenticated",
+        user: {
+          id: "preview-user",
+          username: "olya",
+          displayName: "Olya Hnatiuk",
+          avatarUrl: null,
+        },
+      });
+      return;
+    }
     void initialize();
   }, [initialize]);
 
@@ -26,24 +46,26 @@ export function AuthLock({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("auth:changed", syncExpiredSession);
   }, [initialize]);
 
+  const effectiveStatus = DESIGN_PREVIEW ? "authenticated" : status;
+
   useEffect(() => {
-    if (status === "anonymous" && pathname !== "/login") {
+    if (effectiveStatus === "anonymous" && pathname !== "/login") {
       navigate("/login", { replace: true });
     }
-    if (status === "authenticated" && pathname === "/login") {
+    if (effectiveStatus === "authenticated" && pathname === "/login") {
       navigate("/", { replace: true });
     }
-  }, [pathname, navigate, status]);
+  }, [pathname, navigate, effectiveStatus]);
 
   if (
-    status === "initializing" ||
-    (status === "anonymous" && pathname !== "/login") ||
-    (status === "authenticated" && pathname === "/login")
+    effectiveStatus === "initializing" ||
+    (effectiveStatus === "anonymous" && pathname !== "/login") ||
+    (effectiveStatus === "authenticated" && pathname === "/login")
   ) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-bg-primary">
-        <span className="h-[22px] w-[22px] animate-spin rounded-full border-2 border-text-tertiary border-t-text-primary" />
-      </div>
+      <div
+        className={`h-full w-full bg-bg-canvas ${isEdgeToEdge ? "rounded-none" : "rounded-item"}`}
+      />
     );
   }
 

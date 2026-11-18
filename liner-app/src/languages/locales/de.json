@@ -73,6 +73,7 @@
     "save_to_library": "Zur Mediathek hinzufügen",
     "share": "Teilen",
     "back": "Zurück",
+    "forward": "Vorwärts",
     "link_copied": "Link kopiert",
     "download": "Download",
     "more": "Mehr",
@@ -186,7 +187,12 @@
     "tracks_plural": "{count} Titel",
     "songs_plural": "{count} Titel",
     "env_warning": "Die App sollte in Electron laufen – Deeplinks, Offline-Prüfungen und Teilen benötigen die Desktop-Bridge.",
-    "env_skip": "Überspringen"
+    "env_skip": "Überspringen",
+    "remove_from_queue": "Aus der Warteschlange entfernen",
+    "remove_from_cache": "Aus dem Cache entfernen",
+    "removed_from_cache": "Aus dem Cache entfernt",
+    "removed_from_queue": "Aus der Warteschlange entfernt",
+    "undo": "Rückgängig"
   },
   "home": {
     "speedDial": "Schnellzugriff",
@@ -249,6 +255,8 @@
     "btn_continue": "Weiter",
     "btn_back": "Zurück",
     "username_hint": "3–30 Kleinbuchstaben, Zahlen oder Unterstriche.",
+    "username_checking": "Prüfe, ob der Benutzername frei ist...",
+    "username_available": "Dieser Benutzername ist frei.",
     "label_email": "E-Mail",
     "label_username": "Benutzername (@handle)",
     "placeholder_username": "soundwave",
@@ -359,7 +367,7 @@
     "repeat": "Wiederholung",
     "previous": "Vorher",
     "open_player": "Player öffnen",
-    "next":"Weiter",
+    "next": "Weiter",
     "lyrics_upgraded": "Songtext verbessert!",
     "playing_from": "Wiedergabe von",
     "autoplay_radio": "Autoplay-Radio",
@@ -386,6 +394,8 @@
     "track_unavailable": "„{title}“ ist nicht verfügbar und wird übersprungen…",
     "track_unavailable_title": "Titel nicht verfügbar",
     "playback_stopped_too_many_errors": "Wiedergabe gestoppt – zu viele Titel konnten nicht geladen werden.",
+    "youtube_refused_title": "YouTube lehnt diese Verbindung ab",
+    "youtube_refused_description": "Audio von YouTube ist in diesem Netzwerk blockiert. Schalte VPN oder Proxy aus oder nutze eine andere Verbindung.",
     "speed_pitch": "Tempo & Tonhöhe",
     "speed": "Tempo",
     "pitch": "Tonhöhe",
@@ -402,7 +412,28 @@
     "preset_nightcore": "1,35x Nightcore",
     "reverb": "Hall",
     "reverb_hint": "Atmosphärischer Raum & Tiefe",
-    "reverb_amount": "Hall"
+    "reverb_amount": "Hall",
+    "beta_visuals": {
+      "label": "Warnung",
+      "ambient_title": "Ambient ist in der Beta",
+      "ambient_body": "Dieser Track hat einen eigenen animierten Hintergrund. Er ist noch in der Beta und kann schwächere Geräte belasten. Wähle einen leichteren Modus, wenn der Player ruckelt.",
+      "settings_title": "Visuelle Qualität",
+      "settings_body": "Lege fest, wie lebendig der Vollbild-Player ist. Leichtere Modi schonen den Akku und laufen auf schwächeren Geräten flüssiger.",
+      "modes": {
+        "full": {
+          "name": "Alle Effekte",
+          "hint": "Alles an, inklusive unscharfer Textränder"
+        },
+        "balanced": {
+          "name": "Ausgewogen",
+          "hint": "Lebendige Hintergründe, ohne Textunschärfe"
+        },
+        "lite": {
+          "name": "Leicht",
+          "hint": "Ruhiges Cover, schlichter Text"
+        }
+      }
+    }
   },
   "playlist": {
     "playlist": "Playlist",
@@ -511,6 +542,10 @@
       "label": "Sprache",
       "description": "Wähle die Sprache der Oberfläche"
     },
+    "remember_window_bounds": {
+      "title": "Fenstergröße und -position merken",
+      "description": "Das Fenster in derselben Größe und an derselben Stelle wieder öffnen."
+    },
     "autoplay_similar": {
       "title": "Ähnliche Titel automatisch abspielen",
       "description": "Fügt automatisch ähnliche Titel hinzu, wenn deine Warteschlange endet."
@@ -586,8 +621,12 @@
         "covers": "Cover-Artwork",
         "audio": "Audiodateien",
         "lyrics": "Songtexte",
-        "metadata": "Katalog & Suche"
-      }
+        "metadata": "Katalog & Suche",
+        "local": "Lokale Musik"
+      },
+      "local_confirm_title": "Auch deine lokale Musik löschen?",
+      "local_confirm_desc": "Lokale Musik ist deine importierte Bibliothek, kein Cache. {tracks} ({size}) werden samt Covern aus Liner gelöscht. Deine Originaldateien bleiben, wo sie sind.",
+      "local_confirm_button": "Lokale Musik löschen"
     },
     "theme": {
       "title": "Design",
@@ -682,7 +721,7 @@
     "about": {
       "liner": "Liner",
       "telegram": "Kanal",
-      "support": "Support",
+      "discord": "Discord",
       "github": "GitHub",
       "website": "Website",
       "tagline": "Moderner Desktop-Musikplayer mit silbensynchronen Songtexten",
@@ -864,6 +903,7 @@
   "track_sort": {
     "label": "Sortieren",
     "default": "Standard",
+    "added": "Nach Hinzufügedatum",
     "title": "Nach Titel (A–Z)",
     "duration": "Nach Dauer",
     "popularity": "Nach Beliebtheit"

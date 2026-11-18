@@ -28,7 +28,7 @@ function CardRowSkeleton({ count = 6 }: { count?: number }) {
     <div className="flex gap-[16px] overflow-hidden pb-[10px]">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="w-[180px] shrink-0">
-          <div className="relative aspect-square w-full overflow-hidden rounded-md bg-border-alpha-14">
+          <div className="relative aspect-square w-full overflow-hidden rounded-control bg-border-alpha-14">
             <div className="skeleton-shimmer h-full w-full" />
           </div>
           <div className="mt-[8px] flex flex-col gap-1.5">
@@ -45,16 +45,20 @@ function CardRowSkeleton({ count = 6 }: { count?: number }) {
 
 function ArtistHeroSkeleton() {
   return (
-    <div className="flex w-full items-start gap-[22px]">
-      <div className="relative h-[144px] w-[144px] shrink-0 overflow-hidden rounded-full bg-border-alpha-14">
-        <div className="skeleton-shimmer h-full w-full" />
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col self-stretch justify-center">
-        <div className="skeleton-shimmer h-[30px] w-[36%] rounded-[8px]" />
-        <div className="skeleton-shimmer mt-[8px] h-[18px] w-[24%] rounded-[6px]" />
-
-        <div className="mt-[20px] flex items-center gap-[8px]">
+    <div className="relative flex min-h-[340px] w-full flex-col justify-end overflow-hidden">
+      <div
+        className="skeleton-shimmer absolute inset-0"
+        style={{
+          maskImage:
+            "linear-gradient(to bottom, black 0%, black 35%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, black 0%, black 35%, transparent 100%)",
+        }}
+      />
+      <div className="relative flex flex-col pl-[16px] pr-[12px] pb-[20px]">
+        <div className="skeleton-shimmer h-[44px] w-[30%] rounded-control" />
+        <div className="skeleton-shimmer mt-[10px] h-[18px] w-[16%] rounded-[6px]" />
+        <div className="mt-[16px] flex items-center gap-[8px]">
           <div className="skeleton-shimmer h-[32px] w-[112px] rounded-[9px]" />
           <div className="skeleton-shimmer h-[32px] w-[52px] rounded-[9px]" />
           <div className="skeleton-shimmer h-[32px] w-[52px] rounded-[9px]" />
@@ -72,11 +76,9 @@ interface ArtistPageSkeletonProps {
 function ArtistPageSkeleton({ className = "" }: ArtistPageSkeletonProps) {
   return (
     <div
-      className={`relative h-full w-full overflow-hidden bg-transparent select-none pt-(--page-inset-top) ${className}`}
+      className={`relative h-full w-full overflow-hidden bg-transparent select-none ${className}`}
     >
-      <div className="shrink-0 pl-[16px] pr-[12px] pt-[8px]">
-        <ArtistHeroSkeleton />
-      </div>
+      <ArtistHeroSkeleton />
 
       <div className="relative z-10 pl-[16px] pr-[12px] pt-[28px]">
         <div className="flex flex-col gap-[40px]">
@@ -86,10 +88,10 @@ function ArtistPageSkeleton({ className = "" }: ArtistPageSkeletonProps) {
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-[52px] rounded-md px-[12px] flex items-center gap-[14px]"
+                  className="h-[52px] rounded-control px-[12px] flex items-center gap-[14px]"
                 >
                   <div className="skeleton-shimmer h-[14px] w-[16px] rounded-[3px]" />
-                  <div className="skeleton-shimmer h-[40px] w-[40px] rounded-[12px] shrink-0" />
+                  <div className="skeleton-shimmer h-[40px] w-[40px] rounded-item shrink-0" />
                   <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                     <div
                       className={`skeleton-shimmer h-[14px] ${TRACK_TITLE_WIDTHS[i]} rounded-[4px]`}

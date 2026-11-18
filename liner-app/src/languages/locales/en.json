@@ -39,7 +39,9 @@
     "tracks_count": "tracks",
     "hr": "hr",
     "min": "min",
-    "sec": "sec"
+    "sec": "sec",
+    "track_col_title": "Title",
+    "date_added": "Date added"
   },
   "common": {
     "app": {
@@ -68,11 +70,17 @@
     "coming_soon": "Coming soon",
     "play_all": "Play all",
     "add_to_queue": "Add to queue",
+    "remove_from_queue": "Remove from queue",
+    "remove_from_cache": "Remove from cache",
+    "removed_from_cache": "Removed from cache",
+    "removed_from_queue": "Removed from queue",
+    "undo": "Undo",
     "shuffle": "Shuffle",
     "remove_from_library": "Remove from library",
     "save_to_library": "Save to library",
     "share": "Share",
     "back": "Back",
+    "forward": "Forward",
     "link_copied": "Link copied",
     "download": "Download",
     "more": "More",
@@ -95,7 +103,7 @@
     "remove_track_from_playlist_desc": "This track will be removed from this playlist.",
     "close": "Close",
     "search": "Search",
-    "from_scratch": "From the scratch",
+    "from_scratch": "From scratch",
     "create_empty_playlist": "Create a brand new empty playlist",
     "playlist_name": "Playlist name",
     "import_playlist": "Import a playlist",
@@ -188,7 +196,9 @@
     "tracks_plural": "{count} tracks",
     "songs_plural": "{count} songs",
     "env_warning": "App should run inside Electron — deeplinks, offline checks and sharing need the desktop bridge.",
-    "env_skip": "Skip"
+    "env_skip": "Skip",
+    "songs_one": "{count} song",
+    "search_placeholder": "Search tracks, artists, albums"
   },
   "home": {
     "speedDial": "Speed dial",
@@ -206,7 +216,9 @@
     "popularArtists": "Trending Artists",
     "popularPlaylists": "Popular Playlists",
     "dailyMixes": "Your Mixes",
-    "dailyMixesSubtitle": "Fresh playlists curated around your favorite artists and genres"
+    "dailyMixesSubtitle": "Fresh playlists curated around your favorite artists and genres",
+    "load_failed": "Couldn't load your home feed",
+    "daily_mix": "Daily mix"
   },
   "library": {
     "title": "Library",
@@ -237,7 +249,49 @@
     "no_albums_desc": "Save albums from search or recommendations to find them quickly",
     "no_artists_title": "No saved artists",
     "no_artists_desc": "Save artists to quickly access their discography",
-    "search_music": "Search music"
+    "search_music": "Search music",
+    "local": {
+      "title": "On this device",
+      "subtitle": "Your own audio files. They stay on this computer and never go to YouTube or Liner servers.",
+      "add_files": "Add files",
+      "importing": "Adding…",
+      "empty_title": "No local files yet",
+      "empty_subtitle": "Add MP3, FLAC, M4A, OGG, OPUS or WAV files, or drop them anywhere in the window.",
+      "drop_title": "Drop to add to Liner",
+      "drop_subtitle": "Files are copied to this device only",
+      "drop_count_one": "{count} file",
+      "drop_count_other": "{count} files",
+      "imported_one": "Added {count} song",
+      "imported_other": "Added {count} songs",
+      "skipped_duplicates_one": "{count} was already added",
+      "skipped_duplicates_other": "{count} were already added",
+      "already_added": "These files are already added",
+      "import_failed_one": "Couldn't add {count} file",
+      "import_failed_other": "Couldn't add {count} files",
+      "unsupported": "These files aren't supported audio",
+      "remove": "Remove from device",
+      "remove_all": "Remove all imported files",
+      "remove_all_title": "Remove all local music?",
+      "remove_all_desc": "{tracks} ({size}) will be removed from Liner, together with their covers. Your original files stay where they are.",
+      "removed_all": "Local music removed"
+    },
+    "offline_mix": {
+      "title": "All offline music"
+    },
+    "cached": {
+      "title": "Cached songs",
+      "subtitle": "Songs Liner kept while you listened. They play without a connection until the cache makes room for new ones.",
+      "clear_all": "Clear cached songs",
+      "empty_title": "No cached songs yet",
+      "empty_subtitle": "Songs you play are kept here for a while, so they start instantly and work offline."
+    },
+    "saved_count": "{saved} of {total} downloaded",
+    "saved": {
+      "subtitle": "Liked songs downloaded to this device. They play without a connection, with lyrics.",
+      "empty_title": "No downloaded liked songs",
+      "empty_subtitle": "Liked songs are downloaded in the background while you're online."
+    },
+    "your_library": "Your library"
   },
   "login": {
     "welcome_back": "Welcome back",
@@ -251,6 +305,8 @@
     "btn_continue": "Continue",
     "btn_back": "Back",
     "username_hint": "3-30 lowercase characters, numbers or underscores.",
+    "username_checking": "Checking if this username is free...",
+    "username_available": "This username is free.",
     "label_email": "Email",
     "label_username": "Username (@handle)",
     "placeholder_username": "soundwave",
@@ -337,7 +393,9 @@
       "account_not_found": "Account not found or session expired. Try registering.",
       "failed_start_auth": "Failed to start Telegram auth",
       "registration_failed": "Registration failed: {status}",
-      "verification_canceled": "Verification canceled."
+      "verification_canceled": "Verification canceled.",
+      "human_check_cancelled": "Finish the human check to continue.",
+      "human_check_failed": "The human check didn't go through. Please try again."
     },
     "toasts": {
       "login_successful": "Login successful",
@@ -388,6 +446,8 @@
     "track_unavailable": "\"{title}\" is unavailable, skipping...",
     "track_unavailable_title": "Track unavailable",
     "playback_stopped_too_many_errors": "Playback stopped — too many tracks failed to load.",
+    "youtube_refused_title": "YouTube is refusing this connection",
+    "youtube_refused_description": "Audio from YouTube is blocked on this network. Turn off your VPN or proxy, or try another connection.",
     "speed_pitch": "Speed & Pitch",
     "speed": "Speed",
     "pitch": "Pitch",
@@ -404,7 +464,87 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Reverb",
     "reverb_hint": "Atmospheric space & ambient depth",
-    "reverb_amount": "Reverb"
+    "reverb_amount": "Reverb",
+    "equalizer": "Equalizer",
+    "equalizer_hint": "Shape the sound band by band",
+    "eq_tab_enhance": "Enhance",
+    "eq_tab_genre": "Genres",
+    "eq_tab_accent": "Accents",
+    "eq_tab_custom": "Mine",
+    "eq_save_preset": "Save current",
+    "eq_presets_full": "Preset limit reached",
+    "eq_custom_empty": "Tune the bands and save the curve to reuse it later",
+    "eq_preset_name": "Preset name",
+    "eq_delete_preset": "Delete preset",
+    "eq_preset_hifi": "Hi-Fi",
+    "eq_preset_hifi_hint": "Fuller lows and more air, mids untouched",
+    "eq_preset_clarity": "Clarity",
+    "eq_preset_clarity_hint": "Removes low-mid mud, instruments separate better",
+    "eq_preset_warmth": "Warmth",
+    "eq_preset_warmth_hint": "Analog-like warmth, tames harsh bright masters",
+    "eq_preset_spacious": "Spacious",
+    "eq_preset_spacious_hint": "A wider, more open stage",
+    "eq_preset_headphones": "Headphones",
+    "eq_preset_headphones_hint": "Fills the typical headphone dips in sub bass and upper mids",
+    "eq_preset_laptop": "Laptop",
+    "eq_preset_laptop_hint": "For small speakers: no wasted sub bass, more body",
+    "eq_preset_night": "Night",
+    "eq_preset_night_hint": "Quiet listening: less boom and sizzle, clear voices",
+    "eq_preset_pop": "Pop",
+    "eq_preset_pop_hint": "Forward mids and a polished top",
+    "eq_preset_rock": "Rock",
+    "eq_preset_rock_hint": "Punchy drums and bite on the guitars",
+    "eq_preset_hiphop": "Hip-Hop",
+    "eq_preset_hiphop_hint": "Heavy 808s with vocals kept on top",
+    "eq_preset_electronic": "Electronic",
+    "eq_preset_electronic_hint": "Deep kick and crisp synths",
+    "eq_preset_jazz": "Jazz",
+    "eq_preset_jazz_hint": "Warm double bass and airy cymbals",
+    "eq_preset_classical": "Classical",
+    "eq_preset_classical_hint": "Natural hall sound, gentle extension at both ends",
+    "eq_preset_acoustic": "Acoustic",
+    "eq_preset_acoustic_hint": "Wooden body and string detail",
+    "eq_preset_lofi": "Lo-Fi",
+    "eq_preset_lofi_hint": "Dusty, rolled-off top like old tape",
+    "eq_preset_bass": "Bass",
+    "eq_preset_bass_hint": "More low end",
+    "eq_preset_deep_bass": "Deep Bass",
+    "eq_preset_deep_bass_hint": "Maximum sub bass",
+    "eq_preset_less_bass": "Less Bass",
+    "eq_preset_less_bass_hint": "Cuts boom on bassy tracks or speakers",
+    "eq_preset_vocal": "Vocal",
+    "eq_preset_vocal_hint": "Pushes voices forward",
+    "eq_preset_treble": "Treble",
+    "eq_preset_treble_hint": "More highs and detail",
+    "eq_preset_loudness": "Loudness",
+    "eq_preset_loudness_hint": "Boosted lows and highs for low volume",
+    "eq_preset_punch": "Punch",
+    "eq_preset_punch_hint": "Tighter mix with a punchy kick and attack",
+    "eq_preset_smooth": "Smooth",
+    "eq_preset_smooth_hint": "Softens harsh highs for long listening",
+    "eq_preset_rnb": "R&B",
+    "eq_preset_rnb_hint": "Silky vocals over a round, warm low end",
+    "beta_visuals": {
+      "label": "Warning",
+      "ambient_title": "Ambient is in beta",
+      "ambient_body": "This track has a custom animated background. It is still in beta and can load weaker devices, so pick a lighter mode if the player stutters.",
+      "settings_title": "Visual quality",
+      "settings_body": "Choose how much the fullscreen player animates. Lighter modes save battery and run smoother on weaker devices.",
+      "modes": {
+        "full": {
+          "name": "All effects",
+          "hint": "Everything on, including blurred lyric edges"
+        },
+        "balanced": {
+          "name": "Balanced",
+          "hint": "Live backgrounds, no lyric blur"
+        },
+        "lite": {
+          "name": "Lite",
+          "hint": "Still cover, plain lyrics"
+        }
+      }
+    }
   },
   "playlist": {
     "playlist": "Playlist",
@@ -423,7 +563,10 @@
     "sec": "sec",
     "empty_title": "This playlist is empty",
     "empty_subtitle": "Search for songs to add",
-    "likes_empty": "No liked songs yet"
+    "likes_empty": "No liked songs yet",
+    "likes_load_failed": "Couldn't load your liked songs",
+    "load_failed": "Couldn't load this playlist",
+    "load_failed_desc": "Check your connection and try again."
   },
   "search": {
     "placeholder": "Search tracks, artists, albums...",
@@ -481,6 +624,9 @@
       "toggle_overlay_desc": "Show or hide the floating desktop overlay from anywhere in the OS.",
       "quick_like_song": "Quick like current song",
       "quick_like_song_desc": "Like or unlike current playing track system-wide without focusing the player.",
+      "show_main_window": "Show Liner",
+      "show_main_window_desc": "Bring the main Liner window to the front from anywhere.",
+      "not_set": "Not set",
       "play_pause": "Play / Pause",
       "play_pause_desc": "Toggle audio playback.",
       "next_track": "Next track",
@@ -523,7 +669,22 @@
       "scope_global": "Global",
       "scope_main_app": "Main App",
       "scope_overlay": "Overlay",
-      "reset_section": "Reset section"
+      "reset_section": "Reset section",
+      "taken_by_other_app": "Taken by the system or another app",
+      "invalid_global": "Can't be used as a global shortcut",
+      "taken_not_saved": "{shortcut} is taken by the system or another app. Pick another one.",
+      "invalid_not_saved": "{shortcut} can't be used as a global shortcut. Pick another one.",
+      "volume_section": "Volume hotkeys",
+      "volume_hold": {
+        "title": "When the key is held",
+        "description": "Keep changing the volume while a volume key is held, or change it once per press.",
+        "hold": "Keep changing",
+        "press": "Once per press"
+      },
+      "volume_step": {
+        "title": "Volume step",
+        "description": "How much one press of a volume key changes the volume."
+      }
     },
     "overlay": {
       "description": "Desktop overlay behavior, global shortcut and position settings.",
@@ -557,6 +718,7 @@
     },
     "youtube": {
       "description": "Sign in to your YouTube account to prevent playback errors.",
+      "section_account": "Account",
       "section_playback": "Playback",
       "account_playback": {
         "title": "Play through your account",
@@ -570,6 +732,10 @@
         "title": "Sync library",
         "description": "Show playlists from your YouTube account in the library next to Liner playlists."
       },
+      "sign_out_with_liner": {
+        "title": "Sign out with Liner",
+        "description": "Also sign out of YouTube when you sign out of your Liner account."
+      },
       "sign_out": "Sign out",
       "sign_in": "Sign in",
       "signed_out_title": "Not signed in",
@@ -577,43 +743,43 @@
     },
     "discord": {
       "description": "Show what you're listening to on Discord with album art, artist badge and progress bar.",
-      "section_display": "Display Options",
-      "section_buttons": "Profile Buttons",
+      "section_display": "Display",
+      "section_buttons": "Profile buttons",
       "enable": {
-        "title": "Discord Rich Presence",
+        "title": "Rich Presence",
         "description": "Broadcast your active music playback to your Discord profile."
       },
       "status_display": {
-        "title": "Status Format",
+        "title": "Status line",
         "description": "Choose what appears in Discord's 'Listening to...' status header.",
-        "artist": "Artist (Default)",
-        "song": "Song Title",
+        "artist": "Artist",
+        "song": "Song title",
         "artist_song": "Artist - Song",
         "song_artist": "Song - Artist",
-        "app": "Liner (App name)"
+        "app": "Liner"
       },
       "show_timeline": {
-        "title": "Playback Timeline",
+        "title": "Playback timeline",
         "description": "Display interactive progress bar with elapsed and remaining track time."
       },
       "show_artwork": {
-        "title": "Track Artwork",
+        "title": "Track artwork",
         "description": "Show track or album cover in the Discord activity card."
       },
       "show_artist_image": {
-        "title": "Artist Photo Badge",
+        "title": "Artist photo badge",
         "description": "Display the artist photo in a small circular badge on the bottom corner."
       },
       "show_paused": {
-        "title": "Show when Paused",
+        "title": "Show when paused",
         "description": "Keep status visible on Discord with a paused indicator when music is paused."
       },
       "show_button": {
-        "title": "'Listen on Liner' Button",
+        "title": "“Listen on Liner” button",
         "description": "Add an interactive button linking to the song on Liner."
       },
       "show_download_button": {
-        "title": "'Download Liner' Button",
+        "title": "“Download Liner” button",
         "description": "Add an interactive button linking to tryliner.fun to download the app."
       },
       "status": {
@@ -645,6 +811,10 @@
     "language": {
       "label": "Language",
       "description": "Select the interface language"
+    },
+    "remember_window_bounds": {
+      "title": "Remember window size and position",
+      "description": "Reopen the window at the size and place you left it."
     },
     "autoplay_similar": {
       "title": "Autoplay similar tracks",
@@ -700,8 +870,8 @@
       "device_usage_raw": "Liner is currently using {size} of local storage.",
       "audio_cache_limit": "Cache size limit",
       "audio_cache_limit_desc": "Older files and media are automatically removed when full",
-      "cache_limit": "Cache size limit",
-      "cache_limit_desc": "Older files and media are automatically removed when full",
+      "cache_limit": "Maximum cache size",
+      "cache_limit_desc": "When full, the songs you haven't played for the longest are removed first. Your music isn't affected.",
       "no_limit": "No limit",
       "recommended": "Rec.",
       "open_folder": "Open Cache Folder",
@@ -716,13 +886,84 @@
       "clearing_subtitle": "Please keep this window open while Liner is cleaning your cache.",
       "cleared_title": "Storage Cleared",
       "cleared_subtitle": "Your cache has been swept clean. New media will stream and cache automatically.",
+      "removing_liked_title": "Removing downloaded liked songs...",
+      "removing_local_title": "Removing imported files...",
+      "removing_subtitle": "Keep this window open until Liner finishes.",
+      "removed_title": "Removed",
+      "removed_liked_subtitle": "Your liked songs are still in your library. They'll download again while you're online if downloading is on.",
+      "removed_local_subtitle": "Liner's copies are gone. The original files on your computer weren't touched.",
       "done_button": "Done",
       "categories": {
         "covers": "Cover Artwork",
         "audio": "Audio Tracks",
         "lyrics": "Lyrics",
-        "metadata": "Catalog & Search"
-      }
+        "metadata": "Catalog & Search",
+        "local": "Imported files",
+        "liked": "Liked songs",
+        "shared": "Kept from earlier sign-ins"
+      },
+      "local_confirm_title": "Remove imported files?",
+      "local_confirm_desc": "{tracks} ({size}) will be deleted from Liner, together with their covers. Your original files stay where they are.",
+      "local_confirm_button": "Remove imported files",
+      "total_on_device": "{size} on this device",
+      "music_title": "Your music",
+      "music_desc": "Kept on this device until you remove it. Clearing the cache never touches it.",
+      "cache_title": "Cache",
+      "cache_desc": "Temporary copies for faster playback. Safe to clear — Liner downloads them again when needed.",
+      "liked_count": "{saved} of {total} downloaded",
+      "liked_toggle": "Download automatically",
+      "liked_limit": "Download limit",
+      "liked_status": {
+        "starting": "Starts in a moment",
+        "saving": "Downloading… {count} left",
+        "waiting": "Paused, resumes at {time}",
+        "offline": "Waiting for a connection",
+        "limit": "Limit reached · {count} not downloaded",
+        "disk": "Not enough free disk space",
+        "disabled": "Downloading is off",
+        "idle": "All downloaded"
+      },
+      "remove": "Remove",
+      "manage": "Open",
+      "liked_confirm_title": "Remove downloaded songs?",
+      "liked_confirm_desc": "{tracks} ({size}) will be deleted from this device and downloading liked songs will be turned off. They stay in your likes.",
+      "liked_confirm_button": "Remove downloads",
+      "free_on_disk": "{size} free",
+      "local_empty": "Audio files you import appear here",
+      "freed_title": "{size} freed",
+      "downloads_title": "Downloads",
+      "liked_desc": "{songs} · new likes download too",
+      "local_desc": "{songs} · originals stay where they are",
+      "downloads_limit": "Space for downloads",
+      "cache_row_title": "Songs, lyrics and artwork",
+      "cache_row_desc": "Saved while you listen. Liner gets them again when needed.",
+      "clear": "Clear",
+      "cache_limit_hint": "About {count} songs. Oldest are removed first.",
+      "cache_limit_unlimited": "Grows until you clear it",
+      "remove_size": "Remove {size}",
+      "clear_size": "Clear {size}",
+      "downloads_limit_hint": "About {count} songs. Downloading pauses when full.",
+      "downloads_limit_unlimited": "Downloads continue until your disk is full",
+      "open_folder_short": "Open folder",
+      "cached_in_library": "Show cached songs in library",
+      "cached_in_library_desc": "When off, they appear only in offline mode.",
+      "remove_failed": "Couldn't remove these files. Try again.",
+      "shared_desc": "{songs} · reused when an account likes them",
+      "removing_shared_title": "Removing kept songs...",
+      "removed_shared_subtitle": "Songs you've liked on this account weren't touched.",
+      "sign_out_choice": "Downloads when you sign out",
+      "sign_out_choice_ask": "Liner asks each time you sign out.",
+      "sign_out_choice_remove": "Downloaded songs are removed when you sign out.",
+      "sign_out_choice_keep": "Songs stay for the next sign-in. Any account reuses the ones it likes.",
+      "sign_out_option_ask": "Ask",
+      "sign_out_option_remove": "Remove",
+      "sign_out_option_keep": "Keep",
+      "sign_out_title": "Sign out of Liner?",
+      "sign_out_desc_remove": "The {songs} you downloaded ({size}) will be removed from this device.",
+      "sign_out_desc_keep": "The {songs} you downloaded ({size}) will stay on this device for the next sign-in.",
+      "sign_out_keep_toggle": "Keep downloads",
+      "sign_out_confirm": "Sign out",
+      "sign_out_dont_ask": "Don't ask again"
     },
     "theme": {
       "title": "Theme",
@@ -817,7 +1058,7 @@
     "about": {
       "liner": "Liner",
       "telegram": "Channel",
-      "support": "Support",
+      "discord": "Discord",
       "github": "GitHub",
       "website": "Website",
       "tagline": "Modern desktop music streaming player with syllable-synced lyrics",
@@ -918,7 +1159,13 @@
     "status_failed_sub": "Something went wrong",
     "view_playlist": "Open playlist",
     "no_candidate_found": "No matching track found in catalog",
-    "active_import": "Playlist Import"
+    "active_import": "Playlist Import",
+    "overview_unit_one": "track to add",
+    "overview_unit_other": "tracks to add",
+    "overview_review": "{count} to review",
+    "overview_matched": "Matched {count}",
+    "overview_added": "Added {count}",
+    "overview_skipped": "Skipped {count}"
   },
   "error_screen": {
     "title": "Something went wrong",
@@ -976,7 +1223,9 @@
     "check_trace": "Route trace",
     "check_platform": "Platform",
     "check_main": "Desktop checks",
-    "support": "Contact support"
+    "support": "Contact support",
+    "wall_title_unreachable": "Liner's servers aren't responding",
+    "wall_subtitle_unreachable": "Your internet works, but Liner can't reach its servers. They may be down, or your network may be blocking Liner. A VPN often helps."
   },
   "updater": {
     "modal_title": "New Update Available",
@@ -1000,6 +1249,7 @@
   "track_sort": {
     "label": "Sort",
     "default": "Default",
+    "added": "By date added",
     "title": "By title (A–Z)",
     "duration": "By duration",
     "popularity": "By popularity"
@@ -1014,5 +1264,52 @@
     "copy_code": "Copy code",
     "connected": "YouTube connected",
     "qr_label": "Sign-in QR code"
+  },
+  "human_check": {
+    "title": "Confirm you're not a bot",
+    "description": "A quick Cloudflare check keeps bots away from Liner accounts. It usually passes on its own in a second.",
+    "expired": "The check timed out and is starting again.",
+    "failed": "The check didn't load. Check your connection and try again.",
+    "waiting": "Checking…",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "skip": "Skip"
+  },
+  "offline": {
+    "entered_auto_title": "Switched to offline mode",
+    "entered_manual_title": "Offline mode is on",
+    "entered_desc_auto": "Music saved on this device keeps playing. Liner switches back once the connection returns.",
+    "entered_desc_manual": "Only music saved on this device plays until you go back online.",
+    "open_device": "Open library",
+    "back_online_title": "You're back online",
+    "back_online_desc": "Everything is working again.",
+    "still_offline_title": "Still no connection",
+    "still_server_title": "Liner's servers still aren't responding",
+    "still_desc": "Staying offline for now. Liner switches back on its own once it can connect.",
+    "skipped_title": "Skipped songs that aren't downloaded",
+    "skipped_desc": "In offline mode only music saved on this device plays.",
+    "nothing_playable": "Nothing left in the queue is saved on this device",
+    "go_online": "Go online",
+    "use_offline": "Use offline mode",
+    "check_again": "Check again",
+    "library_status_auto": "You're offline. Only music saved on this device is available.",
+    "library_status_manual": "Offline mode is on. Only music saved on this device is available.",
+    "reconnect": "Try to reconnect",
+    "issue_youtube_blocked_title": "YouTube isn't available in {country}",
+    "issue_youtube_blocked_title_unknown": "YouTube isn't available in your region",
+    "issue_youtube_blocked_desc": "Some songs won't play. Turn on a VPN and try again, or listen to music saved on this device.",
+    "issue_youtube_unreachable_title": "YouTube isn't responding",
+    "issue_youtube_unreachable_desc": "Some songs won't play right now. Try again in a moment, use a VPN, or listen to music saved on this device.",
+    "issue_youtube_refused_title": "YouTube is blocking playback",
+    "issue_youtube_refused_desc": "This often happens with a VPN or proxy. Switch VPN server or turn it off, then try again.",
+    "issue_server_title": "Liner's servers aren't responding",
+    "issue_server_desc": "Your internet works, but Liner can't reach its servers. Music saved on this device still plays.",
+    "issue_offline_title": "You're offline",
+    "issue_offline_desc": "Check your internet connection. Music saved on this device still plays.",
+    "try_again": "Try again",
+    "dont_show_again": "Don't show again",
+    "youtube_back_title": "YouTube is back",
+    "youtube_back_desc": "Every song can play again.",
+    "still_youtube_title": "YouTube still isn't available"
   }
 }

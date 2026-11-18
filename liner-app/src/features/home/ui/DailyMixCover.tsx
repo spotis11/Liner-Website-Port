@@ -39,7 +39,11 @@ function DailyMixCover({
   const labelLines = locale === "ru" ? ["МИ", "КС"] : ["MIX"];
 
   return (
-    <div className="relative aspect-square w-full overflow-hidden rounded-md bg-border-alpha-14 select-none">
+    <div
+      className={`relative isolate aspect-square w-full overflow-hidden rounded-control select-none ${
+        coverUrl && imageLoaded ? "" : "bg-border-alpha-14"
+      }`}
+    >
       {coverUrl && (
         <CoverImage
           src={coverUrl}

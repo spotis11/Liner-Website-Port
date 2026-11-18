@@ -64,11 +64,17 @@
     "coming_soon": "Yakında",
     "play_all": "Tümünü çal",
     "add_to_queue": "Sıraya ekle",
+    "remove_from_queue": "Sıradan kaldır",
+    "remove_from_cache": "Önbellekten kaldır",
+    "removed_from_cache": "Önbellekten kaldırıldı",
+    "removed_from_queue": "Sıradan kaldırıldı",
+    "undo": "Geri al",
     "shuffle": "Karıştır",
     "remove_from_library": "Kitaplıktan kaldır",
     "save_to_library": "Kitaplığa kaydet",
     "share": "Paylaş",
     "back": "Geri",
+    "forward": "İleri",
     "link_copied": "Bağlantı kopyalandı",
     "download": "İndir",
     "more": "Daha fazla",
@@ -249,6 +255,8 @@
     "btn_continue": "Devam",
     "btn_back": "Geri",
     "username_hint": "3-30 karakter: küçük harf, rakam veya alt çizgi.",
+    "username_checking": "Kullanıcı adının boş olup olmadığı kontrol ediliyor...",
+    "username_available": "Bu kullanıcı adı boş.",
     "label_email": "E-posta",
     "label_username": "Kullanıcı adı (@tanıtıcı)",
     "placeholder_username": "soundwave",
@@ -381,6 +389,8 @@
     "track_unavailable": "\"{title}\" kullanılamıyor, atlanıyor...",
     "track_unavailable_title": "Parça kullanılamıyor",
     "playback_stopped_too_many_errors": "Çalma durduruldu: çok fazla parça yüklenemedi.",
+    "youtube_refused_title": "YouTube bu bağlantıyı reddediyor",
+    "youtube_refused_description": "YouTube sesi bu ağda engelleniyor. VPN'i veya proxy'yi kapatın ya da başka bir bağlantı deneyin.",
     "speed_pitch": "Hız ve Perde",
     "speed": "Hız",
     "pitch": "Perde",
@@ -397,7 +407,28 @@
     "preset_nightcore": "1.35x Nightcore",
     "reverb": "Yankı",
     "reverb_hint": "Atmosferik alan ve ortam derinliği",
-    "reverb_amount": "Yankı"
+    "reverb_amount": "Yankı",
+    "beta_visuals": {
+      "label": "Uyarı",
+      "ambient_title": "Ambient beta aşamasında",
+      "ambient_body": "Bu parçanın kendine ait animasyonlu bir arka planı var. Hâlâ beta aşamasında ve zayıf cihazları yorabilir; oynatıcı takılırsa daha hafif bir mod seç.",
+      "settings_title": "Görsel kalite",
+      "settings_body": "Tam ekran oynatıcının ne kadar hareketli olacağını seç. Hafif modlar pil tasarrufu sağlar ve zayıf cihazlarda daha akıcı çalışır.",
+      "modes": {
+        "full": {
+          "name": "Tüm efektler",
+          "hint": "Her şey açık, bulanık söz kenarları dahil"
+        },
+        "balanced": {
+          "name": "Dengeli",
+          "hint": "Hareketli arka planlar, söz bulanıklığı yok"
+        },
+        "lite": {
+          "name": "Hafif",
+          "hint": "Sabit kapak, sade sözler"
+        }
+      }
+    }
   },
   "playlist": {
     "playlist": "Çalma listesi",
@@ -545,7 +576,6 @@
         "description": "Katmanı diğer pencerelerin üstünde tutar."
       }
     },
-
     "audio_data": {
       "description": "Yayın kalitesi, çevrimdışı önbellek ve bağlantı tanılama."
     },
@@ -566,6 +596,10 @@
     "language": {
       "label": "Dil",
       "description": "Arayüz dilini seç"
+    },
+    "remember_window_bounds": {
+      "title": "Pencere boyutunu ve konumunu hatırla",
+      "description": "Pencereyi kapattığınız boyut ve konumda yeniden açın."
     },
     "autoplay_similar": {
       "title": "Benzer parçaları otomatik çal",
@@ -642,8 +676,12 @@
         "covers": "Kapak Görselleri",
         "audio": "Ses Parçaları",
         "lyrics": "Şarkı Sözleri",
-        "metadata": "Katalog ve Arama"
-      }
+        "metadata": "Katalog ve Arama",
+        "local": "Yerel Müzik"
+      },
+      "local_confirm_title": "Yerel müziğin de silinsin mi?",
+      "local_confirm_desc": "Yerel Müzik, içe aktardığın kitaplığındır, önbellek değil. {tracks} ({size}) kapaklarıyla birlikte Liner'dan silinecek. Orijinal dosyaların yerinde kalır.",
+      "local_confirm_button": "Yerel müziği sil"
     },
     "theme": {
       "title": "Tema",
@@ -738,7 +776,7 @@
     "about": {
       "liner": "Liner",
       "telegram": "Kanal",
-      "support": "Destek",
+      "discord": "Discord",
       "github": "GitHub",
       "website": "Web sitesi",
       "tagline": "Hece hece senkronize şarkı sözleriyle modern masaüstü müzik yayın oynatıcısı",
@@ -921,6 +959,7 @@
   "track_sort": {
     "label": "Sırala",
     "default": "Varsayılan",
+    "added": "Eklenme tarihine göre",
     "title": "Başlığa göre (A–Z)",
     "duration": "Süreye göre",
     "popularity": "Popülerliğe göre"

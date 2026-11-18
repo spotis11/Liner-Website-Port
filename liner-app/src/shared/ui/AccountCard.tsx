@@ -5,25 +5,27 @@ export interface AccountCardProps {
   media?: ReactNode;
   placeholderIcon: ReactNode;
   title: string;
+  titleAccessory?: ReactNode;
   subtitle?: string;
   loading?: boolean;
   action?: ReactNode;
 }
 
 export const accountCardActionClassName =
-  "h-[44px] shrink-0 rounded-[14px] px-[22px] text-[15px] font-[500] transition-colors disabled:cursor-default disabled:opacity-60";
+  "h-[30px] shrink-0 rounded-full border-0 px-[14px] text-body font-[500] transition-colors cursor-pointer disabled:cursor-default disabled:opacity-60";
 
 export default function AccountCard({
   media,
   placeholderIcon,
   title,
+  titleAccessory,
   subtitle,
   loading = false,
   action,
 }: AccountCardProps) {
   return (
-    <div className="flex items-center gap-[16px] rounded-[16px] bg-black/[0.04] p-[14px] dark:bg-white/[0.08]">
-      <div className="relative size-[64px] shrink-0 overflow-hidden rounded-[12px] bg-black/[0.06] dark:bg-white/[0.08]">
+    <div className="flex items-center gap-[12px] rounded-item bg-fill py-[10px] pl-[10px] pr-[12px]">
+      <div className="relative size-[40px] shrink-0 overflow-hidden rounded-control bg-fill">
         {media ?? (
           <div
             className={cn(
@@ -35,19 +37,22 @@ export default function AccountCard({
           </div>
         )}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
+      <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
         {loading ? (
           <>
-            <span className="h-[14px] w-[110px] animate-pulse rounded-full bg-black/[0.08] dark:bg-white/[0.1]" />
-            <span className="h-[11px] w-[160px] animate-pulse rounded-full bg-black/[0.06] dark:bg-white/[0.07]" />
+            <span className="h-[12px] w-[110px] animate-pulse rounded-full bg-fill-hover" />
+            <span className="h-[10px] w-[160px] animate-pulse rounded-full bg-fill" />
           </>
         ) : (
           <>
-            <span className="truncate text-[16px] font-[600] text-text-primary">
-              {title}
-            </span>
+            <div className="flex min-w-0 items-center gap-[4px]">
+              <span className="truncate text-label font-[600] text-text-primary">
+                {title}
+              </span>
+              {titleAccessory}
+            </div>
             {subtitle && (
-              <span className="truncate text-[13.5px] text-text-secondary">
+              <span className="truncate text-caption text-text-tertiary">
                 {subtitle}
               </span>
             )}

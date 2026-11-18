@@ -44,20 +44,33 @@ function useFixedStyle(
   useLayoutEffect(() => {
     if (!isFixed || !position || !menuRef.current) return;
     const rect = menuRef.current.getBoundingClientRect();
+    const height = Math.max(rect.height, menuRef.current.scrollHeight);
     let left = align === "end" ? position.x - rect.width : position.x;
-    let top = side === "top" ? position.y - rect.height : position.y;
+    let top = side === "top" ? position.y - height : position.y;
+    let maxHeight: number | undefined;
 
     if (left + rect.width > window.innerWidth) {
       left = window.innerWidth - rect.width - 8;
     }
     if (left < 8) left = 8;
 
-    if (side !== "top" && top + rect.height > window.innerHeight) {
-      top = position.y - rect.height - 8;
+    const spaceBelow = window.innerHeight - position.y - 8;
+    const spaceAbove = position.y - 16;
+    if (side !== "top" && height > spaceBelow) {
+      if (spaceAbove > spaceBelow) {
+        maxHeight = Math.min(height, spaceAbove);
+        top = position.y - maxHeight - 8;
+      } else {
+        maxHeight = spaceBelow;
+      }
+    }
+    if (side === "top" && height > spaceAbove + 8) {
+      maxHeight = spaceAbove + 8;
+      top = 8;
     }
     if (top < 8) top = 8;
 
-    setStyle({ left, top });
+    setStyle({ left, top, maxHeight });
   }, [isFixed, position, open, menuRef, side, align]);
 
   return style;
@@ -139,7 +152,7 @@ export default function DropdownMenu({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: side === "top" ? 2 : -2 }}
           transition={{ duration: 0.1, ease: "easeOut" }}
-          className={`overflow-hidden rounded-[11px] p-[4px] min-w-[160px] border-0 bg-black/[0.05] dark:bg-white/[0.07] backdrop-blur-2xl backdrop-saturate-150 ${
+          className={`overflow-y-auto overscroll-contain rounded-[11px] p-[4px] min-w-[160px] border-0 bg-fill backdrop-blur-2xl backdrop-saturate-150 ${
             isFixed
               ? "fixed z-[99999]"
               : side === "top"
@@ -160,23 +173,18 @@ export default function DropdownMenu({
                   setOpen(false);
                   await item.onClick();
                 }}
-                className={`group flex w-full h-[30px] items-center gap-[8px] rounded-[8px] px-[9px] text-[13px] font-normal transition-colors border-none bg-transparent text-left cursor-pointer select-none outline-none ${
+                className={`group flex w-full h-[30px] items-center gap-[8px] rounded-control px-[9px] text-body font-normal transition-colors border-none bg-transparent text-left cursor-pointer select-none outline-none ${
                   item.danger
                     ? "text-red-400 hover:bg-red-500/10 hover:text-red-400"
-                    : "text-text-primary hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                    : "text-text-primary hover:bg-fill"
                 } ${
-                  item.active
-                    ? "bg-black/[0.05] dark:bg-white/[0.08]"
-                    : ""
+                  item.active ? "bg-fill" : ""
                 } disabled:pointer-events-none disabled:opacity-40`}
                 aria-current={item.active ? "true" : undefined}
-                style={{
-                  fontFamily: "var(--font-inter), sans-serif",
-                }}
               >
                 {item.icon && (
                   <span
-                    className={`shrink-0 flex items-center justify-center text-[15px] ${
+                    className={`shrink-0 flex items-center justify-center text-title ${
                       item.danger
                         ? "text-red-400"
                         : "text-text-secondary group-hover:text-text-primary"

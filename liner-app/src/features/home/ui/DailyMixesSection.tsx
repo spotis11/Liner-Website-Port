@@ -8,8 +8,8 @@ import MixFluidSquare from "./MixFluidSquare";
 export interface DailyMixesSectionProps {
   mixes: DailyMix[];
   headingMarginTop?: string;
+  accentCoverUrl?: string;
 }
-
 
 const headingStyle: React.CSSProperties = {
   fontFamily: "var(--font-roboto-flex), sans-serif",
@@ -21,18 +21,19 @@ const headingStyle: React.CSSProperties = {
 function DailyMixesSection({
   mixes,
   headingMarginTop = "mt-[22px]",
+  accentCoverUrl,
 }: DailyMixesSectionProps) {
   const { t } = useTranslation();
   if (mixes.length === 0) return null;
 
-  const firstCoverUrl = mixes[0]?.coverUrl;
+  const firstCoverUrl = accentCoverUrl ?? mixes[0]?.coverUrl;
 
   return (
     <div className="flex flex-col">
       <div
         className={`${headingMarginTop} px-3 flex items-center justify-between`}
       >
-        <div className="flex items-center gap-3">
+        <div className="group flex items-center gap-3">
           <MixFluidSquare coverUrl={firstCoverUrl} />
           <h2
             className="font-roboto-flex-heading text-text-primary text-[36px] m-0 leading-none tracking-tight"

@@ -1,10 +1,17 @@
 import { linerDb } from "@/shared/storage/linerDb";
+import { useLocalLibraryStore } from "@/features/library/local/store/localLibraryStore";
+import { useSavedTracksStore } from "@/features/library/saved/store/savedTracksStore";
+import { useCachedTracksStore } from "@/features/library/cached/store/cachedTracksStore";
 import {
   audioCache,
   DEFAULT_AUDIO_CACHE_LIMIT_BYTES,
   MIN_AUDIO_CACHE_LIMIT_BYTES,
 } from "@/shared/storage/audioCache";
 import { queryCache } from "@/shared/cache/queryCache";
+import {
+  clearPersistedScreenCache,
+  clearScreenCache,
+} from "@/shared/cache/screenCache";
 import { lyricsCache } from "@/features/lyrics";
 import { clearCoverRegistry } from "@/features/covers";
 import { useSearchHistoryStore } from "@/features/search/store/searchHistoryStore";
@@ -28,7 +35,16 @@ const PRESERVED_STORAGE_KEYS = new Set([
   "theme",
 ]);
 
-export type StorageCategoryId = "covers" | "audio" | "lyrics" | "metadata";
+export type StorageCategoryId =
+  "covers" | "audio" | "lyrics" | "metadata" | "local" | "liked" | "shared";
+
+export type StorageCategoryGroup = "music" | "cache";
+
+export const LIBRARY_CATEGORY_IDS: ReadonlySet<StorageCategoryId> = new Set([
+  "local",
+  "liked",
+  "shared",
+]);
 
 export interface StorageCategoryItem {
   id: StorageCategoryId;
@@ -36,11 +52,14 @@ export interface StorageCategoryItem {
   bytes: number;
   count?: number;
   color: string;
+  group: StorageCategoryGroup;
 }
 
 export interface StorageAnalytics {
   categories: StorageCategoryItem[];
   totalBytes: number;
+  musicBytes: number;
+  freeBytes?: number;
   audioCacheLimitBytes?: number;
   deviceQuotaBytes?: number;
   deviceUsageBytes?: number;
@@ -53,6 +72,10 @@ export interface StorageAnalytics {
  */
 export async function clearMediaAndCoverCache(): Promise<void> {
   clearCoverRegistry();
+  await clearStoredCovers();
+}
+
+async function clearStoredCovers(): Promise<void> {
   if (typeof window !== "undefined" && "caches" in window) {
     try {
       const keys = await window.caches.keys();
@@ -86,6 +109,7 @@ export async function clearMediaAndCoverCache(): Promise<void> {
  */
 export async function clearSearchAndQueryCache(): Promise<void> {
   queryCache.clear();
+  clearScreenCache();
   try {
     useSearchHistoryStore.getState().clearHistory();
     debouncedStorage.removeItem("liner_search_history");
@@ -126,10 +150,7 @@ export async function clearApplicationCacheSafely(): Promise<void> {
     debouncedStorage.flush();
   } catch {}
 
-  await Promise.all([
-    clearMediaAndCoverCache(),
-    clearSearchAndQueryCache(),
-  ]);
+  await Promise.all([clearMediaAndCoverCache(), clearSearchAndQueryCache()]);
 
   if (typeof window !== "undefined" && window.localStorage) {
     const keysToRemove: string[] = [];
@@ -227,7 +248,8 @@ export async function getStorageAnalytics(): Promise<StorageAnalytics> {
   // take the maximum between indexeddb object store iteration and physical disk size
   // if indexeddb store is empty, ignore residual leveldb engine overhead under 2MB
   if (electronStats && electronStats.indexedDbSize > 0) {
-    const totalIdbDisk = electronStats.indexedDbSize + (electronStats.blobStorageSize || 0);
+    const totalIdbDisk =
+      electronStats.indexedDbSize + (electronStats.blobStorageSize || 0);
     if (audioBytes > 0) {
       audioBytes = Math.max(audioBytes, totalIdbDisk);
     } else if (totalIdbDisk > 2 * 1024 * 1024) {
@@ -264,9 +286,7 @@ export async function getStorageAnalytics(): Promise<StorageAnalytics> {
 
   // 5. in-memory catalog cache added in queryCache.ts + linerDb artists
   try {
-    const qStats = queryCache.getStats();
-    const aBytes = await linerDb.getTotalArtistBytes();
-    metadataBytes += qStats.bytes + aBytes;
+    metadataBytes += await linerDb.getTotalArtistBytes();
   } catch {}
 
   // 6. localstorage inspection for covers, search and metadata
@@ -276,7 +296,10 @@ export async function getStorageAnalytics(): Promise<StorageAnalytics> {
       if (!k) continue;
       const v = localStorage.getItem(k) || "";
       const size = (k.length + v.length) * 2;
-      if (k.startsWith("liner:playlist-covers") || k.startsWith("liner:cover:")) {
+      if (
+        k.startsWith("liner:playlist-covers") ||
+        k.startsWith("liner:cover:")
+      ) {
         coversBytes += size;
       } else if (
         k.startsWith("liner:search:") ||
@@ -304,6 +327,40 @@ export async function getStorageAnalytics(): Promise<StorageAnalytics> {
     }
   }
 
+  let localBytes = 0;
+  let localCount = 0;
+  if (typeof window !== "undefined" && window.linerElectron?.localTracksUsage) {
+    try {
+      const usage = await window.linerElectron.localTracksUsage();
+      localBytes = usage.bytes;
+      localCount = usage.count;
+    } catch {}
+  }
+
+  let likedBytes = 0;
+  let likedCount = 0;
+  let sharedBytes = 0;
+  let sharedCount = 0;
+  let freeBytes: number | undefined;
+  if (typeof window !== "undefined" && window.linerElectron?.savedTracksUsage) {
+    try {
+      const claimedIds = useSavedTracksStore
+        .getState()
+        .records.map((record) => record.trackId);
+      const [usage, claimed] = await Promise.all([
+        window.linerElectron.savedTracksUsage(),
+        claimedIds.length > 0 && window.linerElectron.savedTracksUsageOf
+          ? window.linerElectron.savedTracksUsageOf(claimedIds)
+          : Promise.resolve({ count: 0, bytes: 0 }),
+      ]);
+      likedBytes = claimed.bytes;
+      likedCount = claimed.count;
+      sharedCount = Math.max(0, usage.count - claimed.count);
+      sharedBytes = sharedCount > 0 ? Math.max(0, usage.bytes - likedBytes) : 0;
+      if (usage.freeBytes !== null) freeBytes = usage.freeBytes;
+    } catch {}
+  }
+
   // 7. device quota estimate
   let deviceQuotaBytes: number | undefined;
   let deviceUsageBytes: number | undefined;
@@ -314,8 +371,15 @@ export async function getStorageAnalytics(): Promise<StorageAnalytics> {
       const estimate = await navigator.storage.estimate();
       deviceQuotaBytes = estimate.quota;
       deviceUsageBytes = estimate.usage;
-      if (estimate.quota && estimate.quota > 0 && estimate.usage !== undefined) {
-        deviceUsagePercent = Math.min(100, Math.max(0.01, (estimate.usage / estimate.quota) * 100));
+      if (
+        estimate.quota &&
+        estimate.quota > 0 &&
+        estimate.usage !== undefined
+      ) {
+        deviceUsagePercent = Math.min(
+          100,
+          Math.max(0.01, (estimate.usage / estimate.quota) * 100),
+        );
       }
     } catch {}
   }
@@ -327,32 +391,68 @@ export async function getStorageAnalytics(): Promise<StorageAnalytics> {
       bytes: coversBytes,
       count: coversCount,
       color: "#06B6D4", // cyan
+      group: "cache",
     },
     {
       id: "audio",
       labelKey: "settings.storage.categories.audio",
       bytes: audioBytes,
       color: "#8B5CF6", // purple
+      group: "cache",
     },
     {
       id: "lyrics",
       labelKey: "settings.storage.categories.lyrics",
       bytes: lyricsBytes,
       color: "#EC4899", // pink
+      group: "cache",
     },
     {
       id: "metadata",
       labelKey: "settings.storage.categories.metadata",
       bytes: metadataBytes,
       color: "#F59E0B", // amber
+      group: "cache",
+    },
+    {
+      id: "local",
+      labelKey: "settings.storage.categories.local",
+      bytes: localBytes,
+      count: localCount,
+      color: "#047857",
+      group: "music",
+    },
+    {
+      id: "liked",
+      labelKey: "settings.storage.categories.liked",
+      bytes: likedBytes,
+      count: likedCount,
+      color: "#34D399",
+      group: "music",
+    },
+    {
+      id: "shared",
+      labelKey: "settings.storage.categories.shared",
+      bytes: sharedBytes,
+      count: sharedCount,
+      color: "#6EE7B7",
+      group: "music",
     },
   ];
 
-  const totalBytes = categories.reduce((sum, c) => sum + c.bytes, 0);
+  const totalBytes = categories
+    .filter((c) => !LIBRARY_CATEGORY_IDS.has(c.id))
+    .reduce((sum, c) => sum + c.bytes, 0);
+
+  const musicBytes = categories
+    .filter((c) => c.group === "music")
+    .reduce((sum, c) => sum + c.bytes, 0);
 
   return {
     categories,
     totalBytes,
+    musicBytes,
+    ...(freeBytes !== undefined ? { freeBytes } : {}),
     audioCacheLimitBytes: audioCache.getLimitBytes(),
     deviceQuotaBytes,
     deviceUsageBytes,
@@ -362,10 +462,18 @@ export async function getStorageAnalytics(): Promise<StorageAnalytics> {
 }
 
 // clears chosen categories cleanly while maintaining user session
-export async function clearStorageCategories(categoryIds: StorageCategoryId[]): Promise<void> {
+export async function clearStorageCategories(
+  categoryIds: StorageCategoryId[],
+): Promise<void> {
   const set = new Set(categoryIds);
+  if (set.has("local")) {
+    await useLocalLibraryStore.getState().removeAll();
+  }
   const isAllCategories =
-    set.has("audio") && set.has("covers") && set.has("lyrics") && set.has("metadata");
+    set.has("audio") &&
+    set.has("covers") &&
+    set.has("lyrics") &&
+    set.has("metadata");
 
   if (set.has("audio")) {
     audioCache.invalidate();
@@ -374,14 +482,20 @@ export async function clearStorageCategories(categoryIds: StorageCategoryId[]): 
     if (isAllCategories) {
       await linerDb.close();
     }
-    if (typeof window !== "undefined" && window.linerElectron?.clearAudioCache) {
+    if (
+      typeof window !== "undefined" &&
+      window.linerElectron?.clearAudioCache
+    ) {
       await window.linerElectron.clearAudioCache(isAllCategories);
     }
   }
 
   if (set.has("covers")) {
-    await clearMediaAndCoverCache();
-    if (typeof window !== "undefined" && window.linerElectron?.clearCoversCache) {
+    await clearStoredCovers();
+    if (
+      typeof window !== "undefined" &&
+      window.linerElectron?.clearCoversCache
+    ) {
       await window.linerElectron.clearCoversCache();
     }
   }
@@ -401,9 +515,13 @@ export async function clearStorageCategories(categoryIds: StorageCategoryId[]): 
   }
 
   if (set.has("metadata")) {
-    queryCache.clear();
     await linerDb.clearStore("artists");
-    await clearSearchAndQueryCache();
+    clearPersistedScreenCache();
+    try {
+      useSearchHistoryStore.getState().clearHistory();
+      debouncedStorage.removeItem("liner_search_history");
+      debouncedStorage.flush();
+    } catch {}
     if (typeof window !== "undefined" && window.localStorage) {
       const toRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -429,9 +547,26 @@ export async function clearStorageCategories(categoryIds: StorageCategoryId[]): 
   }
 }
 
+export async function removeTrackFromCache(trackId: string): Promise<void> {
+  await useCachedTracksStore.getState().remove(trackId);
+  lyricsCache.delete(trackId);
+  await linerDb.deleteLyrics(trackId);
+  await refreshStorageAnalytics(true).catch(() => null);
+}
+
 export async function openCacheFolder(): Promise<boolean> {
   if (typeof window !== "undefined" && window.linerElectron?.openCacheFolder) {
     return window.linerElectron.openCacheFolder();
+  }
+  return false;
+}
+
+export async function openDownloadsFolder(): Promise<boolean> {
+  if (
+    typeof window !== "undefined" &&
+    window.linerElectron?.savedTracksOpenFolder
+  ) {
+    return window.linerElectron.savedTracksOpenFolder();
   }
   return false;
 }
@@ -468,37 +603,54 @@ function writePersistedAnalytics(data: StorageAnalytics): void {
 }
 
 let cachedStorageAnalytics: StorageAnalytics | null = readPersistedAnalytics();
-let isStorageTabOpen = false;
-let backgroundIntervalId: ReturnType<typeof setInterval> | null = null;
-let isBackgroundUpdating = false;
+let inflightAnalytics: Promise<StorageAnalytics> | null = null;
+const analyticsListeners = new Set<(data: StorageAnalytics) => void>();
+
+export function subscribeStorageAnalytics(
+  listener: (data: StorageAnalytics) => void,
+): () => void {
+  analyticsListeners.add(listener);
+  return () => {
+    analyticsListeners.delete(listener);
+  };
+}
+
+export function forgetStorageAnalytics(): void {
+  cachedStorageAnalytics = null;
+  if (typeof window === "undefined" || !window.sessionStorage) return;
+  try {
+    sessionStorage.removeItem(CACHE_ANALYTICS_STORAGE_KEY);
+  } catch {}
+}
 
 // returns cached analytics synchronously if available
 export function getCachedStorageAnalytics(): StorageAnalytics | null {
   return cachedStorageAnalytics;
 }
 
-// notifies background scheduler whether storage tab is open (pauses polling to prevent UI flicker)
-export function setStorageTabOpen(isOpen: boolean): void {
-  isStorageTabOpen = isOpen;
-}
-
 // performs background update of storage analytics
-export async function refreshStorageAnalytics(): Promise<StorageAnalytics> {
-  if (isBackgroundUpdating && cachedStorageAnalytics) {
-    return cachedStorageAnalytics;
+export async function refreshStorageAnalytics(
+  force = false,
+): Promise<StorageAnalytics> {
+  if (inflightAnalytics) {
+    if (!force) return cachedStorageAnalytics ?? inflightAnalytics;
+    await inflightAnalytics.catch(() => null);
   }
-  isBackgroundUpdating = true;
+  const request = getStorageAnalytics();
+  inflightAnalytics = request;
   try {
-    const data = await getStorageAnalytics();
+    const data = await request;
     cachedStorageAnalytics = data;
     writePersistedAnalytics(data);
+    for (const listener of analyticsListeners) listener(data);
     return data;
   } finally {
-    isBackgroundUpdating = false;
+    if (inflightAnalytics === request) {
+      inflightAnalytics = null;
+    }
   }
 }
 
-// initializes background polling (every 60s when storage tab is closed)
 export function initBackgroundStorageAnalytics(): void {
   if (typeof window === "undefined") return;
 
@@ -506,20 +658,9 @@ export function initBackgroundStorageAnalytics(): void {
   setTimeout(() => {
     void refreshStorageAnalytics();
   }, 1500);
-
-  // periodic background interval (60 seconds)
-  if (!backgroundIntervalId) {
-    backgroundIntervalId = setInterval(() => {
-      // skip update if user currently has storage tab open so nothing blinks or jumps
-      if (isStorageTabOpen) return;
-      void refreshStorageAnalytics();
-    }, 60_000);
-  }
 }
 
 // automatically start in browser/electron
 if (typeof window !== "undefined") {
   initBackgroundStorageAnalytics();
 }
-
-

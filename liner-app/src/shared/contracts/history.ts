@@ -1,13 +1,7 @@
-import type { Track } from './track';
+import type { Track } from "./track";
 
 export type PlaybackContextType =
-  | 'album'
-  | 'playlist'
-  | 'radio'
-  | 'search'
-  | 'library'
-  | 'explore'
-  | 'direct';
+  "album" | "playlist" | "radio" | "search" | "library" | "explore" | "direct";
 
 export interface PlaybackContext {
   type: PlaybackContextType | string;
@@ -49,7 +43,7 @@ export interface PlaybackHistoryResponse {
   nextCursor: string | null;
 }
 
-export type PopularTimeWindow = '12h' | '24h' | '7d' | '30d' | 'all';
+export type PopularTimeWindow = "12h" | "24h" | "7d" | "30d" | "all";
 
 export interface PopularTrackItem {
   rank: number;
@@ -68,11 +62,11 @@ export interface PopularTracksResponse {
   items: PopularTrackItem[];
 }
 
-
 export interface PopularAlbumEntry {
   id: string;
   title: string;
   artist: string;
+  artists?: { id: string; name: string }[];
   coverUrl: string | null;
   year?: number;
   playCount: number;
@@ -93,6 +87,7 @@ export interface MostSavedEntry {
   id: string;
   title: string;
   subtitle: string;
+  artists?: { id: string; name: string }[];
   coverUrl: string | null;
   saves: number;
 }
