@@ -21,8 +21,8 @@ export const APPEARANCE_STORAGE_KEY = "liner_web_appearance_v1";
  * (website default, the frozen src-classic tree); "new" is the upstream
  * 0.2.12 redesign merged into src/. One setting drives the app shell and
  * the sign-in page; switching pops the Liner refresh prompt. */
-export type UiStyle = "original" | "new";
-export const UI_STYLES: UiStyle[] = ["original", "new"];
+export type UiStyle = "original" | "new" | "material3";
+export const UI_STYLES: UiStyle[] = ["original", "new", "material3"];
 
 export interface AppearanceState {
   /** Active accent color theme id; null = default Liner look. */

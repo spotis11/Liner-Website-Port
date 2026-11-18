@@ -23,11 +23,16 @@ async function loadRoot(): Promise<React.ReactElement> {
   }
   // Design switch (Settings → Appearance → App design): "original" renders
   // the frozen classic tree at @classic, "new" renders the merged upstream
-  // 0.2.12 redesign in src/. Both branches are dynamic imports so the unused
-  // design never lands in the initial chunk; the session and every storage
-  // key are shared, so switching (with the Liner refresh prompt) keeps the
-  // user signed in.
-  const wantsNewUi = readPersistedUiStyleFromStorage() === "new";
+  // 0.2.12 redesign in src/, "material3" renders the same src/ tree wrapped
+  // in the Material 3 design layer (riff-derived tokens, M3 switch/slider,
+  // ripples). Both branches are dynamic imports so the unused design never
+  // lands in the initial chunk; the session and every storage key are shared,
+  // so switching (with the Liner refresh prompt) keeps the user signed in.
+  const uiStyle = readPersistedUiStyleFromStorage();
+  const wantsNewUi = uiStyle !== "original";
+  if (wantsNewUi) {
+    document.documentElement.dataset.uiStyle = uiStyle;
+  }
   const [
     { initMainWindowServices },
     { default: App },
@@ -40,6 +45,9 @@ async function loadRoot(): Promise<React.ReactElement> {
     wantsNewUi
       ? import("@/shared/ui/RootErrorBoundary")
       : import("@classic/shared/ui/RootErrorBoundary"),
+    uiStyle === "material3"
+      ? import("./material3/material3").then((m) => m.activateMaterial3())
+      : Promise.resolve(),
     hydrateScreenCache(),
   ]);
   initMainWindowServices();

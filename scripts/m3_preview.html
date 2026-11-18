@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin:0; }
+  .m3 { width:264px; height:164px; background:#121214; position:relative; overflow:hidden;
+        font-family:'Google Sans Text','Google Sans',system-ui,sans-serif; }
+  .side { position:absolute; left:0; top:0; bottom:0; width:56px; background:#1a1b1e;
+          display:flex; flex-direction:column; align-items:center; gap:10px; padding-top:12px; }
+  .pill { width:40px; height:30px; border-radius:999px; background:#282366; display:flex;
+          align-items:center; justify-content:center; }
+  .pill span { width:14px; height:14px; border-radius:999px; background:#e0dfff; }
+  .pill2 { width:40px; height:30px; border-radius:999px; background:transparent;
+           display:flex; align-items:center; justify-content:center; }
+  .pill2 span { width:14px; height:14px; border-radius:999px; background:#938f99; }
+  .card { position:absolute; left:66px; top:12px; width:110px; height:64px;
+          border-radius:12px; background:#1e1f22; }
+  .card b { position:absolute; left:10px; top:10px; font-size:9px; color:#e6e6e8; font-weight:500; }
+  .card i { position:absolute; left:10px; top:26px; font-size:7px; color:#cac4d0; font-style:normal; width:88px; line-height:1.5; }
+  .fab { position:absolute; left:186px; top:12px; width:68px; height:30px; border-radius:999px;
+         background:#5247d1; color:#fff; font-size:8.5px; font-weight:600; display:flex;
+         align-items:center; justify-content:center; letter-spacing:.2px; }
+  .rows { position:absolute; left:66px; top:86px; width:188px; display:flex; flex-direction:column; gap:10px; }
+  .row { height:26px; border-radius:999px; background:#28292c; display:flex; align-items:center; padding:0 10px; gap:8px; }
+  .row small { font-size:7.5px; color:#cac4d0; }
+  .sw { width:26px; height:16px; border-radius:999px; background:#5247d1; position:relative; margin-left:auto; }
+  .sw i { position:absolute; width:10px; height:10px; border-radius:999px; background:#fff; top:3px; left:13px; }
+  .sw.off { background:#333438; border:1.5px solid #938f99; width:26px; }
+  .sw.off i { width:7px; height:7px; left:3px; top:2.5px; background:#938f99; }
+  .track { position:absolute; left:66px; top:134px; width:188px; height:4px; border-radius:999px;
+           background:#333438; }
+  .fill { position:absolute; left:0; top:0; height:4px; width:64%; border-radius:999px; background:#5247d1; }
+  .thumb { position:absolute; left:64%; top:136px; width:11px; height:11px; border-radius:999px;
+           background:#5247d1; transform:translate(-50%,-50%); box-shadow:0 1px 4px rgba(0,0,0,.4); }
+</style>
+</head>
+<body>
+<div class="m3">
+  <div class="side">
+    <div class="pill"><span></span></div>
+    <div class="pill2"><span></span></div>
+    <div class="pill2"><span></span></div>
+  </div>
+  <div class="card"><b>Now playing</b><i>Material You surfaces, tonal containers, M3 shapes</i></div>
+  <div class="fab">Play</div>
+  <div class="rows">
+    <div class="row"><small>Settings option</small><div class="sw"><i></i></div></div>
+    <div class="row"><small>Another option</small><div class="sw off"><i></i></div></div>
+  </div>
+  <div class="track"><div class="fill"></div></div>
+  <div class="thumb"></div>
+</div>
+</body>
+</html>

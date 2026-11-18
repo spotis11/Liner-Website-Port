@@ -47,6 +47,7 @@ const MEDIA_HOSTS = [
   "googlevideo.com",
   "sndcdn.com", // cf-media, cf-hls-media, i1..i4, img, a1 ...
   "ytimg.com",
+  "gstatic.com",
   "googleusercontent.com",
   "tryliner.fun",
   "tryliner.com",

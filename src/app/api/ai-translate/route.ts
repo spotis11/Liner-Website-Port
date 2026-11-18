@@ -51,6 +51,81 @@ const SYSTEM_PROMPT =
   "skip, or add lines. Keep interjections natural for a native speaker. " +
   'Respond with ONLY a raw JSON array of translated strings, e.g. ["...", "..."]. No markdown fences, no explanations.';
 
+// --- MyMemory fallback -----------------------------------------------------
+// Reachable from hosting datacenters where the platform LLM endpoint is not
+// (api.mymemory.translated.net answers DC IPs without blocking). Per-line
+// machine translation — lower quality than the LLM path, but it keeps the
+// feature working everywhere. Runs in small concurrent chunks and is covered
+// by the same result cache as the LLM path.
+
+const SDK_COOLDOWN_MS = 10 * 60_000;
+let sdkCooldownUntil = 0;
+
+const MM_CONCURRENCY = 6;
+const MM_TIMEOUT_MS = 12_000;
+
+function normalizeMyMemoryLang(lang: string): string | null {
+  const clean = lang.trim().toLowerCase().slice(0, 8);
+  return /^[a-z]{2,3}(-[a-z]{2,4})?$/.test(clean) ? clean : null;
+}
+
+function decodeMyMemoryEntities(text: string): string {
+  return text
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+async function translateOneLine(
+  line: string,
+  target: string,
+): Promise<string> {
+  const trimmed = line.trim();
+  if (!trimmed) return line;
+  const url =
+    `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed.slice(0, 500))}` +
+    `&langpair=en|${target}&de=liner-web-relay@users.noreply.github.com`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(MM_TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`mymemory ${res.status}`);
+  const data = (await res.json()) as {
+    responseData?: { translatedText?: string };
+  };
+  const translated = data.responseData?.translatedText;
+  if (
+    typeof translated !== "string" ||
+    !translated.trim() ||
+    translated.trim().toUpperCase() === trimmed.toUpperCase()
+  ) {
+    return line;
+  }
+  return decodeMyMemoryEntities(translated.trim());
+}
+
+async function translateViaMyMemory(
+  lines: string[],
+  targetLang: string,
+): Promise<string[] | null> {
+  const target = normalizeMyMemoryLang(targetLang);
+  if (!target) return null;
+  const results: string[] = new Array(lines.length);
+  try {
+    for (let start = 0; start < lines.length; start += MM_CONCURRENCY) {
+      const slice = lines.slice(start, start + MM_CONCURRENCY);
+      const translated = await Promise.all(
+        slice.map((line) => translateOneLine(line, target)),
+      );
+      translated.forEach((value, i) => {
+        results[start + i] = value;
+      });
+    }
+  } catch {
+    return null;
+  }
+  return results;
+}
+
 /** Pull a raw JSON string array out of a model answer (fences tolerated). */
 function extractJsonArray(raw: string): string[] | null {
   let text = raw.trim();
@@ -110,31 +185,44 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let content: string | undefined;
-  try {
-    const zai = await getZai();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "assistant", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Target language: ${targetLang}.\nLines:\n${JSON.stringify(lines)}`,
-        },
-      ],
-      thinking: { type: "disabled" },
-    });
-    content = completion.choices[0]?.message?.content;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "translator unavailable";
-    return Response.json({ error: `Translation failed — ${message}` }, { status: 502 });
+  // Primary path: the platform LLM. Some hosting datacenters reset outbound
+  // connections to its endpoint (running.sh does), so on failure we open a
+  // cooldown and serve requests from the MyMemory fallback instead of paying
+  // the failing round-trip on every call.
+  let sdkError: string | null = null;
+  let parsed: string[] | null = null;
+  if (Date.now() >= sdkCooldownUntil) {
+    let content: string | undefined;
+    try {
+      const zai = await getZai();
+      const completion = await zai.chat.completions.create({
+        messages: [
+          { role: "assistant", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Target language: ${targetLang}.\nLines:\n${JSON.stringify(lines)}`,
+          },
+        ],
+        thinking: { type: "disabled" },
+      });
+      content = completion.choices[0]?.message?.content;
+    } catch (error) {
+      sdkError = error instanceof Error ? error.message : "translator unavailable";
+      sdkCooldownUntil = Date.now() + SDK_COOLDOWN_MS;
+    }
+    parsed = typeof content === "string" ? extractJsonArray(content) : null;
+  } else {
+    sdkError = "translator in cooldown";
   }
 
-  const parsed = typeof content === "string" ? extractJsonArray(content) : null;
   if (!parsed) {
-    return Response.json(
-      { error: "Translator returned an unreadable response" },
-      { status: 502 },
-    );
+    parsed = await translateViaMyMemory(lines, targetLang);
+    if (!parsed) {
+      return Response.json(
+        { error: sdkError ? `Translation failed — ${sdkError}` : "Translation failed — translators unavailable" },
+        { status: 502 },
+      );
+    }
   }
 
   // align 1:1 — any line the model skipped comes back unchanged

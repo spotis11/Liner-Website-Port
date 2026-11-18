@@ -1,0 +1,365 @@
+/*
+ * MATERIAL 3 design layer (Settings → Appearance → App design → "MATERIAL 3").
+ *
+ * Derived from riff's Material 3 stylesheet (rootscripts/riff), adapted to the
+ * Liner web fork's token system. The whole layer keys off
+ * [data-ui-style="material3"] on <html>, which main.tsx sets when this design
+ * is active:
+ *
+ *   1. riff's --md-sys-* M3 tokens (dark base palette + light overrides)
+ *   2. a remap of the fork's own tokens (--bg-*, --text-*, --border-*,
+ *      --accent-*, --btn-*, --radius-*) onto M3 values → the entire app
+ *      reskins without touching a single component
+ *   3. M3 component upgrades: switches (52×32 track, 16→24px thumb), the
+ *      timeline slider (Google-style growing track + thumb), press ripples
+ *      (src/material3/ripples.ts), M3 focus rings, motion curves
+ */
+
+/* ------------------------------------------------------------------ */
+/* 1+2. M3 tokens — dark base (riff palette) + light overrides        */
+/* ------------------------------------------------------------------ */
+
+[data-ui-style="material3"] {
+  color-scheme: dark;
+
+  /* riff's M3 dark palette */
+  --m3-background: #121214;
+  --m3-surface: #121214;
+  --m3-surface-container-lowest: #0d0e0f;
+  --m3-surface-container-low: #1a1b1e;
+  --m3-surface-container: #1e1f22;
+  --m3-surface-container-high: #28292c;
+  --m3-surface-container-highest: #333438;
+  --m3-primary: #5247d1;
+  --m3-on-primary: #ffffff;
+  --m3-primary-container: #282366;
+  --m3-on-primary-container: #e0dfff;
+  --m3-secondary-container: #4a4458;
+  --m3-on-secondary-container: #e8def8;
+  --m3-tertiary-container: #633b48;
+  --m3-on-tertiary-container: #ffd9e2;
+  --m3-error: #f2b8b5;
+  --m3-on-error: #601410;
+  --m3-on-surface: #e6e6e8;
+  --m3-on-surface-variant: #cac4d0;
+  --m3-outline: #938f99;
+  --m3-outline-variant: #49454f;
+  --m3-inverse-surface: #e6e6e8;
+  --m3-inverse-on-surface: #1e1f22;
+
+  /* fork token remap → app-wide M3 reskin (dark) */
+  --bg-canvas: #0d0e0f;
+  --bg-primary: #121214 !important;
+  --bg-surface: #1a1b1e !important;
+  --bg-elevated: #1e1f22 !important;
+  --bg-panel: #28292c !important;
+  --bg-overlay: rgba(30, 31, 34, 0.96) !important;
+  --bg-toolbox: rgba(255, 255, 255, 0.05) !important;
+  --bg-toolbox-active: rgba(255, 255, 255, 0.09) !important;
+  --bg-glass: rgba(30, 31, 34, 0.55) !important;
+  --border-toolbox-divider: rgba(255, 255, 255, 0.08) !important;
+
+  --border-primary: #2a2a30 !important;
+  --border-secondary: #333438 !important;
+  --border-tertiary: #49454f !important;
+  --border-white-alpha-14: rgba(255, 255, 255, 0.08) !important;
+  --border-white-alpha-33: rgba(255, 255, 255, 0.14) !important;
+
+  --text-primary: #e6e6e8 !important;
+  --text-secondary: rgba(230, 230, 232, 0.68) !important;
+  --text-tertiary: rgba(230, 230, 232, 0.45) !important;
+
+  --accent-primary: #5247d1 !important;
+  --accent-secondary: rgba(82, 71, 209, 0.8) !important;
+  --accent-tertiary: rgba(82, 71, 209, 0.6) !important;
+  --accent-warning: #ffb95c !important;
+
+  --btn-primary-bg: #5247d1 !important;
+  --btn-primary-text: #ffffff !important;
+
+  --fill-subtle: rgba(230, 230, 232, 0.04) !important;
+  --fill: rgba(230, 230, 232, 0.06) !important;
+  --fill-hover: rgba(230, 230, 232, 0.09) !important;
+  --fill-strong: rgba(230, 230, 232, 0.12) !important;
+  --surface-glass: rgba(30, 31, 34, 0.92) !important;
+
+  /* M3 shape + motion (riff) */
+  --radius-xs: 4px !important;
+  --radius-lg: 16px !important;
+  --radius-2xl: 20px !important;
+  --radius-3xl: 28px !important;
+  --m3-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --m3-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --m3-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-ui-style="material3"][data-theme="light"],
+[data-ui-style="material3"].light {
+  color-scheme: light;
+
+  /* standard M3 light palette, same #5247d1 seed as riff's dark */
+  --m3-background: #fdf8ff;
+  --m3-surface: #fdf8ff;
+  --m3-surface-container-lowest: #ffffff;
+  --m3-surface-container-low: #f7f2fa;
+  --m3-surface-container: #f1ecf4;
+  --m3-surface-container-high: #ebe6ee;
+  --m3-surface-container-highest: #e5e0e9;
+  --m3-primary: #4e46cf;
+  --m3-on-primary: #ffffff;
+  --m3-primary-container: #e4e0ff;
+  --m3-on-primary-container: #14056b;
+  --m3-secondary-container: #e5def9;
+  --m3-on-secondary-container: #20104a;
+  --m3-tertiary-container: #ffd9e2;
+  --m3-on-tertiary-container: #2e1120;
+  --m3-error: #b3261e;
+  --m3-on-error: #ffffff;
+  --m3-on-surface: #1b1b1f;
+  --m3-on-surface-variant: #49454f;
+  --m3-outline: #79747e;
+  --m3-outline-variant: #cac4d0;
+  --m3-inverse-surface: #303034;
+  --m3-inverse-on-surface: #f3eff4;
+
+  --bg-canvas: #e9e4ee;
+  --bg-primary: #fdf8ff !important;
+  --bg-surface: #ffffff !important;
+  --bg-elevated: #f7f2fa !important;
+  --bg-panel: #f1ecf4 !important;
+  --bg-overlay: rgba(253, 248, 255, 0.96) !important;
+  --bg-toolbox: rgba(0, 0, 0, 0.04) !important;
+  --bg-toolbox-active: rgba(0, 0, 0, 0.08) !important;
+  --bg-glass: rgba(255, 255, 255, 0.55) !important;
+  --border-toolbox-divider: rgba(0, 0, 0, 0.08) !important;
+
+  --border-primary: #e5e0e9 !important;
+  --border-secondary: #d6d0da !important;
+  --border-tertiary: #b9b3c0 !important;
+  --border-white-alpha-14: rgba(0, 0, 0, 0.06) !important;
+  --border-white-alpha-33: rgba(0, 0, 0, 0.13) !important;
+
+  --text-primary: #1b1b1f !important;
+  --text-secondary: rgba(27, 27, 31, 0.66) !important;
+  --text-tertiary: rgba(27, 27, 31, 0.44) !important;
+
+  --accent-primary: #4e46cf !important;
+  --accent-secondary: rgba(78, 70, 207, 0.8) !important;
+  --accent-tertiary: rgba(78, 70, 207, 0.6) !important;
+  --accent-warning: #b06f10 !important;
+
+  --btn-primary-bg: #4e46cf !important;
+  --btn-primary-text: #ffffff !important;
+
+  --fill-subtle: rgba(27, 27, 31, 0.03) !important;
+  --fill: rgba(27, 27, 31, 0.05) !important;
+  --fill-hover: rgba(27, 27, 31, 0.08) !important;
+  --fill-strong: rgba(27, 27, 31, 0.11) !important;
+  --surface-glass: rgba(253, 248, 255, 0.92) !important;
+}
+
+[data-ui-style="material3"][data-theme="dark"],
+[data-ui-style="material3"].dark {
+  /* explicit dark — same as the base block (kept so a dark class plus a
+   * stale light attribute can never flip the palette) */
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ */
+/* 3a. M3 typography                                                  */
+/* ------------------------------------------------------------------ */
+
+[data-ui-style="material3"] {
+  font-family:
+    "Google Sans Text", "Google Sans", "Product Sans", "Roboto", ui-sans-serif,
+    system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ------------------------------------------------------------------ */
+/* 3b. M3 switches — riff's .m3-switch geometry and motion            */
+/* ------------------------------------------------------------------ */
+
+[data-ui-style="material3"] button[role="switch"] {
+  width: 52px !important;
+  height: 32px !important;
+  border-radius: 999px !important;
+  background: var(--m3-surface-container-highest) !important;
+  border: 2px solid var(--m3-outline) !important;
+  transition:
+    background-color 180ms var(--m3-ease-standard),
+    border-color 180ms var(--m3-ease-standard) !important;
+}
+
+[data-ui-style="material3"] button[role="switch"][aria-checked="true"] {
+  background: var(--m3-primary) !important;
+  border-color: transparent !important;
+}
+
+[data-ui-style="material3"] button[role="switch"] > span {
+  width: 16px !important;
+  height: 16px !important;
+  left: 6px !important;
+  background: var(--m3-outline) !important;
+  box-shadow: none !important;
+  transition:
+    left 200ms var(--m3-ease-spring),
+    width 150ms var(--m3-ease-standard),
+    height 150ms var(--m3-ease-standard),
+    background-color 150ms ease !important;
+}
+
+[data-ui-style="material3"] button[role="switch"][aria-checked="true"] > span {
+  width: 24px !important;
+  height: 24px !important;
+  left: 22px !important;
+  background: var(--m3-on-primary) !important;
+}
+
+[data-ui-style="material3"] button[role="switch"]:not(:disabled):active > span {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+[data-ui-style="material3"]
+  button[role="switch"][aria-checked="true"]:not(:disabled):active
+  > span {
+  left: 20px !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* 3c. M3 timeline slider (Google-style)                              */
+/* ------------------------------------------------------------------ */
+
+/* the track keeps its spring scaleY growth; under M3 it grows a bit more
+ * and the fill/thumb use the primary color */
+[data-ui-style="material3"] [data-m3-slider] > div {
+  background-color: var(--m3-surface-container-highest) !important;
+}
+
+[data-ui-style="material3"] [data-m3-slider] [data-m3-slider-fill] {
+  background-color: var(--m3-primary) !important;
+}
+
+[data-ui-style="material3"] [data-m3-slider] .m3-slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--m3-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  transition:
+    transform 150ms var(--m3-ease-spring),
+    opacity 120ms var(--m3-ease-standard);
+  z-index: 2;
+}
+
+[data-ui-style="material3"]
+  [data-m3-slider]:hover
+  .m3-slider-thumb,
+[data-ui-style="material3"]
+  [data-m3-slider][data-dragging="true"]
+  .m3-slider-thumb {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+[data-ui-style="material3"]
+  [data-m3-slider][data-dragging="true"]
+  .m3-slider-thumb {
+  width: 18px;
+  height: 18px;
+}
+
+/* ------------------------------------------------------------------ */
+/* 3d. M3 press ripples + button motion                               */
+/* ------------------------------------------------------------------ */
+
+[data-ui-style="material3"] .m3-ripple-host {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+[data-ui-style="material3"] .m3-ripple {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  background: currentColor;
+  opacity: 0.14;
+  transform: scale(0);
+  animation: m3-ripple-expand 420ms var(--m3-ease-standard) forwards;
+}
+
+@keyframes m3-ripple-expand {
+  0% {
+    transform: scale(0);
+    opacity: 0.16;
+  }
+  70% {
+    opacity: 0.14;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* M3 press response on every button: gentle scale + standard easing */
+[data-ui-style="material3"] button {
+  transition-property: background-color, border-color, color, box-shadow,
+    transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: var(--m3-ease-standard);
+}
+
+[data-ui-style="material3"] button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* keep the player transport buttons from visually jumping while playing */
+[data-ui-style="material3"] [data-m3-no-scale]:not(:disabled):active {
+  transform: none;
+}
+
+/* M3 focus ring: 2px primary outline, rounded */
+[data-ui-style="material3"] button:focus-visible,
+[data-ui-style="material3"] [role="slider"]:focus-visible,
+[data-ui-style="material3"] [role="switch"]:focus-visible,
+[data-ui-style="material3"] input:focus-visible,
+[data-ui-style="material3"] [role="button"]:focus-visible {
+  outline: 2px solid var(--m3-primary);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* 3e. M3 surfaces                                                    */
+/* ------------------------------------------------------------------ */
+
+/* thin M3 scrollbars */
+[data-ui-style="material3"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+[data-ui-style="material3"] ::-webkit-scrollbar-thumb {
+  background: var(--m3-outline-variant);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+[data-ui-style="material3"] ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--m3-outline);
+  background-clip: content-box;
+}
+[data-ui-style="material3"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* selection + caret follow the M3 primary */
+[data-ui-style="material3"] ::selection {
+  background: var(--m3-primary);
+  color: var(--m3-on-primary);
+}

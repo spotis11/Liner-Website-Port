@@ -171,6 +171,8 @@ export const TimelineSlider = memo(function TimelineSlider({
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
+        data-m3-slider
+        data-dragging={isDragging ? "true" : "false"}
         className="relative flex h-full flex-1 items-center cursor-pointer outline-none"
       >
         <motion.div
@@ -189,6 +191,7 @@ export const TimelineSlider = memo(function TimelineSlider({
           className={`relative w-full rounded-full overflow-hidden origin-center ${baseTrackHeights} ${trackClassName}`}
         >
           <div
+            data-m3-slider-fill
             className={`absolute inset-0 rounded-full transition-transform ease-out ${
               isDragging ? "duration-0" : "duration-100"
             } ${fillClassName || "bg-text-primary"}`}
@@ -198,6 +201,13 @@ export const TimelineSlider = memo(function TimelineSlider({
             }}
           />
         </motion.div>
+        {/* M3 thumb — sibling of the (overflow-hidden) track so it can grow
+         * past it; invisible unless the material3 design layer is active */}
+        <span
+          aria-hidden
+          className="m3-slider-thumb"
+          style={{ left: `${percentage}%` }}
+        />
       </div>
 
       {showTime && (

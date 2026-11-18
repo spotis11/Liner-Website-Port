@@ -145,6 +145,11 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
                   preview: "ui-preview-new.jpg",
                   label: t("settings.appearance.ui_style_new") || "New",
                 },
+                {
+                  value: "material3" as UiStyle,
+                  preview: "ui-preview-material3.jpg",
+                  label: "MATERIAL 3",
+                },
               ] as const
             ).map((option) => {
               const selected = uiStyle === option.value;

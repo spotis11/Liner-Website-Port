@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { prepareCoverFallback } from "./coverSigner";
+import { rewriteForWeb } from "@/shared/lib/webProxy";
 
 type CoverStatus = "loading" | "loaded" | "error";
 
@@ -209,7 +210,9 @@ function decodeLoadedCover(key: string, entry: CoverEntry): Promise<void> {
     img.onerror = () => finish(false);
   });
   decoding.set(key, promise);
-  img.src = src;
+  // load through the same-origin proxy when the host needs it (gstatic etc.)
+  // so the element stays untainted for canvas color extraction
+  img.src = rewriteForWeb(src);
   return promise;
 }
 
@@ -276,7 +279,7 @@ export function preloadCoverArt(url: string | undefined): Promise<void> {
 
   entry = { status: "loading", promise };
   storeEntry(key, entry);
-  img.src = key;
+  img.src = rewriteForWeb(key);
   return promise;
 }
 

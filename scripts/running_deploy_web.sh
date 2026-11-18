@@ -63,6 +63,11 @@ rm -f /tmp/liner-web-vars.json
 rm -rf "$STG" && mkdir -p "$STG/db"
 cp -r "$ROOT/.next/standalone" "$STG/standalone"
 rm -f "$STG/standalone/.env"
+# the AI-translate route powers /api/ai-translate via z-ai-web-dev-sdk, which
+# resolves its credentials from .z-ai-config (project dir / home / /etc).
+# running.sh has none, so ship the sandbox's config into the standalone root
+# (server cwd) — stays out of git, ships only inside the deploy tarball.
+[ -r /etc/.z-ai-config ] && cp /etc/.z-ai-config "$STG/standalone/.z-ai-config"
 # the migration announcement is only for space-z.ai visitors — never ship it
 # to running.sh (loader tag in index.html + the JS file itself)
 sed -i '/INJECT:liner-migration-announcement-v/d; /liner-announcement\.js/d' \

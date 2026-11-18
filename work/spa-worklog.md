@@ -163,3 +163,37 @@ fixed — isRetryable no longer retries 401 (api layer already refreshes), and
 useDailyMixes/useRecentlyPlayed skip the /v1/me/* calls entirely for guests
 (both UI trees). Verified: zero /v1/me requests in guest state, locally and
 live.
+
+## 2026-11-19 — MATERIAL 3 design + ai-translate fallback + gstatic CORS
+
+User asked for a new "MATERIAL 3" design mode built from riff's source
+(github.com/rootscripts/riff), redesigning progress bar/buttons/toggles, plus
+fixes for /api/ai-translate 502 and gstatic image CORS errors.
+
+M3 (dep_wvsrhpf5jwbgzqqrri7b, bundle index-DVJbln3W.js):
+- appearanceStore: UiStyle gains "material3" (third card in Settings →
+  Appearance, preview public/ui-preview-material3.jpg generated from an M3
+  mock). main.tsx loads the src/ tree for it and sets
+  html[data-ui-style="material3"].
+- src/material3/: material3.css (riff's M3 dark palette #121214/#5247d1 +
+  standard M3 light, remapped onto the fork's --bg-/--text-/--accent-/
+  --radius tokens with !important so a chosen color theme can't fight it;
+  riff's 52×32 switch with 16→24px thumb and spring easing; M3 slider skin;
+  focus rings; scrollbars), ripples.ts (delegated pointerdown ripple engine),
+  material3.ts (activation entry, dynamically imported only in M3 mode).
+- TimelineSlider: data-m3-slider/data-dragging hooks + an M3 thumb span that
+  scales in on hover/drag (sibling of the overflow-hidden track).
+- Verified live: tokens, nav pill, 52×32 switch geometry + toggle, ripple
+  spawn, MATERIAL 3 card; screenshots in download/.
+
+ai-translate 502: two layers. (1) the deployed server had no .z-ai-config —
+running_deploy_web.sh now stages /etc/.z-ai-config into the standalone root.
+(2) running.sh's egress gets ECONNRESET against internal-api.z.ai — route.ts
+gained a MyMemory fallback (translateViaMyMemory, chunked concurrency, entity
+decoding) with a 10-minute SDK cooldown on failure. Verified live: real
+translations returned ("langit biru malam ini").
+
+gstatic CORS: gstatic.com added to webProxy MEDIA_HOSTS; coverArt's two
+img.src assignments route through rewriteForWeb (same-origin /api/media) so
+canvas color extraction stays untainted. Library page now shows zero direct
+gstatic loads.
