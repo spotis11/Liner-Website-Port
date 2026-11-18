@@ -1,13 +1,22 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useTranslation, LOCALE_OPTIONS } from "@/languages";
-import { MenuSelect, ToggleSwitch, useToast } from "@/shared/ui";
+import {
+  MenuSelect,
+  ToggleSwitch,
+  useToast,
+  Dialog,
+  DialogActions,
+  DialogButton,
+} from "@/shared/ui";
 import { revealThemeChange } from "@/shared/lib";
+import logo from "@/assets/logo.svg";
 import { SettingBlock, SettingRow, SettingSection } from "../controls";
 import {
   COLOR_THEMES,
   useAppearanceStore,
   selectIsColorThemeActive,
+  type LoginUiVariant,
 } from "../../store/appearanceStore";
 import { themeSwatchGradient } from "../../store/colorThemes";
 import { useCustomizationStore } from "../../store/customizationStore";
@@ -25,6 +34,12 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
   const setColorTheme = useAppearanceStore((s) => s.setColorTheme);
   const setSameAsDevice = useAppearanceStore((s) => s.setSameAsDevice);
   const colorThemeActive = useAppearanceStore(selectIsColorThemeActive);
+  const loginUi = useAppearanceStore((s) => s.loginUi);
+  const setLoginUi = useAppearanceStore((s) => s.setLoginUi);
+  // Liner-styled prompt after the login design changes: the switch saves
+  // instantly but the sign-in page only re-renders on a fresh load, so Okay
+  // performs the hard refresh (the session survives — it lives in storage).
+  const [refreshPromptOpen, setRefreshPromptOpen] = useState(false);
 
   const wallpaperImage = useCustomizationStore((s) => s.backgroundImage);
   const clearWallpaper = useCustomizationStore((s) => s.setBackgroundImage);
@@ -98,6 +113,43 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
           ) : (
             <span />
           )
+        }
+      />
+
+      <SettingRow
+        title={t("settings.appearance.login_ui_title") || "Login screen"}
+        description={
+          t("settings.appearance.login_ui_description") ||
+          "Pick the sign-in design. Original is the classic Liner look; New is the evi-flavored redesign."
+        }
+        titleKey="settings.appearance.login_ui_title"
+        descKey="settings.appearance.login_ui_description"
+        searchQuery={searchQuery}
+        control={
+          <MenuSelect
+            options={
+              [
+                {
+                  value: "original",
+                  label:
+                    t("settings.appearance.login_ui_original") ||
+                    "Original (default)",
+                },
+                {
+                  value: "new",
+                  label: t("settings.appearance.login_ui_new") || "New",
+                },
+              ] as const
+            }
+            value={loginUi}
+            onChange={(value: LoginUiVariant) => {
+              if (value === loginUi) return;
+              setLoginUi(value);
+              setRefreshPromptOpen(true);
+            }}
+            className="min-w-[130px]"
+            aria-label={t("settings.appearance.login_ui_title") || "Login screen"}
+          />
         }
       />
 
@@ -187,6 +239,47 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
         searchQuery={searchQuery}
         control={<LiquidGlassToggle />}
       />
+
+      <Dialog
+        open={refreshPromptOpen}
+        onOpenChange={setRefreshPromptOpen}
+        maxWidth={360}
+        // above the settings modal (z-200) so the prompt is visible while the
+        // Appearance tab is open
+        zIndex={210}
+      >
+        <div className="flex flex-col gap-[14px] px-[20px] pb-[20px] pt-[20px]">
+          <div className="flex items-center gap-[10px]">
+            <img
+              src={logo}
+              alt="Liner"
+              width={45}
+              height={35}
+              draggable={false}
+              className="theme-logo h-[20px] w-auto object-contain"
+            />
+            <span className="text-[15px] font-[700] tracking-[-0.02em] text-text-primary">
+              Liner
+            </span>
+          </div>
+          <p className="m-0 text-[14px] leading-[1.55] text-text-primary">
+            {t("settings.appearance.login_ui_refresh_body") ||
+              "Please refresh your page to apply changes."}
+          </p>
+          <DialogActions>
+            <DialogButton
+              variant="secondary"
+              className="!border-0 !bg-white !text-black hover:!bg-white/90 dark:!bg-white dark:!text-black"
+              onClick={() => {
+                setRefreshPromptOpen(false);
+                window.location.reload();
+              }}
+            >
+              {t("settings.appearance.login_ui_refresh_okay") || "Okay"}
+            </DialogButton>
+          </DialogActions>
+        </div>
+      </Dialog>
     </SettingSection>
   );
 }

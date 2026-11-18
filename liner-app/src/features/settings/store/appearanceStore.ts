@@ -17,13 +17,22 @@ import {
 
 export const APPEARANCE_STORAGE_KEY = "liner_web_appearance_v1";
 
+/** Which login-screen design the sign-in page renders. "original" is the
+ * classic Liner look (website default); "new" is the evi-flavored redesign
+ * ported from the desktop source. */
+export type LoginUiVariant = "original" | "new";
+export const LOGIN_UI_VARIANTS: LoginUiVariant[] = ["original", "new"];
+
 export interface AppearanceState {
   /** Active accent color theme id; null = default Liner look. */
   colorThemeId: string | null;
   /** Follow the device light/dark setting (next-themes "system"). */
   sameAsDevice: boolean;
+  /** Login-screen design ("original" default). */
+  loginUi: LoginUiVariant;
   setColorTheme: (id: string | null) => void;
   setSameAsDevice: (value: boolean) => void;
+  setLoginUi: (value: LoginUiVariant) => void;
 }
 
 export function selectIsColorThemeActive(state: {
@@ -59,6 +68,7 @@ export function applyColorThemeToDocument(id: string | null): void {
 interface PersistedAppearance {
   colorThemeId: string | null;
   sameAsDevice: boolean;
+  loginUi?: LoginUiVariant;
   /** Legacy no-op fields from the removed Liquid Glass feature; parsed and
    * dropped so old records stay readable without re-enabling anything. */
   liquidGlass?: boolean;
@@ -67,10 +77,18 @@ interface PersistedAppearance {
 
 const VALID_IDS = new Set(SELECTABLE_COLOR_THEMES.map((t) => t.id));
 
+function readPersistedLoginUi(value: unknown): LoginUiVariant {
+  return typeof value === "string" &&
+    (LOGIN_UI_VARIANTS as string[]).includes(value)
+    ? (value as LoginUiVariant)
+    : "original";
+}
+
 function readPersistedAppearance(storage: Storage | null): PersistedAppearance {
   const fallback: PersistedAppearance = {
     colorThemeId: null,
     sameAsDevice: true,
+    loginUi: "original",
   };
   if (!storage) return fallback;
   try {
@@ -85,6 +103,7 @@ function readPersistedAppearance(storage: Storage | null): PersistedAppearance {
           : null,
       sameAsDevice:
         typeof parsed.sameAsDevice === "boolean" ? parsed.sameAsDevice : true,
+      loginUi: readPersistedLoginUi(parsed.loginUi),
     };
   } catch {
     return fallback;
@@ -142,12 +161,14 @@ export function createAppearanceStore(
     writePersistedAppearance(storage, {
       colorThemeId: merged.colorThemeId,
       sameAsDevice: merged.sameAsDevice,
+      loginUi: readPersistedLoginUi(merged.loginUi),
     });
   };
 
   const store = create<AppearanceState>()((set) => ({
     colorThemeId: initial.colorThemeId,
     sameAsDevice: initial.sameAsDevice,
+    loginUi: readPersistedLoginUi(initial.loginUi),
     setColorTheme: (id) => {
       const next = getColorThemeDef(id) ? id : null;
       set({ colorThemeId: next });
@@ -157,6 +178,13 @@ export function createAppearanceStore(
     setSameAsDevice: (value) => {
       set({ sameAsDevice: value });
       persist({ sameAsDevice: value });
+    },
+    setLoginUi: (value) => {
+      const next = (LOGIN_UI_VARIANTS as string[]).includes(value)
+        ? value
+        : "original";
+      set({ loginUi: next });
+      persist({ loginUi: next });
     },
   }));
 

@@ -14,6 +14,7 @@ import {
 } from "../store/authStore";
 import { useTranslation } from "@/languages";
 import { HumanCheckNotice } from "@/features/human-check";
+import { useAppearanceStore } from "@/features/settings/store/appearanceStore";
 import { cn } from "@/shared/lib";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,6 +27,8 @@ export default function LoginPage() {
   const guestLogin = useAuthStore((state) => state.guestLogin);
   const register = useAuthStore((state) => state.register);
   const { t } = useTranslation();
+  // Login-screen design picked in Settings → Appearance ("original" default).
+  const loginVariant = useAppearanceStore((state) => state.loginUi);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [registerStep, setRegisterStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");
@@ -229,10 +232,14 @@ export default function LoginPage() {
           : "rounded-5xl border border-border-primary",
       )}
     >
-      <LoginBackdrop edgeToEdge={isEdgeToEdge} />
+      <LoginBackdrop edgeToEdge={isEdgeToEdge} variant={loginVariant} />
 
       <section className="relative z-10 mx-4 my-auto grid max-h-[calc(100%-48px)] w-full max-w-[780px] grid-cols-[300px_1fr] gap-[8px] overflow-y-auto rounded-[20px] border border-border-primary bg-bg-panel p-[8px]">
-        <LoginBrandPanel title={heading} subtitle={subheading} />
+        <LoginBrandPanel
+          title={heading}
+          subtitle={subheading}
+          variant={loginVariant}
+        />
 
         <div className="flex w-full flex-col px-[28px] pb-[22px] pt-[26px]">
           <div className="flex flex-col pb-6">

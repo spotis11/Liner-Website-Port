@@ -19,6 +19,17 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.21.0",
+    date: "2026-11-18",
+    title: "New login screen design (optional)",
+    entries: [
+      {
+        type: "added",
+        text: "A Login screen setting in Settings \u2192 Appearance lets you pick between the original Liner sign-in look (default) and a New evi-flavored redesign \u2014 three fanned gradient covers with hand-drawn sparks, an asterisk and a lime squiggle under the tagline, ported from the desktop redesign. Both designs keep the full sign-in toolkit: email Sign in / Create account, Continue with Discord and Continue as guest. Switching designs pops a Liner prompt (\u201cPlease refresh your page to apply changes.\u201d) \u2014 Okay hard-refreshes the page and you stay signed in.",
+      },
+    ],
+  },
+  {
     version: "1.20.0",
     date: "2026-11-12",
     title: "Liquid glass, Liner Pro grants, alternate lyrics",

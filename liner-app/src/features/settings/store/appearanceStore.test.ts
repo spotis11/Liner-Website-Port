@@ -66,6 +66,7 @@ describe("appearanceStore", () => {
     expect(JSON.parse(storage.getItem(APPEARANCE_STORAGE_KEY)!)).toEqual({
       colorThemeId: null,
       sameAsDevice: true,
+      loginUi: "original",
     });
   });
 
@@ -130,7 +131,34 @@ describe("appearanceStore", () => {
     expect(JSON.parse(storage.getItem(APPEARANCE_STORAGE_KEY)!)).toEqual({
       colorThemeId: "lavender",
       sameAsDevice: false,
+      loginUi: "original",
     });
+  });
+
+  it("persists the login-screen design and ignores invalid variants", () => {
+    const storage = memoryStorage();
+    const store = createAppearanceStore(storage);
+    expect(store.getState().loginUi).toBe("original");
+
+    store.getState().setLoginUi("new");
+    expect(store.getState().loginUi).toBe("new");
+    expect(
+      JSON.parse(storage.getItem(APPEARANCE_STORAGE_KEY)!).loginUi,
+    ).toBe("new");
+
+    store.getState().setLoginUi("garbage" as never);
+    expect(store.getState().loginUi).toBe("original");
+
+    // records from before the field existed hydrate as "original"
+    const legacy = createAppearanceStore(
+      memoryStorage({
+        [APPEARANCE_STORAGE_KEY]: JSON.stringify({
+          colorThemeId: null,
+          sameAsDevice: true,
+        }),
+      }),
+    );
+    expect(legacy.getState().loginUi).toBe("original");
   });
 
   it("drops the removed Liquid Glass fields from legacy persisted records", () => {

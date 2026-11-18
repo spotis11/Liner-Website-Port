@@ -6,6 +6,10 @@
   --login-backdrop: #141417;
   --login-glow: #4b5272;
   --login-glow-secondary: #3f4560;
+  /* evi-flavored doodle accents (new login art); lime doubles as the
+     squiggle/sparks color, orange the asterisk */
+  --doodle-lime: #cdf03c;
+  --doodle-orange: #eda63c;
   --bg-canvas: #e4e4e7;
   --bg-surface: #ffffff;
   --bg-primary: #f5f5f7;
@@ -48,6 +52,8 @@
 
 :root[data-theme="light"],
 :root.light {
+  --doodle-lime: #7d9c0d;
+  --doodle-orange: #d08a1d;
   --bg-canvas: #e4e4e7;
   --bg-surface: #ffffff;
   --bg-primary: #f5f5f7;
@@ -134,6 +140,8 @@
 :root.dark,
 [data-theme="dark"],
 .dark {
+  --doodle-lime: #cdf03c;
+  --doodle-orange: #eda63c;
   --bg-canvas: #000000;
   --bg-surface: #0a0a0a;
   --bg-primary: #0a0a0a;
@@ -204,6 +212,8 @@
   --color-login-backdrop: var(--login-backdrop);
   --color-login-glow: var(--login-glow);
   --color-login-glow-secondary: var(--login-glow-secondary);
+  --color-doodle-lime: var(--doodle-lime);
+  --color-doodle-orange: var(--doodle-orange);
 
   --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);
