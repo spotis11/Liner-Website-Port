@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { sidebarNavItems } from "@/features/navigation/data/navigation";
+import { useChangelogStore } from "@/features/changelog";
 import { useTranslation } from "@/languages";
 import { cn } from "@/shared/lib";
 import { useOfflineModeStore } from "@/features/connectivity";
@@ -21,6 +22,8 @@ export function SidebarNavItems({
   const { t } = useTranslation();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const offline = useOfflineModeStore((state) => state.offline);
+  // website: the changelog is a modal (like the classic sidebar), not a route
+  const toggleChangelog = useChangelogStore((state) => state.toggleOpen);
 
   useEffect(() => {
     setPendingHref(null);
@@ -74,6 +77,28 @@ export function SidebarNavItems({
                   className="shrink-0 rounded-[6px] bg-fill-strong px-[6px] py-[2px] text-[11px] font-[500] leading-none text-text-tertiary"
                 >
                   Ctrl K
+                </span>
+              </button>
+            );
+          }
+
+          if (item.id === "changelog" || !item.href) {
+            // website: changelog (and any href-less item) opens a modal or
+            // no-ops — never a Link, whose `to` would be undefined
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={item.id === "changelog" ? toggleChangelog : undefined}
+                className={cn(
+                  ROW_CLASS,
+                  "border-0 bg-transparent w-full",
+                  "text-text-secondary hover:bg-fill-subtle hover:text-text-primary",
+                )}
+              >
+                <Icon size={20} className="shrink-0" />
+                <span className="min-w-0 flex-1 truncate text-left">
+                  {label}
                 </span>
               </button>
             );

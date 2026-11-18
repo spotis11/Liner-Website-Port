@@ -39,6 +39,15 @@ echo "=== 6. restart prod :3000 ==="
 if [ -f /tmp/liner-prod.pid ] && kill -0 "$(cat /tmp/liner-prod.pid)" 2>/dev/null; then
   kill "$(cat /tmp/liner-prod.pid)"; sleep 2
 fi
+# any other process still holding :3000 must go — the new boot dies with
+# EADDRINUSE otherwise and a stale server keeps serving the old bundle.
+# (no fuser on this box: parse the listener pid straight out of ss -ltnp)
+for i in $(seq 1 15); do
+  OWNER=$(ss -ltnp 2>/dev/null | grep ":3000 " | grep -oE "pid=[0-9]+" | head -1 | cut -d= -f2 || true)
+  if [ -z "$OWNER" ]; then break; fi
+  kill "$OWNER" 2>/dev/null || true
+  sleep 1
+done
 nohup node .next/standalone/server.js > /tmp/liner-prod.log 2>&1 &
 echo $! > /tmp/liner-prod.pid
 sleep 3

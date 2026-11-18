@@ -54,3 +54,32 @@ tolerates a missing .env with a warning instead of aborting.
 - switch back to Original → classic restored, session intact
 - note: Cloudflare served a stale "/" HTML for a few minutes after the deploy
   (max-age=0 revalidation); direct /liner/index.html was fresh immediately.
+
+## 2026-11-18 (later) — v1.23.1 hotfix: new-UI Changelog + proxied sign-in
+
+User-reported on the redesign: (1) the sidebar Changelog did nothing and the
+console flooded with `Cannot read properties of undefined (reading
+'pathname')`, (2) upstream-account sign-in dead-ended on Cloudflare.
+
+Root causes + fixes:
+- The redesign sidebar renders every nav item as `<Link to={item.href}>`, but
+  the website's changelog item has no href (it is a modal, not a route) —
+  `Link to=undefined` threw on every render. SidebarNavItems now renders
+  href-less items as buttons; changelog calls useChangelogStore.toggleOpen so
+  the website's ChangelogModal opens exactly like the classic sidebar.
+- Upstream's auth challenge began demanding its Turnstile widget on login.
+  The widget is domain-locked to Liner hostnames (error 110200) and the page
+  sits behind X-Frame-Options, so no web deployment can ever run it. The
+  relay now strips the turnstile section from login challenges (register
+  keeps the prompt + guidance); upstream answers the PoW-signed login with a
+  real JSON error, which the form displays ("Email or password is incorrect."
+  — verified with the owner's own credentials, which upstream rejects).
+- /v1/me/library/* 401s were the failed-login cascade, not an independent bug.
+- deploy.sh: restart now kills whoever holds :3000 (parsed from ss -ltnp — no
+  fuser on this box); the old restart raced and left stale orphan servers
+  serving old bundles/envs (which is also what broke the guest DB open).
+- .env DATABASE_URL pinned absolute (file:/home/z/my-project/db/custom.db).
+
+Shipped: dep_qenaoiozrjh7eqk4hryr (active), live bundle index-C6tqjeV4.js.
+Verified live: redesign Changelog opens with real release notes, no pathname
+errors, guest + announcement flows healthy.
