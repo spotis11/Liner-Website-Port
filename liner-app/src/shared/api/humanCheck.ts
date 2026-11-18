@@ -28,11 +28,12 @@ export function setHumanCheckPrompt(next: HumanCheckPrompt | null): void {
 export function humanCheckPageUrl(action: HumanCheckAction): string {
   // The Turnstile widget on this page is domain-locked to Liner's own
   // hostnames — anywhere else it dies with error 110200 ("domain not
-  // authorized"), so a same-origin relay copy can never host it. The frame
-  // loads the upstream page directly: real browsers pass upstream's WAF
+  // authorized"), so a same-origin relay copy can never host it. The page
+  // loads on Liner's origin directly: real browsers pass upstream's WAF
   // where datacenter clients get challenged, and the widget runs on an
   // authorized origin. The page answers over postMessage with a wildcard
-  // targetOrigin.
+  // targetOrigin — the web uses a TOP-LEVEL popup (see CheckWindow) because
+  // a framed load sits behind the WAF's X-Frame-Options.
   return `${DEFAULT_PRIMARY_API}/v1/auth/verify?action=${action}`;
 }
 
@@ -43,13 +44,14 @@ export function humanCheckOrigins(): string[] {
   return [...origins];
 }
 
-// On the website port the widget can never run: the frame loads upstream's
-// page, but for most visitors upstream answers with a Cloudflare WAF
-// challenge (403 — and challenge pages set X-Frame-Options: sameorigin, so
-// the browser refuses to display the frame at all), and a WAF-passing frame
-// would still hit the widget's domain lock (110200). The desktop shell is
-// exempt: its UA clears the WAF and it hosts the page in a top-level window,
-// so neither restriction applies.
+// On the website port the widget cannot run inside a page frame: the frame
+// loads upstream's page, but for most visitors upstream answers with a
+// Cloudflare WAF challenge (403 — and challenge pages set X-Frame-Options:
+// sameorigin, so the browser refuses to display the frame at all), and a
+// WAF-passing frame would still hit the widget's domain lock (110200). The
+// web therefore opens the page in a TOP-LEVEL popup (CheckWindow) where a
+// Cloudflare interstitial is solvable; the desktop shell keeps the iframe
+// (its UA clears the WAF and it hosts the page itself).
 export function humanCheckFrameBlocked(): boolean {
   return typeof window !== "undefined" && !isElectronContext();
 }

@@ -1143,34 +1143,15 @@ async function handle(
     return new NextResponse(merged, { status: 200, headers: res.headers });
   }
   if (route === "auth/challenge" && req.method === "POST") {
+    // upstream's challenge decides whether its Turnstile widget is needed
+    // for this login/register (risk-gated per egress IP). The SPA now opens
+    // the verify page in a TOP-LEVEL popup when required — a Cloudflare
+    // interstitial is solvable there (first-party context), and the widget
+    // is domain-authorized on Liner's own origin. The token flows back over
+    // postMessage (the desktop uses the same channel). Pass the challenge
+    // through untouched so the SPA prompts exactly when upstream demands it.
     const res = await forward(req, `/v1/${route}${url.search}`, false, bodyBytes);
     const buf = await res.arrayBuffer();
-    let purpose: string | null = null;
-    try {
-      purpose = (
-        JSON.parse(new TextDecoder().decode(bodyBytes ?? new ArrayBuffer(0))) as {
-          purpose?: string;
-        }
-      )?.purpose ?? null;
-    } catch {}
-    if (purpose === "login") {
-      // upstream recently started demanding its Turnstile widget on login
-      // (challenge.turnstile.mode = "required"). The widget is domain-locked
-      // to Liner's own hostnames (error 110200) and the page sits behind the
-      // WAF's X-Frame-Options, so a browser hosted anywhere else can never
-      // run it — the desktop solves it in a top-level window, the web cannot
-      // at all. Upstream's login itself answers a PoW-signed, desktop-signed
-      // request without the token, so for login drop the turnstile section
-      // and let the proof carry the request. A real upstream rejection still
-      // surfaces on the login call itself.
-      try {
-        const body = JSON.parse(new TextDecoder().decode(buf)) as Record<string, unknown>;
-        if (body && typeof body === "object" && "turnstile" in body) {
-          const { turnstile: _turnstile, ...rest } = body;
-          return NextResponse.json(rest, { status: res.status });
-        }
-      } catch {}
-    }
     return new NextResponse(buf, {
       status: res.status,
       headers: {

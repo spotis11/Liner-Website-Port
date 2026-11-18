@@ -1,9 +1,5 @@
 import { create } from "zustand";
-import {
-  humanCheckFrameBlocked,
-  setHumanCheckPrompt,
-  type HumanCheckRequest,
-} from "@classic/shared/api";
+import { setHumanCheckPrompt, type HumanCheckRequest } from "@classic/shared/api";
 
 export type HumanCheckPhase = "loading" | "ready" | "expired" | "error";
 
@@ -36,17 +32,14 @@ export const useHumanCheckStore = create<HumanCheckState>((set) => ({
 
   open: (request) => {
     finish(null);
-    // On the web port the widget is unreachable (WAF 403 + X-Frame-Options
-    // + domain lock) — open straight in the failed state so the guidance is
-    // visible immediately instead of a 25s dead frame. The iframe still
-    // mounts via "Try again", which is the recovery gamble for networks
-    // that do clear the WAF.
-    const preblocked = humanCheckFrameBlocked();
+    // The web renders the popup flow (CheckWindow inside CheckFrame) and the
+    // desktop renders the iframe — both start in "loading" and drive the
+    // phase from their own UI; no preblocking needed any more.
     set((state) => ({
       request,
-      phase: preblocked ? "error" : "loading",
+      phase: "loading",
       attempt: state.attempt + 1,
-      errorCode: preblocked ? "110200" : null,
+      errorCode: null,
     }));
     return new Promise((resolve) => {
       settle = resolve;

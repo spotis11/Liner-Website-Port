@@ -83,3 +83,32 @@ Root causes + fixes:
 Shipped: dep_qenaoiozrjh7eqk4hryr (active), live bundle index-C6tqjeV4.js.
 Verified live: redesign Changelog opens with real release notes, no pathname
 errors, guest + announcement flows healthy.
+
+## 2026-11-18 (evening) — upstream sign-in: TURNSTILE_REQUIRED popup flow
+
+Live login answered 403 TURNSTILE_REQUIRED ("Complete the human check first.")
+— upstream's risk engine demands its Turnstile widget for the running.sh
+egress IP (intermittent; the same call later passed token-less and returned
+an honest INVALID_CREDENTIALS for the owner's test credentials). The widget
+is domain-locked to Liner origins and the WAF sets X-Frame-Options, so it can
+never run framed — but a TOP-LEVEL popup on Liner's own origin is solvable
+(the Cloudflare interstitial renders first-party) and the page answers over
+postMessage, the same channel the desktop uses.
+
+- relay: reverted the login challenge strip — upstream's turnstile section
+  now passes through so the SPA prompts exactly when upstream demands it
+  (clean egresses keep the prompt-free PoW path). Auth failure logging kept.
+- api.ts (both trees): withAuthProof catches TURNSTILE_REQUIRED/INVALID on
+  login/register, opens the human check (popup) and retries once with the
+  fresh token.
+- CheckFrame (both trees): web renders CheckWindow — "Open verification
+  window" (window.open + postMessage listener matching the popup + closed
+  polling); Electron keeps the iframe path. Store no longer preblocks.
+- authErrorMessage: TURNSTILE_* fallback text instead of a silent swallow.
+
+Shipped dep_weurj2h3mavrdwmsgkns (active, index-DD7plhCH.js). Verified live:
+login reaches upstream's real credential check (INVALID_CREDENTIALS displayed
+honestly); register triggers the human-check dialog with the popup button and
+the popup opens upstream's verify page (Cloudflare hard-blocks the headless
+fingerprint — a real browser gets the solvable interstitial). The final
+token->postMessage hop is the desktop's protocol and needs a human to solve.

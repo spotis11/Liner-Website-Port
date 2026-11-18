@@ -795,6 +795,16 @@ async function withAuthProof<T>(
     proof = await authProofFor(purpose, email);
     return await send(proof);
   } catch (error) {
+    // upstream risk-gates the check per egress IP: the challenge may have
+    // said "off" but the login itself can still answer TURNSTILE_REQUIRED —
+    // open the verify popup now and retry once with the fresh token
+    if (
+      error instanceof ApiError &&
+      (error.code === "TURNSTILE_REQUIRED" || error.code === "TURNSTILE_INVALID")
+    ) {
+      const token = await runHumanCheck(purpose, "required");
+      if (token) return send({ ...proof, turnstile: token });
+    }
     const retryable =
       error instanceof PowTimeoutError ||
       (error instanceof ApiError &&

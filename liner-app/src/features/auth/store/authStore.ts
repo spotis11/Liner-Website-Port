@@ -397,6 +397,8 @@ export function authErrorMessage(error: unknown): string {
     return "Password must be at least 8 characters.";
   if (error.code === "WRONG_PASSWORD")
     return "Current password is incorrect.";
+  if (error.code?.startsWith("TURNSTILE_"))
+    return "Liner's human check did not complete — please try again and finish the verification window.";
   // unknown api errors stay generic, never surface raw bodies
   return "Something went wrong. Please try again.";
 }
