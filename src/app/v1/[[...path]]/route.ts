@@ -1142,15 +1142,61 @@ async function handle(
     const merged = await overlayUpstreamProfile(bytes, res.headers.get("content-type"));
     return new NextResponse(merged, { status: 200, headers: res.headers });
   }
+  if (route === "auth/challenge" && req.method === "POST") {
+    const res = await forward(req, `/v1/${route}${url.search}`, false, bodyBytes);
+    const buf = await res.arrayBuffer();
+    let purpose: string | null = null;
+    try {
+      purpose = (
+        JSON.parse(new TextDecoder().decode(bodyBytes ?? new ArrayBuffer(0))) as {
+          purpose?: string;
+        }
+      )?.purpose ?? null;
+    } catch {}
+    if (purpose === "login") {
+      // upstream recently started demanding its Turnstile widget on login
+      // (challenge.turnstile.mode = "required"). The widget is domain-locked
+      // to Liner's own hostnames (error 110200) and the page sits behind the
+      // WAF's X-Frame-Options, so a browser hosted anywhere else can never
+      // run it — the desktop solves it in a top-level window, the web cannot
+      // at all. Upstream's login itself answers a PoW-signed, desktop-signed
+      // request without the token, so for login drop the turnstile section
+      // and let the proof carry the request. A real upstream rejection still
+      // surfaces on the login call itself.
+      try {
+        const body = JSON.parse(new TextDecoder().decode(buf)) as Record<string, unknown>;
+        if (body && typeof body === "object" && "turnstile" in body) {
+          const { turnstile: _turnstile, ...rest } = body;
+          return NextResponse.json(rest, { status: res.status });
+        }
+      } catch {}
+    }
+    return new NextResponse(buf, {
+      status: res.status,
+      headers: {
+        "content-type": res.headers.get("content-type") ?? "application/json",
+      },
+    });
+  }
   if (route === "auth/verify") {
     return passthrough(req, `/v1/${route}${url.search}`, bodyBytes);
   }
-  return forward(
+  const forwarded = await forward(
     req,
     `/v1/${route}${url.search}`,
     shouldOverlayPro(route, req.method),
     bodyBytes,
   );
+  if (route.startsWith("auth/") && forwarded.status >= 400) {
+    // why did upstream refuse an auth hop? (WAF page vs JSON error code —
+    // the SPA's message depends on it)
+    const clone = forwarded.clone();
+    const text = (await clone.text().catch(() => "")) || "";
+    console.warn(
+      `[v1/${route}] upstream ${forwarded.status} ct=${forwarded.headers.get("content-type")} body=${text.slice(0, 300)}`,
+    );
+  }
+  return forwarded;
 }
 
 type RelayCtx = { params: Promise<{ path?: string[] }> };
