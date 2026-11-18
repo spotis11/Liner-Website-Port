@@ -34,6 +34,7 @@ vi.mock("../../lib/userFinderApi", () => ({
 }));
 
 vi.mock("@/shared/ui", () => ({
+  PANEL_FILL_CLASS: "",
   // light stubs — the real barrel pulls lottie-web which crashes under jsdom
   TextInput: ({ icon: _icon, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { icon?: unknown }) => (
     <input {...props} />

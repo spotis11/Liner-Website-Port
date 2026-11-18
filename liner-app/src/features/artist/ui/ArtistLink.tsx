@@ -8,67 +8,9 @@ import {
 import { useStableNavigate } from "@/shared/hooks/useStableNavigate";
 import type { TrackArtist } from "@/shared/types";
 import { useOfflineModeStore } from "@/features/connectivity/store/offlineModeStore";
-import {
-  cachedArtistIdByName,
-  isArtistId,
-  resolveArtistIdByName,
-} from "../lib/artistResolver";
 
-function ArtistName({
-  name,
-  artistId,
-  onNavigate,
-}: {
-  name: string;
-  artistId?: string;
-  onNavigate?: () => void;
-}) {
-  const navigate = useStableNavigate();
-  const [unresolved, setUnresolved] = useState(
-    () => !artistId && cachedArtistIdByName(name) === null,
-  );
-
-  const open = useCallback(async () => {
-    const targetId = artistId ?? (await resolveArtistIdByName(name));
-    if (!targetId) {
-      setUnresolved(true);
-      return;
-    }
-    onNavigate?.();
-    navigate(`/artist?id=${encodeURIComponent(targetId)}`);
-  }, [artistId, name, navigate, onNavigate]);
-
-  const warmUp = useCallback(() => {
-    if (!artistId) void resolveArtistIdByName(name);
-  }, [artistId, name]);
-
-  if (!name.trim() || unresolved) return <span>{name}</span>;
-
-  return (
-    <span
-      role="button"
-      tabIndex={0}
-      className="cursor-pointer hover:text-text-primary transition-colors duration-150 prevent-seek"
-      onMouseEnter={warmUp}
-      onFocus={warmUp}
-      onPointerDown={(e) => {
-        e.stopPropagation();
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        void open();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          e.stopPropagation();
-          void open();
-        }
-      }}
-    >
-      {name}
-    </span>
-  );
+function isArtistId(id: string | undefined): id is string {
+  return Boolean(id && id !== "unknown");
 }
 
 export interface ArtistLinkProps {
@@ -92,6 +34,7 @@ export default function ArtistLink({
   onNavigate,
   plain = false,
 }: ArtistLinkProps) {
+  const navigate = useStableNavigate();
   const offline = useOfflineModeStore((state) => state.offline);
   const outerRef = useRef<HTMLSpanElement>(null);
   const innerRef = useRef<HTMLSpanElement>(null);
@@ -130,17 +73,52 @@ export default function ArtistLink({
         ? artist.id
         : artistList.length === 1 && isArtistId(artistId)
           ? artistId
-          : undefined;
+          : null;
+      const isClickable = targetId !== null;
       return (
         <Fragment key={artist.id || `${artist.name}-${index}`}>
           {index > 0 && (
             <span className="select-none whitespace-pre">{separator}</span>
           )}
-          <ArtistName
-            name={artist.name}
-            artistId={targetId}
-            onNavigate={onNavigate}
-          />
+          <span
+            role={isClickable ? "button" : undefined}
+            tabIndex={isClickable ? 0 : undefined}
+            className={
+              isClickable
+                ? "cursor-pointer hover:text-text-primary transition-colors duration-150 prevent-seek"
+                : ""
+            }
+            onPointerDown={
+              isClickable
+                ? (e) => {
+                    e.stopPropagation();
+                  }
+                : undefined
+            }
+            onClick={
+              isClickable
+                ? (e) => {
+                    e.stopPropagation();
+                    onNavigate?.();
+                    navigate(`/artist?id=${encodeURIComponent(targetId!)}`);
+                  }
+                : undefined
+            }
+            onKeyDown={
+              isClickable
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onNavigate?.();
+                      navigate(`/artist?id=${encodeURIComponent(targetId!)}`);
+                    }
+                  }
+                : undefined
+            }
+          >
+            {artist.name}
+          </span>
         </Fragment>
       );
     });
@@ -150,21 +128,32 @@ export default function ArtistLink({
 
     if (isArtistId(artistId)) {
       innerContent = (
-        <ArtistName name={text} artistId={artistId} onNavigate={onNavigate} />
+        <span
+          role="button"
+          tabIndex={0}
+          className="cursor-pointer hover:text-text-primary transition-colors duration-150 prevent-seek"
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onNavigate?.();
+            navigate(`/artist?id=${encodeURIComponent(artistId)}`);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              onNavigate?.();
+              navigate(`/artist?id=${encodeURIComponent(artistId)}`);
+            }
+          }}
+        >
+          {text}
+        </span>
       );
     } else {
-      const parts = text
-        .split(",")
-        .map((part) => part.trim())
-        .filter(Boolean);
-      innerContent = parts.map((part, index) => (
-        <Fragment key={`${part}-${index}`}>
-          {index > 0 && (
-            <span className="select-none whitespace-pre">{separator}</span>
-          )}
-          <ArtistName name={part} onNavigate={onNavigate} />
-        </Fragment>
-      ));
+      innerContent = <span>{text}</span>;
     }
   }
 
