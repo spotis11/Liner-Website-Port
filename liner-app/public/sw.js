@@ -9,7 +9,7 @@
  *  - audio offline support lives in IndexedDB (downloads feature) — this SW
  *    deliberately ignores Range requests so <audio> keeps streaming semantics
  */
-const SHELL_CACHE = "liner-shell-v1";
+const SHELL_CACHE = "liner-shell-v2";
 const COVER_CACHE = "liner-covers-v2";
 const COVER_MAX_ENTRIES = 600;
 

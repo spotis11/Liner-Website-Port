@@ -197,3 +197,43 @@ gstatic CORS: gstatic.com added to webProxy MEDIA_HOSTS; coverArt's two
 img.src assignments route through rewriteForWeb (same-origin /api/media) so
 canvas color extraction stays untainted. Library page now shows zero direct
 gstatic loads.
+
+## 2026-11-19 (2) — Mochy like burst + M3 v2 deep layer + slider investigation
+
+User reported: (a) push commits to GitHub, (b) port Mochy's like animation
+(trigger on fullscreen), (c) redesign home/settings/login with REAL M3, (d)
+the M3 progress "didn't move".
+
+Slider investigation: could NOT reproduce — with real CDP clicks the embedded
+MiniPlayer fill (scaleX + 1000ms linear transition) and the fullscreen
+TimelineSlider fill/thumb both track playback in M3 mode, locally AND live on
+the final bundle. Root cause of the report: stale liner-shell-v1 service
+worker serving a mixed/old bundle (old main.tsx validates uiStyle against
+["original","new"], so "material3" fell back and the app looked broken).
+public/sw.js bumped to liner-shell-v2 so every existing client force-refreshes
+the shell on next visit.
+
+LikeBurst (dep_653cppnwpv6cbkif52ub): full web port of Mochy's
+ui/player/LikeBurst.kt → src/features/player/ui/LikeBurst.tsx. Canvas rAF
+overlay implementing the exact spec: 460ms quad-bezier arc (cubic-bezier
+0.3,1.22,0.5,1) from the like button, pop overshoot 0.34,1.56,0.64,1, 110ms
+red thump (#FF2D55) with squash, closed-form Compose spring back (k360 ζ0.3),
+620ms burst ring + 8 seeded mini-heart particles (44-80px, spin ±35°, red/
+pink/white), 640ms float bob (7px sway/9px bob/16px rise), 540ms home dive
+(0.5,-0.18,0.7,1) into the button, 1→1.3→1 button bounce (k520 ζ0.35), max 4
+flights, unliking silent. Wired into FullscreenTrackInfo (ref registers the
+button; launchLikeBurst on like; overlay mounted with the fullscreen player).
+Verified: canvas painted 1325 samples mid-flight, heart visually confirmed
+local + live. Note: the fullscreen QUEUE rows also have like buttons — the
+burst triggers from the track-info button (next to the cover).
+
+M3 v2 deep layer (material-web parity): dialogs/menus extra-large 28dp corner
++ container surfaces + elevation shadows, menu items 12dp with 8% state layer,
+outlined text fields (outline border, 8dp, primary focus, primary caret) on
+form inputs, filled buttons in forms pill/40dp, M3 navigation active
+indicator (secondary-container pill on selected tabs), type scale on h1/h2,
+accent-color for checkboxes/radios, login backdrop remapped to tonal purple.
+
+Push: the provided token authenticates as spotis11 which has pull-only access
+to tryliner/desktop (no fork under spotis11) — commits remain local pending a
+token with write access.

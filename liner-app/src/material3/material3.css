@@ -363,3 +363,125 @@
   background: var(--m3-primary);
   color: var(--m3-on-primary);
 }
+
+/* ==================================================================== */
+/* v2 DEEP LAYER — canonical M3 component styling (material-web parity) */
+/* ==================================================================== */
+
+/* M3 dialogs / menus / sheets: extra-large corner, container surfaces */
+[data-ui-style="material3"] [role="dialog"],
+[data-ui-style="material3"] [role="alertdialog"],
+[data-ui-style="material3"] [role="menu"],
+[data-ui-style="material3"] .rounded-panel {
+  border-radius: 28px !important;
+  overflow: hidden;
+}
+
+[data-ui-style="material3"] [role="dialog"],
+[data-ui-style="material3"] [role="alertdialog"] {
+  background: var(--m3-surface-container-high);
+  color: var(--m3-on-surface);
+  box-shadow:
+    0 8px 14px rgba(0, 0, 0, 0.18),
+    0 16px 32px rgba(0, 0, 0, 0.24);
+}
+
+[data-ui-style="material3"] [role="menu"] {
+  background: var(--m3-surface-container);
+  color: var(--m3-on-surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
+  border: 1px solid var(--m3-outline-variant);
+}
+
+/* M3 menu items: full-width rounded rows with state layers */
+[data-ui-style="material3"] [role="menuitem"] {
+  border-radius: 12px;
+  transition: background-color 100ms var(--m3-ease-standard);
+}
+[data-ui-style="material3"] [role="menuitem"]:hover {
+  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
+}
+
+/* M3 text fields: outlined, 4dp radius, primary focus */
+[data-ui-style="material3"] form input[type="email"],
+[data-ui-style="material3"] form input[type="password"],
+[data-ui-style="material3"] form input[type="text"],
+[data-ui-style="material3"] form input:not([type]),
+[data-ui-style="material3"] form textarea {
+  background: transparent !important;
+  border: 1px solid var(--m3-outline) !important;
+  border-radius: 8px !important;
+  color: var(--m3-on-surface);
+  caret-color: var(--m3-primary);
+  transition: border-color 120ms var(--m3-ease-standard);
+}
+[data-ui-style="material3"] form input::placeholder,
+[data-ui-style="material3"] form textarea::placeholder {
+  color: var(--m3-on-surface-variant);
+}
+[data-ui-style="material3"] form input:focus-visible,
+[data-ui-style="material3"] form textarea:focus-visible {
+  border-color: var(--m3-primary) !important;
+  outline: none;
+  box-shadow: none !important;
+}
+[data-ui-style="material3"] form label {
+  color: var(--m3-on-surface-variant);
+}
+
+/* M3 filled buttons inside forms: pill, 40dp, label-large */
+[data-ui-style="material3"] form button[type="submit"],
+[data-ui-style="material3"] form button[type="button"] {
+  border-radius: 999px !important;
+  min-height: 40px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+/* M3 navigation active indicator: secondary-container pill */
+[data-ui-style="material3"] [role="tab"][aria-selected="true"],
+[data-ui-style="material3"] [role="tablist"] [aria-selected="true"] {
+  background: var(--m3-secondary-container) !important;
+  color: var(--m3-on-secondary-container) !important;
+  border-radius: 999px !important;
+}
+
+/* M3 type scale on document headings */
+[data-ui-style="material3"] h1 {
+  font-size: clamp(22px, 2.4vw, 28px);
+  font-weight: 600;
+  letter-spacing: -0.25px;
+}
+[data-ui-style="material3"] h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+}
+
+/* M3 list rows on the home screen: 12dp radius + state layer */
+[data-ui-style="material3"] main button,
+[data-ui-style="material3"] [role="main"] button {
+  transition-property: background-color, color, box-shadow, transform, opacity;
+}
+[data-ui-style="material3"] main button:hover {
+  transition-duration: 100ms;
+}
+
+/* checkboxes/radios follow the primary */
+[data-ui-style="material3"] input[type="checkbox"],
+[data-ui-style="material3"] input[type="radio"] {
+  accent-color: var(--m3-primary);
+}
+
+/* selection + scrollbar stay from v1; palette polish */
+[data-ui-style="material3"] {
+  --login-backdrop: #121214;
+  --login-glow: #282366;
+  --login-glow-secondary: #1a1b3a;
+}
+[data-ui-style="material3"][data-theme="light"],
+[data-ui-style="material3"].light {
+  --login-backdrop: #fdf8ff;
+  --login-glow: #e4e0ff;
+  --login-glow-secondary: #d6d0f5;
+}

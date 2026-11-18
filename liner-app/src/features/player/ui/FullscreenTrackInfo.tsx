@@ -14,6 +14,11 @@ import { usePlayerStore } from "../store/playerStore";
 import { useGlassBlur } from "../store/visualModeStore";
 import { cn } from "@/shared/lib";
 import { LikeMorphIcon } from "./LikeMorphIcon";
+import {
+  LikeBurstOverlay,
+  launchLikeBurst,
+  setLikeBurstHomeButton,
+} from "./LikeBurst";
 
 interface FullscreenTrackInfoProps {
   onClose?: () => void;
@@ -41,12 +46,16 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
     if (isLiked) {
       unlikeMutation.mutate(track.id, { onSettled });
     } else {
+      // Mochy-style like burst: a heart flies out of this button, thumps at
+      // the centre of the screen and dives back home. Unliking is quiet.
+      launchLikeBurst();
       likeMutation.mutate(track.id, { onSettled });
     }
   }, [track, isLiked, likeMutation, unlikeMutation]);
 
   return (
-    <div className="flex w-full items-center gap-[12px]">
+    <>
+      <div className="flex w-full items-center gap-[12px]">
       <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
         <ScrollableText
           text={track?.title || ""}
@@ -87,6 +96,7 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
         type="button"
         aria-label={isLiked ? t("common.unlike") : t("common.like")}
         onClick={handleLikeToggle}
+        ref={setLikeBurstHomeButton}
         className={cn(
           "relative inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[11px] border-none bg-white/[0.06] cursor-pointer text-white transition-colors duration-200 ease-out hover:bg-white/[0.12] active:scale-[0.92]",
           glassBlur && "backdrop-blur-xl backdrop-brightness-[1.15]",
@@ -107,6 +117,9 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
       >
         <AddLine size={20} />
       </button>
-    </div>
+      </div>
+      {/* Mochy like burst: hearts fly while the fullscreen player is open */}
+      <LikeBurstOverlay />
+    </>
   );
 }
