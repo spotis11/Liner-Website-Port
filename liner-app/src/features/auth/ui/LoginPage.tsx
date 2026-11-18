@@ -27,8 +27,9 @@ export default function LoginPage() {
   const guestLogin = useAuthStore((state) => state.guestLogin);
   const register = useAuthStore((state) => state.register);
   const { t } = useTranslation();
-  // Login-screen design picked in Settings → Appearance ("original" default).
-  const loginVariant = useAppearanceStore((state) => state.loginUi);
+  // Whole-app design picked in Settings → Appearance ("original" default);
+  // the classic and redesign trees share this one setting.
+  const loginVariant = useAppearanceStore((state) => state.uiStyle);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [registerStep, setRegisterStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");

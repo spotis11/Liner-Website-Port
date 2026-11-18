@@ -880,12 +880,12 @@
       "wallpaper_removed_for_theme": "Wallpaper removed — themes and wallpapers can't be combined.",
       "liquid_glass_title": "Liquid glass",
       "liquid_glass_description": "Real refracting glass on the player bar and queue drawer — the page behind bends through the pane. Falls back to frosted blur on older devices.",
-      "login_ui_title": "Login screen",
-      "login_ui_description": "Pick the sign-in design. Original is the classic Liner look; New is the evi-flavored redesign with the fanned cover art.",
-      "login_ui_original": "Original (default)",
-      "login_ui_new": "New",
-      "login_ui_refresh_body": "Please refresh your page to apply changes.",
-      "login_ui_refresh_okay": "Okay"
+      "ui_style_title": "UI",
+      "ui_style_description": "Pick the Liner design. Original is the classic look; New is the full redesign — it applies to the whole app after a refresh.",
+      "ui_style_original": "Original (default)",
+      "ui_style_new": "New",
+      "ui_style_refresh_body": "Please refresh your page to apply changes.",
+      "ui_style_refresh_okay": "Okay"
     },
     "audio": {
       "download_current_song": {

@@ -16,11 +16,13 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@classic/*": ["./src-classic/*"]
     }
   },
   "include": [
     "src",
+    "src-classic",
     "electron",
     "vite.config.ts",
     "vite.csp.ts",

@@ -25,6 +25,7 @@ export default defineConfig(({ command, mode }) => {
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
+      "@classic": path.resolve(import.meta.dirname, "./src-classic"),
       "next/navigation": path.resolve(import.meta.dirname, "./src/lib/navigation.tsx"),
       "next/link": path.resolve(import.meta.dirname, "./src/lib/navigation.tsx"),
       "next/image": path.resolve(import.meta.dirname, "./src/components/ui/AppImage.tsx"),

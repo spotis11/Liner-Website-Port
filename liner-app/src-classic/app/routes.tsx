@@ -1,0 +1,92 @@
+import { Activity, useContext, useRef, type ReactElement } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import HomePage from "@classic/features/home/ui/HomePage";
+import LibraryPage from "@classic/features/library/ui/LibraryPage";
+import PlaylistPage from "@classic/features/library/ui/PlaylistPage";
+import {
+  CachedTracksPage,
+  LocalTracksPage,
+  SavedLikesPage,
+} from "@classic/features/library";
+import ArtistPage from "@classic/features/artist/ui/ArtistPage";
+import CollectionPage from "@classic/features/collection/ui/CollectionPage";
+import LoginPage from "@classic/features/auth/ui/LoginPage";
+import DiscordCallbackPage from "@classic/features/auth/ui/DiscordCallbackPage";
+import PlayerPage from "@classic/features/player/ui/FullscreenPlayer";
+import { FullscreenRouteContext } from "@classic/features/navigation/fullscreenRouteContext";
+import KeepAlivePage from "./KeepAlivePage";
+import { useOfflineModeStore } from "@classic/features/connectivity";
+
+const KEPT_PAGES: ReadonlyArray<{ path: string; element: ReactElement }> = [
+  {
+    path: "/",
+    element: (
+      <KeepAlivePage>
+        <HomePage />
+      </KeepAlivePage>
+    ),
+  },
+  {
+    path: "/library",
+    element: (
+      <KeepAlivePage>
+        <LibraryPage />
+      </KeepAlivePage>
+    ),
+  },
+];
+
+const PLAYER_PATH = "/player";
+const OFFLINE_PATHS = new Set([
+  "/library",
+  "/library/cached",
+  "/library/local",
+  "/library/saved",
+  PLAYER_PATH,
+]);
+
+export function AppRoutes() {
+  const location = useLocation();
+  const offline = useOfflineModeStore((state) => state.offline);
+  const inFullscreenOverlay = useContext(FullscreenRouteContext);
+  const shellLocationRef = useRef(location);
+  if (location.pathname !== PLAYER_PATH) shellLocationRef.current = location;
+
+  if (inFullscreenOverlay) return <PlayerPage />;
+  if (location.pathname === "/login") return <LoginPage />;
+  if (location.pathname === "/auth/discord") return <DiscordCallbackPage />;
+
+  const shellLocation = shellLocationRef.current;
+  const { pathname, search } = shellLocation;
+  const isKept = KEPT_PAGES.some((page) => page.path === pathname);
+  const blocked = offline && !OFFLINE_PATHS.has(pathname);
+
+  return (
+    <>
+      {KEPT_PAGES.map(({ path, element }) => (
+        <Activity
+          key={path}
+          mode={pathname === path && !blocked ? "visible" : "hidden"}
+        >
+          {element}
+        </Activity>
+      ))}
+      {blocked && <Navigate to="/library" replace />}
+      {!isKept && !blocked && (
+        <div key={`${pathname}?${search}`} className="page-transition">
+          <Routes location={shellLocation}>
+            <Route path="/library/playlist" element={<PlaylistPage />} />
+            <Route path="/library/cached" element={<CachedTracksPage />} />
+            <Route path="/library/local" element={<LocalTracksPage />} />
+            <Route path="/library/saved" element={<SavedLikesPage />} />
+            <Route path="/artist" element={<ArtistPage />} />
+            <Route path="/collection" element={<CollectionPage />} />
+            <Route path="/settings" element={<Navigate to="/" replace />} />
+            <Route path={PLAYER_PATH} element={null} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      )}
+    </>
+  );
+}

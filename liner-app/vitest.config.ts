@@ -5,11 +5,12 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: false,
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "electron/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "src-classic/**/*.test.ts", "src-classic/**/*.test.tsx", "electron/**/*.test.ts"],
   },
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
+      "@classic": path.resolve(import.meta.dirname, "src-classic"),
     },
   },
 });

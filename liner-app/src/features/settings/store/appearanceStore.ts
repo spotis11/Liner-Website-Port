@@ -17,22 +17,23 @@ import {
 
 export const APPEARANCE_STORAGE_KEY = "liner_web_appearance_v1";
 
-/** Which login-screen design the sign-in page renders. "original" is the
- * classic Liner look (website default); "new" is the evi-flavored redesign
- * ported from the desktop source. */
-export type LoginUiVariant = "original" | "new";
-export const LOGIN_UI_VARIANTS: LoginUiVariant[] = ["original", "new"];
+/** Which whole-app design renders. "original" is the classic Liner look
+ * (website default, the frozen src-classic tree); "new" is the upstream
+ * 0.2.12 redesign merged into src/. One setting drives the app shell and
+ * the sign-in page; switching pops the Liner refresh prompt. */
+export type UiStyle = "original" | "new";
+export const UI_STYLES: UiStyle[] = ["original", "new"];
 
 export interface AppearanceState {
   /** Active accent color theme id; null = default Liner look. */
   colorThemeId: string | null;
   /** Follow the device light/dark setting (next-themes "system"). */
   sameAsDevice: boolean;
-  /** Login-screen design ("original" default). */
-  loginUi: LoginUiVariant;
+  /** Whole-app design ("original" default). */
+  uiStyle: UiStyle;
   setColorTheme: (id: string | null) => void;
   setSameAsDevice: (value: boolean) => void;
-  setLoginUi: (value: LoginUiVariant) => void;
+  setUiStyle: (value: UiStyle) => void;
 }
 
 export function selectIsColorThemeActive(state: {
@@ -68,7 +69,10 @@ export function applyColorThemeToDocument(id: string | null): void {
 interface PersistedAppearance {
   colorThemeId: string | null;
   sameAsDevice: boolean;
-  loginUi?: LoginUiVariant;
+  uiStyle?: UiStyle;
+  /** Pre-rename field (the toggle briefly shipped as a login-screen-only
+   * setting); read for migration so early opt-ins keep the new design. */
+  loginUi?: UiStyle;
   /** Legacy no-op fields from the removed Liquid Glass feature; parsed and
    * dropped so old records stay readable without re-enabling anything. */
   liquidGlass?: boolean;
@@ -77,18 +81,27 @@ interface PersistedAppearance {
 
 const VALID_IDS = new Set(SELECTABLE_COLOR_THEMES.map((t) => t.id));
 
-function readPersistedLoginUi(value: unknown): LoginUiVariant {
-  return typeof value === "string" &&
-    (LOGIN_UI_VARIANTS as string[]).includes(value)
-    ? (value as LoginUiVariant)
+function readPersistedUiStyle(value: unknown): UiStyle {
+  return typeof value === "string" && (UI_STYLES as string[]).includes(value)
+    ? (value as UiStyle)
     : "original";
+}
+
+/** Synchronous read used by the entry point (main.tsx) so the right design
+ * tree is dynamic-imported on the very first paint — without pulling the
+ * redesign chunk (or even the store) into the initial bundle. */
+export function readPersistedUiStyleFromStorage(
+  storage: Storage | null = defaultStorage(),
+): UiStyle {
+  const persisted = readPersistedAppearance(storage);
+  return readPersistedUiStyle(persisted.uiStyle ?? persisted.loginUi);
 }
 
 function readPersistedAppearance(storage: Storage | null): PersistedAppearance {
   const fallback: PersistedAppearance = {
     colorThemeId: null,
     sameAsDevice: true,
-    loginUi: "original",
+    uiStyle: "original",
   };
   if (!storage) return fallback;
   try {
@@ -103,7 +116,7 @@ function readPersistedAppearance(storage: Storage | null): PersistedAppearance {
           : null,
       sameAsDevice:
         typeof parsed.sameAsDevice === "boolean" ? parsed.sameAsDevice : true,
-      loginUi: readPersistedLoginUi(parsed.loginUi),
+      uiStyle: readPersistedUiStyle(parsed.uiStyle ?? parsed.loginUi),
     };
   } catch {
     return fallback;
@@ -161,14 +174,14 @@ export function createAppearanceStore(
     writePersistedAppearance(storage, {
       colorThemeId: merged.colorThemeId,
       sameAsDevice: merged.sameAsDevice,
-      loginUi: readPersistedLoginUi(merged.loginUi),
+      uiStyle: readPersistedUiStyle(merged.uiStyle ?? merged.loginUi),
     });
   };
 
   const store = create<AppearanceState>()((set) => ({
     colorThemeId: initial.colorThemeId,
     sameAsDevice: initial.sameAsDevice,
-    loginUi: readPersistedLoginUi(initial.loginUi),
+    uiStyle: readPersistedUiStyle(initial.uiStyle ?? initial.loginUi),
     setColorTheme: (id) => {
       const next = getColorThemeDef(id) ? id : null;
       set({ colorThemeId: next });
@@ -179,12 +192,12 @@ export function createAppearanceStore(
       set({ sameAsDevice: value });
       persist({ sameAsDevice: value });
     },
-    setLoginUi: (value) => {
-      const next = (LOGIN_UI_VARIANTS as string[]).includes(value)
+    setUiStyle: (value) => {
+      const next = (UI_STYLES as string[]).includes(value)
         ? value
         : "original";
-      set({ loginUi: next });
-      persist({ loginUi: next });
+      set({ uiStyle: next });
+      persist({ uiStyle: next });
     },
   }));
 

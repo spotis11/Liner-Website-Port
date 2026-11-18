@@ -16,7 +16,7 @@ import {
   COLOR_THEMES,
   useAppearanceStore,
   selectIsColorThemeActive,
-  type LoginUiVariant,
+  type UiStyle,
 } from "../../store/appearanceStore";
 import { themeSwatchGradient } from "../../store/colorThemes";
 import { useCustomizationStore } from "../../store/customizationStore";
@@ -34,8 +34,8 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
   const setColorTheme = useAppearanceStore((s) => s.setColorTheme);
   const setSameAsDevice = useAppearanceStore((s) => s.setSameAsDevice);
   const colorThemeActive = useAppearanceStore(selectIsColorThemeActive);
-  const loginUi = useAppearanceStore((s) => s.loginUi);
-  const setLoginUi = useAppearanceStore((s) => s.setLoginUi);
+  const uiStyle = useAppearanceStore((s) => s.uiStyle);
+  const setUiStyle = useAppearanceStore((s) => s.setUiStyle);
   // Liner-styled prompt after the login design changes: the switch saves
   // instantly but the sign-in page only re-renders on a fresh load, so Okay
   // performs the hard refresh (the session survives — it lives in storage).
@@ -117,39 +117,94 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
       />
 
       <SettingRow
-        title={t("settings.appearance.login_ui_title") || "Login screen"}
+        title={t("settings.appearance.ui_style_title") || "UI"}
         description={
-          t("settings.appearance.login_ui_description") ||
-          "Pick the sign-in design. Original is the classic Liner look; New is the evi-flavored redesign."
+          t("settings.appearance.ui_style_description") ||
+          "Pick the Liner design. Original is the classic look; New is the full redesign — it applies to the whole app after a refresh."
         }
-        titleKey="settings.appearance.login_ui_title"
-        descKey="settings.appearance.login_ui_description"
+        titleKey="settings.appearance.ui_style_title"
+        descKey="settings.appearance.ui_style_description"
         searchQuery={searchQuery}
         control={
-          <MenuSelect
-            options={
+          <div
+            className="flex items-start gap-[10px]"
+            role="radiogroup"
+            aria-label={t("settings.appearance.ui_style_title") || "UI"}
+          >
+            {(
               [
                 {
-                  value: "original",
+                  value: "original" as UiStyle,
+                  preview: "ui-preview-original.jpg",
                   label:
-                    t("settings.appearance.login_ui_original") ||
+                    t("settings.appearance.ui_style_original") ||
                     "Original (default)",
                 },
                 {
-                  value: "new",
-                  label: t("settings.appearance.login_ui_new") || "New",
+                  value: "new" as UiStyle,
+                  preview: "ui-preview-new.jpg",
+                  label: t("settings.appearance.ui_style_new") || "New",
                 },
               ] as const
-            }
-            value={loginUi}
-            onChange={(value: LoginUiVariant) => {
-              if (value === loginUi) return;
-              setLoginUi(value);
-              setRefreshPromptOpen(true);
-            }}
-            className="min-w-[130px]"
-            aria-label={t("settings.appearance.login_ui_title") || "Login screen"}
-          />
+            ).map((option) => {
+              const selected = uiStyle === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  title={option.label}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (uiStyle === option.value) return;
+                    setUiStyle(option.value);
+                    setRefreshPromptOpen(true);
+                  }}
+                  className={`group relative m-0 flex cursor-pointer flex-col items-center gap-[6px] rounded-[10px] border bg-transparent p-[6px] transition-colors ${
+                    selected
+                      ? "border-white/70"
+                      : "border-transparent hover:border-white/25"
+                  }`}
+                >
+                  <span className="relative block overflow-hidden rounded-[7px] shadow-[0_2px_10px_rgba(0,0,0,0.35)]">
+                    <img
+                      src={`${import.meta.env.BASE_URL}${option.preview}`}
+                      alt={option.label}
+                      width={132}
+                      height={82}
+                      loading="lazy"
+                      draggable={false}
+                      className="block h-[82px] w-[132px] object-cover"
+                    />
+                    {selected && (
+                      <span className="absolute right-[5px] top-[5px] flex h-[16px] w-[16px] items-center justify-center rounded-full bg-white text-black shadow">
+                        <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                          <path
+                            d="M3.5 8.5l3 3 6-6.5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    className={`max-w-[132px] truncate text-[11.5px] font-[600] leading-none ${
+                      selected
+                        ? "text-text-primary"
+                        : "text-text-secondary group-hover:text-text-primary"
+                    }`}
+                  >
+                    {option.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         }
       />
 
@@ -263,7 +318,7 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
             </span>
           </div>
           <p className="m-0 text-[14px] leading-[1.55] text-text-primary">
-            {t("settings.appearance.login_ui_refresh_body") ||
+            {t("settings.appearance.ui_style_refresh_body") ||
               "Please refresh your page to apply changes."}
           </p>
           <DialogActions>
@@ -275,7 +330,7 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
                 window.location.reload();
               }}
             >
-              {t("settings.appearance.login_ui_refresh_okay") || "Okay"}
+              {t("settings.appearance.ui_style_refresh_okay") || "Okay"}
             </DialogButton>
           </DialogActions>
         </div>

@@ -66,7 +66,7 @@ describe("appearanceStore", () => {
     expect(JSON.parse(storage.getItem(APPEARANCE_STORAGE_KEY)!)).toEqual({
       colorThemeId: null,
       sameAsDevice: true,
-      loginUi: "original",
+      uiStyle: "original",
     });
   });
 
@@ -131,23 +131,23 @@ describe("appearanceStore", () => {
     expect(JSON.parse(storage.getItem(APPEARANCE_STORAGE_KEY)!)).toEqual({
       colorThemeId: "lavender",
       sameAsDevice: false,
-      loginUi: "original",
+      uiStyle: "original",
     });
   });
 
-  it("persists the login-screen design and ignores invalid variants", () => {
+  it("persists the app design and ignores invalid variants", () => {
     const storage = memoryStorage();
     const store = createAppearanceStore(storage);
-    expect(store.getState().loginUi).toBe("original");
+    expect(store.getState().uiStyle).toBe("original");
 
-    store.getState().setLoginUi("new");
-    expect(store.getState().loginUi).toBe("new");
+    store.getState().setUiStyle("new");
+    expect(store.getState().uiStyle).toBe("new");
     expect(
-      JSON.parse(storage.getItem(APPEARANCE_STORAGE_KEY)!).loginUi,
+      JSON.parse(storage.getItem(APPEARANCE_STORAGE_KEY)!).uiStyle,
     ).toBe("new");
 
-    store.getState().setLoginUi("garbage" as never);
-    expect(store.getState().loginUi).toBe("original");
+    store.getState().setUiStyle("garbage" as never);
+    expect(store.getState().uiStyle).toBe("original");
 
     // records from before the field existed hydrate as "original"
     const legacy = createAppearanceStore(
@@ -158,7 +158,7 @@ describe("appearanceStore", () => {
         }),
       }),
     );
-    expect(legacy.getState().loginUi).toBe("original");
+    expect(legacy.getState().uiStyle).toBe("original");
   });
 
   it("drops the removed Liquid Glass fields from legacy persisted records", () => {

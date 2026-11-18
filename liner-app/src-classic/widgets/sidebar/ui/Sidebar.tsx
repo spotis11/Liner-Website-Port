@@ -1,0 +1,36 @@
+import { memo } from "react";
+import { SidebarNavItems } from "./SidebarNavItems";
+import { SidebarProfileButton } from "./SidebarProfileButton";
+import { cn } from "@classic/shared/lib";
+import { useBlockCustomizationStyle } from "@classic/features/settings/store/customizationStore";
+
+export interface SidebarProps {
+  searchOpen: boolean;
+  onSearchToggle: () => void;
+}
+
+function Sidebar({ searchOpen, onSearchToggle }: SidebarProps) {
+  const sidebarStyle = useBlockCustomizationStyle("sidebar");
+
+  return (
+    <div
+      className={cn(
+        "h-full w-[58px] rounded-xl flex flex-col overflow-hidden border-none bg-bg-glass backdrop-blur-[20px]",
+      )}
+      style={sidebarStyle}
+    >
+      <nav className="relative flex-1 flex flex-col items-center gap-[20px] pt-[16px]">
+        <SidebarNavItems
+          searchOpen={searchOpen}
+          onSearchToggle={onSearchToggle}
+        />
+      </nav>
+
+      <div className="pt-[16px] pb-[16px] shrink-0 flex flex-col justify-center items-center gap-[20px]">
+        <SidebarProfileButton />
+      </div>
+    </div>
+  );
+}
+
+export default memo(Sidebar);
