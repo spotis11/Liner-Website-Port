@@ -78,16 +78,14 @@ function HomeFeed({ onRetry }: { onRetry: () => void }) {
   }, [isReady, skeletonExited]);
 
   return (
-    // pages start below the floating header, whose height --page-inset-top
-    // carries, and scroll under it
     <div className="relative h-full w-full overflow-y-auto overflow-x-hidden bg-transparent pt-(--page-inset-top) pb-(--page-inset-bottom)">
       <div className="relative z-1 grid grid-cols-1 items-start w-full">
         {isReady && nothingLoaded && (
           <div className="col-start-1 row-start-1 flex min-h-[60vh] w-full flex-col items-center justify-center gap-[6px] px-[24px] text-center">
-            <span className="text-title font-[600] text-text-primary">
+            <span className="text-[15px] font-[600] text-text-primary">
               {t("home.load_failed")}
             </span>
-            <span className="text-body text-text-secondary">
+            <span className="text-[13px] text-text-secondary">
               {t("playlist.load_failed_desc")}
             </span>
             <Button
@@ -119,7 +117,7 @@ function HomeFeed({ onRetry }: { onRetry: () => void }) {
             {popularAlbums.length > 0 && (
               <PopularTracksSection
                 title={t("home.popularAlbums")}
-                icon={<AlbumFill />}
+                icon={<AlbumFill className="w-6 h-6 text-emerald-400" />}
                 items={popularAlbums}
                 headingMarginTop={hasMixesSlot ? "mt-[22px]" : "mt-0"}
               />
@@ -128,7 +126,7 @@ function HomeFeed({ onRetry }: { onRetry: () => void }) {
             {listeningNow.length > 0 && (
               <ListeningNowSection
                 title={t("home.whatEveryonesOn")}
-                icon={<FireFill />}
+                icon={<FireFill className="w-6 h-6 text-amber-500" />}
                 tracks={listeningNow}
                 headingMarginTop={
                   hasMixesSlot || popularAlbums.length > 0
@@ -141,7 +139,7 @@ function HomeFeed({ onRetry }: { onRetry: () => void }) {
             {recentlyPlayed && recentlyPlayed.length > 0 && (
               <PopularTracksSection
                 title={t("home.jumpBackIn")}
-                icon={<TimeFill />}
+                icon={<TimeFill className="w-6 h-6 text-sky-400" />}
                 items={recentlyPlayed}
                 headingMarginTop="mt-[22px]"
               />
@@ -150,7 +148,7 @@ function HomeFeed({ onRetry }: { onRetry: () => void }) {
             {popularTracksAllTime && popularTracksAllTime.length > 0 && (
               <PopularTracksSection
                 title={t("home.mostListened")}
-                icon={<TrophyFill />}
+                icon={<TrophyFill className="w-6 h-6 text-yellow-500" />}
                 items={popularTracksAllTime}
                 headingMarginTop="mt-[22px]"
               />
@@ -159,7 +157,7 @@ function HomeFeed({ onRetry }: { onRetry: () => void }) {
             {mostSaved.length > 0 && (
               <PopularTracksSection
                 title={t("home.mostSaved")}
-                icon={<BookmarkFill />}
+                icon={<BookmarkFill className="w-6 h-6 text-rose-400" />}
                 items={mostSaved}
                 headingMarginTop="mt-[22px]"
               />

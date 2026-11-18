@@ -60,6 +60,9 @@ export function HeroMeta({ items }: HeroMetaProps) {
   );
 }
 
+export const HERO_CHIP_CLASS =
+  "inline-flex h-[26px] items-center gap-[6px] rounded-[9px] px-[11px] text-[12px] font-[400] text-text-primary select-none bg-black/[0.05] dark:bg-white/[0.1]";
+
 export const HERO_BUTTON_CLASS =
   "!h-[40px] !rounded-full !border-0 !text-label flex items-center justify-center gap-[8px] shrink-0 !px-[22px] !font-[500]";
 

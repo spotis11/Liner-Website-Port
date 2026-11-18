@@ -1,6 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { api, getAuthSession, toClientTrack } from "@/shared/api";
-import { notifyLibraryChanged } from "./usePlaylists";
 import type { Track } from "@/shared/types";
 
 type LikedData = { tracks: Track[]; total: number };
@@ -10,19 +9,10 @@ let loaded = false;
 let fetchedFromServer = false;
 let loadFailed = false;
 let request: Promise<void> | null = null;
-let reloadQueued = false;
 const listeners = new Set<() => void>();
 let view = { data: cache, isLoading: true, error: false };
 
 const optimisticOverrides = new Map<string, boolean>();
-const desiredLikes = new Map<string, boolean>();
-const syncingLikes = new Set<string>();
-const likeWaiters = new Map<
-  string,
-  Array<{ resolve: () => void; reject: (error: unknown) => void }>
->();
-const likeSettledEpoch = new Map<string, number>();
-let likeEpoch = 0;
 
 // --- durable liked-library cache (client half of account recovery) ---------
 // Persisted after every successful server load so a wiped production
@@ -102,10 +92,7 @@ function snapshot() {
 const SERVER_SNAPSHOT = { data: EMPTY, isLoading: true, error: false };
 
 function load(force = false): Promise<void> {
-  if (request) {
-    if (force) reloadQueued = true;
-    return request;
-  }
+  if (request) return request;
   const session = getAuthSession();
   if (!session?.accessToken) {
     cache = EMPTY;
@@ -118,8 +105,6 @@ function load(force = false): Promise<void> {
 
   if (!loaded) emit(true);
 
-  const startEpoch = likeEpoch;
-  const owner = session.user?.id ?? null;
   request = (async () => {
     const tracks: Track[] = [];
     const seen = new Set<string>();
@@ -155,7 +140,6 @@ function load(force = false): Promise<void> {
       }
       cursor = page.nextCursor ?? undefined;
     } while (cursor);
-    if ((getAuthSession()?.user?.id ?? null) !== owner) return;
     cache = { tracks, total: tracks.length };
     loaded = true;
     fetchedFromServer = true;
@@ -171,10 +155,6 @@ function load(force = false): Promise<void> {
     .finally(() => {
       request = null;
       emit(false);
-      if (reloadQueued) {
-        reloadQueued = false;
-        void load(true);
-      }
     });
   return request;
 }
@@ -213,7 +193,6 @@ if (typeof window !== "undefined") {
       loaded = false;
       fetchedFromServer = false;
       optimisticOverrides.clear();
-      likeSettledEpoch.clear();
       emit(false);
     } else {
       void load(true);

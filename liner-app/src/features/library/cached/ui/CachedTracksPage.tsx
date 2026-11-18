@@ -2,18 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlayFill, Refresh2Line } from "@mingcute/react";
 import { LuShuffle, LuTrash2 } from "react-icons/lu";
 import { playerEngine } from "@/features/player";
+import { useClassicSurfaces } from "@/features/settings/store/customizationStore";
 import { useTranslation } from "@/languages";
-import { usePageBackdrop } from "@/shared/lib";
+import { cn, usePageBackdrop } from "@/shared/lib";
 import cachedSongsCover from "@/assets/cached-songs-cover.svg";
 import {
   EntityHero,
   HERO_BUTTON_CLASS,
-  HeroMeta,
+  HERO_CHIP_CLASS,
   HERO_GLASS_BUTTON_CLASS,
   HERO_GLASS_CLASS,
   HeroSubtitle,
   HERO_TITLE_CLASS,
-  ListPanel,
 } from "@/shared/ui";
 import Button from "@/shared/ui/Button";
 import {
@@ -31,11 +31,12 @@ import CachedSongsCover from "./CachedSongsCover";
 import CachedTrackList from "./CachedTrackList";
 
 const PAGE_KEY = "cached";
-const SANS_FONT = { fontFamily: "var(--font-sf)" };
+const INTER = { fontFamily: "var(--font-inter), sans-serif" };
 
 export default function CachedTracksPage() {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const classicSurfaces = useClassicSurfaces();
   const items = useCachedTracksStore((state) => state.items);
   const loaded = useCachedTracksStore((state) => state.loaded);
   const load = useCachedTracksStore((state) => state.load);
@@ -108,12 +109,18 @@ export default function CachedTracksPage() {
             }
             subtitle={<HeroSubtitle text={t("library.cached.subtitle")} />}
             meta={
-              <HeroMeta
-                items={[
-                  t("common.songs", { count: tracks.length }),
-                  !empty && formatStorageBytes(totalBytes),
-                ]}
-              />
+              <div className={HERO_CHIP_CLASS}>
+                <span>{t("common.songs", { count: tracks.length })}</span>
+                {!empty && (
+                  <>
+                    <span
+                      className="h-[3px] w-[3px] shrink-0 rounded-full bg-text-secondary/50"
+                      aria-hidden
+                    />
+                    <span>{formatStorageBytes(totalBytes)}</span>
+                  </>
+                )}
+              </div>
             }
             actions={
               <>
@@ -164,18 +171,27 @@ export default function CachedTracksPage() {
           />
         </div>
 
-        <ListPanel>
+        <div
+          className={cn(
+            "mx-[4px] mt-[20px] shrink-0 grow overflow-hidden rounded-t-[14px] bg-black/[0.03] px-[8px] pt-[8px] dark:bg-white/[0.04]",
+            !classicSurfaces && "backdrop-blur-xl",
+          )}
+          style={{
+            marginBottom: "calc(var(--page-inset-bottom) * -1)",
+            paddingBottom: "calc(var(--page-inset-bottom) + 16px)",
+          }}
+        >
           {!loaded ? null : empty ? (
             <div
               className="flex min-h-[50vh] flex-col items-center justify-center gap-[14px] text-center"
-              style={SANS_FONT}
+              style={INTER}
             >
               <Refresh2Line size={40} className="text-border-alpha-33" />
               <div className="flex flex-col gap-[4px]">
-                <p className="m-0 text-title font-[500] text-text-primary">
+                <p className="m-0 text-[15px] font-[500] text-text-primary">
                   {t("library.cached.empty_title")}
                 </p>
-                <p className="m-0 max-w-[360px] text-body text-text-tertiary">
+                <p className="m-0 max-w-[360px] text-[13px] text-text-tertiary">
                   {t("library.cached.empty_subtitle")}
                 </p>
               </div>
@@ -193,7 +209,7 @@ export default function CachedTracksPage() {
               scrollRef={scrollRef}
             />
           )}
-        </ListPanel>
+        </div>
       </div>
     </div>
   );

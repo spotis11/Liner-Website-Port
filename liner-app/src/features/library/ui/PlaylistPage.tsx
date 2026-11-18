@@ -19,13 +19,16 @@ import {
   EntityHero,
   HERO_TITLE_CLASS,
   HERO_SUBTITLE_CLASS,
-  HeroMeta,
+  HERO_CHIP_CLASS,
   HERO_BUTTON_CLASS,
   HERO_GLASS_BUTTON_CLASS,
   HERO_GLASS_CLASS,
-  ListPanel,
 } from "@/shared/ui";
 import { usePageBackdrop } from "@/shared/lib";
+import {
+  useClassicSurfaces,
+  useHasCustomBackground,
+} from "@/features/settings/store/customizationStore";
 import { useLikesCover } from "../hooks/useLikesCover";
 import { useSavedTracksStore } from "../saved";
 import { isSavedTrack } from "@/shared/media/saved";
@@ -36,11 +39,21 @@ import {
   PlayFill,
   More1Fill,
   PlaylistFill,
+  MusicLine,
   CheckLine,
   ShareForwardLine,
+  DownloadLine,
 } from "@mingcute/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LuPencil, LuTrash2, LuText, LuShuffle } from "react-icons/lu";
+import {
+  LuPencil,
+  LuTrash2,
+  LuText,
+  LuShuffle,
+  LuCamera,
+  LuRotateCcw,
+  LuImagePlus,
+} from "react-icons/lu";
 import { buildShareUrl } from "@/shared/utils/share";
 import Button from "@/shared/ui/Button";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
@@ -66,6 +79,12 @@ import {
   TrackSearchEmpty,
 } from "./TrackSearch";
 import { useTrackSort, TrackSortMenu } from "./TrackSort";
+import {
+  useCustomPlaylistCoverUrl,
+  setCustomCover,
+  removeCustomCover,
+  fileToSquareCoverBlob,
+} from "@/features/covers";
 
 interface TrackItemProps {
   track: Track;
@@ -224,13 +243,25 @@ function LibraryPlaylistContent() {
 
   const isLoading = isLikesMode ? likesLoading : playlistLoading;
 
+  // custom playlist cover (client-side IndexedDB — the Liner API has no cover
+  // upload endpoint). Overrides the auto-derived track covers everywhere:
+  // hero, library cards, page backdrop and the player playback context.
+  const customCoverUrl = useCustomPlaylistCoverUrl(
+    isLikesMode ? null : decodedId,
+  );
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [isCoverBusy, setIsCoverBusy] = useState(false);
   const viewData = (() => {
     if (isLikesMode) {
       if (!likesData) return null;
-      const tracks: Track[] = (likesData.tracks ?? []).map((t) => ({
-        ...t,
-        playCount: 0,
-      }));
+      // skip likes the server could not hydrate (no id) — they would render
+      // as blank rows sharing the React key ""
+      const tracks: Track[] = (likesData.tracks ?? []).filter((t) => t.id).map(
+        (t) => ({
+          ...t,
+          playCount: 0,
+        }),
+      );
       return {
         title: t("playlist.liked_songs"),
         bio: "",
@@ -247,16 +278,19 @@ function LibraryPlaylistContent() {
       title: playlistDetail.title || t("playlist.untitled_playlist"),
       bio,
       countLabel: t("common.tracks", { count: playlistDetail.trackCount }),
-      coverUrl: playlistDetail.coverUrl || "",
-      coverUrls:
-        playlistDetail.coverUrls ??
-        (playlistDetail.coverUrl ? [playlistDetail.coverUrl] : []),
+      coverUrl: customCoverUrl || playlistDetail.coverUrl || "",
+      coverUrls: customCoverUrl
+        ? [customCoverUrl]
+        : (playlistDetail.coverUrls ??
+          (playlistDetail.coverUrl ? [playlistDetail.coverUrl] : [])),
       tracks: playlistDetail.tracks,
       durationMs: playlistDetail.durationMs,
       revision: playlistDetail.revision,
     };
   })();
   const likesCover = useLikesCover();
+  const classicSurfaces = useClassicSurfaces();
+  const hasCustomBg = useHasCustomBackground();
   const { data: playlistList } = usePlaylistsList();
   const summary = isLikesMode
     ? undefined
@@ -340,11 +374,6 @@ function LibraryPlaylistContent() {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [search.activeQuery, sort.option]);
 
-  useEffect(() => {
-    if (!decodedId || sortedTracks.length === 0) return;
-    playerEngine.syncPlaylistTracks(`playlist:${decodedId}`, sortedTracks);
-  }, [decodedId, sortedTracks]);
-
   const handleSearchSubmit = useCallback(() => {
     const first = search.matches?.[0];
     if (!first || !viewData) return;
@@ -394,6 +423,47 @@ function LibraryPlaylistContent() {
     }, 1200);
     return () => clearTimeout(timer);
   }, [sortedTracks, viewData, toast, t]);
+
+  // ---- custom cover handling ------------------------------------------------
+  const openCoverPicker = useCallback(() => {
+    coverInputRef.current?.click();
+  }, []);
+
+  const handleCoverFile = useCallback(
+    async (file: File | undefined) => {
+      if (!file || !decodedId || isLikesMode) return;
+      if (!file.type.startsWith("image/")) {
+        toast(t("playlist.cover_invalid"), "info");
+        return;
+      }
+      setIsCoverBusy(true);
+      try {
+        const blob = await fileToSquareCoverBlob(file);
+        await setCustomCover(decodedId, blob);
+        toast(t("playlist.cover_updated"), "checkmark", {
+          description: viewData?.title || undefined,
+        });
+      } catch {
+        toast(t("playlist.cover_failed"), "info");
+      } finally {
+        setIsCoverBusy(false);
+        if (coverInputRef.current) coverInputRef.current.value = "";
+      }
+    },
+    [decodedId, isLikesMode, toast, t, viewData?.title],
+  );
+
+  const handleResetCover = useCallback(async () => {
+    if (!decodedId) return;
+    try {
+      await removeCustomCover(decodedId);
+      toast(t("playlist.cover_reset"), "checkmark", {
+        description: viewData?.title || undefined,
+      });
+    } catch {
+      // removal failures are non-fatal — cover simply stays as-is
+    }
+  }, [decodedId, toast, t, viewData?.title]);
 
   const handleShare = useCallback(() => {
     if (typeof navigator !== "undefined" && navigator.clipboard && decodedId) {
@@ -553,12 +623,12 @@ function LibraryPlaylistContent() {
   if (!isLoading && loadFailed) {
     return (
       <div className="h-full w-full bg-transparent flex flex-col items-center justify-center gap-[6px] px-[24px] text-center">
-        <span className="text-title font-[600] text-text-primary">
+        <span className="text-[15px] font-[600] text-text-primary">
           {t(
             isLikesMode ? "playlist.likes_load_failed" : "playlist.load_failed",
           )}
         </span>
-        <span className="text-body text-text-secondary">
+        <span className="text-[13px] text-text-secondary">
           {t("playlist.load_failed_desc")}
         </span>
         {isLikesMode ? (
@@ -586,6 +656,16 @@ function LibraryPlaylistContent() {
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-transparent">
+      {/* hidden picker backing the hero-overlay + more-menu "change cover" */}
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          void handleCoverFile(e.target.files?.[0]);
+        }}
+      />
       <div className="relative z-1 grid grid-cols-1 w-full h-full min-h-0 overflow-hidden">
         {viewData && (
           <div
@@ -616,11 +696,49 @@ function LibraryPlaylistContent() {
               >
                 <EntityHero
                   cover={
-                    <PlaylistHeroCover
-                      urls={viewData.coverUrls}
-                      title={viewData.title}
-                      likesCover={isLikesMode ? likesCover : undefined}
-                    />
+                    <div className="group/cover relative h-full w-full">
+                      <PlaylistHeroCover
+                        urls={
+                          customCoverUrl
+                            ? [customCoverUrl]
+                            : viewData.coverUrls
+                        }
+                        title={viewData.title}
+                        likesCover={isLikesMode ? likesCover : undefined}
+                      />
+                      {/* custom-cover controls: hover the hero artwork to
+                          change / reset (also available in the more menu) */}
+                      {!isLikesMode && (
+                        <div
+                          className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-[8px] rounded-[inherit] bg-black/50 px-[10px] opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-hover/cover:opacity-100 focus-within:opacity-100 ${
+                            isCoverBusy ? "opacity-100" : ""
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={openCoverPicker}
+                            disabled={isCoverBusy}
+                            className="flex cursor-pointer items-center gap-[6px] rounded-lg border border-white/20 bg-white/10 px-[10px] py-[6px] text-[12px] font-[500] text-white transition-colors hover:bg-white/20 active:scale-[0.97] disabled:opacity-60"
+                            style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                          >
+                            <LuCamera size={15} />
+                            <span>{t("playlist.change_cover")}</span>
+                          </button>
+                          {customCoverUrl && (
+                            <button
+                              type="button"
+                              onClick={() => void handleResetCover()}
+                              disabled={isCoverBusy}
+                              className="flex cursor-pointer items-center gap-[6px] rounded-lg border-0 bg-transparent px-[8px] py-[4px] text-[11px] font-[400] text-white/80 transition-colors hover:text-white active:scale-[0.97] disabled:opacity-60"
+                              style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                            >
+                              <LuRotateCcw size={12} />
+                              <span>{t("playlist.reset_cover")}</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   }
                   title={
                     <h1
@@ -713,43 +831,62 @@ function LibraryPlaylistContent() {
                       <button
                         type="button"
                         onClick={() => setIsEditingDescription(true)}
-                        className="cursor-pointer border-0 bg-transparent p-0 text-left text-body font-[400] text-text-tertiary transition-colors hover:text-text-primary"
+                        className="cursor-pointer border-0 bg-transparent p-0 text-left text-[13px] font-[400] text-text-tertiary transition-colors hover:text-text-primary"
                       >
                         {t("common.add_description")}
                       </button>
                     )
                   }
                   meta={
-                    <HeroMeta
-                      items={[
-                        viewData.countLabel,
-                        (() => {
-                          const totalMs =
-                            viewData.durationMs ??
-                            viewData.tracks.reduce(
-                              (acc, t) => acc + (t.durationMs || 0),
-                              0,
+                    <div className="flex items-center flex-wrap gap-[6px]">
+                      <div className={HERO_CHIP_CLASS}>
+                        <MusicLine
+                          size={13}
+                          className="text-text-secondary shrink-0"
+                        />
+                        <span>{viewData.countLabel}</span>
+                        <span
+                          className="w-[3px] h-[3px] rounded-full shrink-0 bg-text-secondary/50"
+                          aria-hidden
+                        />
+                        <span>
+                          {(() => {
+                            const totalMs =
+                              viewData.durationMs ??
+                              viewData.tracks.reduce(
+                                (acc, t) => acc + (t.durationMs || 0),
+                                0,
+                              );
+                            const totalMins = Math.floor(totalMs / 60000);
+                            if (totalMins > 60) {
+                              return `${Math.floor(totalMins / 60)} ${t("playlist.hr")} ${totalMins % 60} ${t("playlist.min")}`;
+                            }
+                            const totalSecs = Math.floor(
+                              (totalMs % 60000) / 1000,
                             );
-                          const totalMins = Math.floor(totalMs / 60000);
-                          if (totalMins > 60) {
-                            return `${Math.floor(totalMins / 60)} ${t("playlist.hr")} ${totalMins % 60} ${t("playlist.min")}`;
-                          }
-                          const totalSecs = Math.floor(
-                            (totalMs % 60000) / 1000,
-                          );
-                          return `${totalMins} ${t("playlist.min")} ${totalSecs} ${t("playlist.sec")}`;
-                        })(),
-                        isLikesMode &&
-                          saveLikedEnabled &&
-                          viewData.tracks.length > 0 &&
-                          t("library.saved_count", {
-                            saved: viewData.tracks.filter((track) =>
-                              isSavedTrack(track.id),
-                            ).length,
-                            total: viewData.tracks.length,
-                          }),
-                      ]}
-                    />
+                            return `${totalMins} ${t("playlist.min")} ${totalSecs} ${t("playlist.sec")}`;
+                          })()}
+                        </span>
+                      </div>
+                      {isLikesMode &&
+                      saveLikedEnabled &&
+                      viewData.tracks.length > 0 ? (
+                        <div className={HERO_CHIP_CLASS}>
+                          <DownloadLine
+                            size={13}
+                            className="text-text-secondary shrink-0"
+                          />
+                          <span>
+                            {t("library.saved_count", {
+                              saved: viewData.tracks.filter((track) =>
+                                isSavedTrack(track.id),
+                              ).length,
+                              total: viewData.tracks.length,
+                            })}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
                   }
                   actions={
                     <>
@@ -850,6 +987,22 @@ function LibraryPlaylistContent() {
                               onClick: () => setIsEditingDescription(true),
                             },
                             {
+                              id: "change-cover",
+                              icon: <LuImagePlus size={15} />,
+                              label: t("playlist.change_cover"),
+                              onClick: openCoverPicker,
+                            },
+                            ...(customCoverUrl
+                              ? [
+                                  {
+                                    id: "reset-cover",
+                                    icon: <LuRotateCcw size={15} />,
+                                    label: t("playlist.reset_cover"),
+                                    onClick: () => void handleResetCover(),
+                                  },
+                                ]
+                              : []),
+                            {
                               id: "share",
                               icon: <ShareForwardLine size={15} />,
                               label: t("common.share"),
@@ -879,15 +1032,23 @@ function LibraryPlaylistContent() {
                 />
               </div>
 
-              <ListPanel>
+              <div
+                className={`grow shrink-0 mt-[20px] mx-[4px] rounded-t-[14px] bg-black/[0.03] dark:bg-white/[0.04] overflow-hidden px-[8px] pt-[8px] ${
+                  classicSurfaces ? "" : "backdrop-blur-xl"
+                }`}
+                style={{
+                  marginBottom: "calc(var(--page-inset-bottom) * -1)",
+                  paddingBottom: "calc(var(--page-inset-bottom) + 16px)",
+                }}
+              >
                 {currentTracks.length === 0 ? (
                   <div className="flex min-h-[50vh] flex-col items-center justify-center gap-[12px] text-center">
                     <PlaylistFill size={40} className="text-border-alpha-33" />
                     <div className="flex flex-col gap-[4px]">
-                      <p className="m-0 text-title font-[500] text-text-primary">
+                      <p className="m-0 text-[15px] font-[500] text-text-primary">
                         {t("playlist.empty_title")}
                       </p>
-                      <p className="m-0 text-body text-text-tertiary">
+                      <p className="m-0 text-[13px] text-text-tertiary">
                         {t("playlist.empty_subtitle")}
                       </p>
                     </div>
@@ -1029,7 +1190,7 @@ function LibraryPlaylistContent() {
                     />
                   </FloatingDragCard>
                 )}
-              </ListPanel>
+              </div>
             </div>
           </div>
         )}

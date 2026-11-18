@@ -1,8 +1,9 @@
 import { useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslation } from "@/languages";
+import { isAudioFile } from "@/shared/media/local";
 import { showToast } from "@/shared/ui";
-import { isAudioFile, useAudioFileDrop } from "../hooks/useAudioFileDrop";
+import { useAudioFileDrop } from "../hooks/useAudioFileDrop";
 import { useLocalImport } from "../hooks/useLocalImport";
 import LocalDropStack from "./LocalDropStack";
 
@@ -26,8 +27,6 @@ export default function LocalDropZone() {
   );
 
   const { dragging, fileCount } = useAudioFileDrop(handleDrop);
-
-  if (!window.linerElectron) return null;
 
   return (
     <AnimatePresence>
@@ -67,7 +66,12 @@ export default function LocalDropZone() {
             </div>
             {fileCount > 0 && (
               <span className="rounded-full bg-white/10 px-[12px] py-[5px] text-[12.5px] font-[500] text-white/85">
-                {t("library.local.drop_count", { count: fileCount })}
+                {t(
+                  fileCount === 1
+                    ? "library.local.drop_count_one"
+                    : "library.local.drop_count_other",
+                  { count: fileCount },
+                )}
               </span>
             )}
           </motion.div>

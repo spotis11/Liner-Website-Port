@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Lyric } from "@braccato/parsers";
 import { cn } from "@/shared/lib";
-import { isWindowDraggingActive } from "@/shared/hooks";
 import { useLyricsEdgeBlur, useLyricsEdgeFade } from "../store/visualModeStore";
 import { useLyricsCanvas } from "../hooks/useLyricsCanvas";
 import { playerEngine } from "../engine/playerEngine";
@@ -63,7 +62,6 @@ export function CanvasLyricsView({ lyrics }: CanvasLyricsViewProps) {
   };
 
   const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isWindowDraggingActive()) return;
     const startMs = lineStartAt(event);
     if (startMs === null) return;
     releasePin();

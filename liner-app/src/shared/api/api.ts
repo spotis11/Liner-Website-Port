@@ -29,6 +29,7 @@ import {
 import { clientCatalog } from "./clientCatalog";
 import { getLocalImportHandler } from "./localImports";
 import type { Track } from "@/shared/contracts";
+import type { UsernameAvailability } from "@/shared/contracts/auth";
 import { telemetry } from "@/shared/telemetry";
 import type {
   PublicUser,
@@ -36,11 +37,9 @@ import type {
   UserProfile,
   LeaderboardResponse,
   DailyMixesResponse,
-  UsernameAvailability,
 } from "@/shared/contracts";
 
 import { usePlayerStore } from "@/features/player/store/playerStore";
-import { isLocalTrackId } from "@/shared/media/local";
 import { showToast } from "@/shared/ui/Toast";
 import { createTranslatorSync, getStoredLocale } from "@/languages";
 import {
@@ -76,19 +75,6 @@ function offlineModeAction() {
 }
 
 import { getApiBaseUrl } from "./baseUrl";
-import {
-  PowTimeoutError,
-  SUPPORTED_POW_ALGORITHM,
-  type PowChallenge,
-  type PowSolution,
-} from "./proofOfWork";
-import { solvePow } from "./proofOfWorkRunner";
-import { refreshEdgeKey, type EdgeKeyAnswer } from "./edgeKey";
-import {
-  isHumanCheckMode,
-  runHumanCheck,
-  type HumanCheckAction,
-} from "./humanCheck";
 
 const CLIENT_VERSION =
   (import.meta.env.VITE_CLIENT_VERSION as string | undefined) ||
@@ -672,89 +658,6 @@ import type {
   MostSavedType,
 } from "../contracts";
 
-const RETRYABLE_POW_CODES = new Set(["POW_EXPIRED", "POW_REUSED"]);
-
-interface AuthProof {
-  pow?: PowSolution;
-  turnstile?: string;
-  edge?: boolean;
-}
-
-function authBody(proof: AuthProof) {
-  return { pow: proof.pow, turnstile: proof.turnstile };
-}
-
-function authInit(proof: AuthProof, body: unknown): RequestInit {
-  return {
-    method: "POST",
-    body: JSON.stringify(body),
-    ...(proof.edge ? { credentials: "include" as const } : {}),
-  };
-}
-
-function blockedBeforeOurServer(error: unknown): boolean {
-  return error instanceof TypeError || statusOf(error) === 0;
-}
-
-async function humanCheck(
-  challenge: PowChallenge,
-  purpose: HumanCheckAction,
-): Promise<string | undefined> {
-  const requested = challenge.turnstile?.mode;
-  const mode = isHumanCheckMode(requested) ? requested : "off";
-  if (mode === "off" && !challenge.turnstile?.edge) return undefined;
-  return runHumanCheck(purpose, mode === "off" ? "optional" : mode);
-}
-
-async function authProofFor(
-  purpose: HumanCheckAction,
-  email: string,
-): Promise<AuthProof> {
-  let challenge: PowChallenge;
-  try {
-    challenge = await request<PowChallenge>(
-      "/v1/auth/challenge",
-      { method: "POST", body: JSON.stringify({ purpose, email }) },
-      false,
-    );
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return {};
-    throw error;
-  }
-  const work =
-    challenge.mode === "off" || challenge.algorithm !== SUPPORTED_POW_ALGORITHM
-      ? undefined
-      : solvePow(challenge);
-  void work?.catch(() => undefined);
-  const turnstile = await humanCheck(challenge, purpose);
-  return {
-    pow: await work,
-    turnstile,
-    edge: challenge.turnstile?.edge === true,
-  };
-}
-
-async function withAuthProof<T>(
-  purpose: HumanCheckAction,
-  email: string,
-  send: (proof: AuthProof) => Promise<T>,
-): Promise<T> {
-  let proof: AuthProof | undefined;
-  try {
-    proof = await authProofFor(purpose, email);
-    return await send(proof);
-  } catch (error) {
-    const retryable =
-      error instanceof PowTimeoutError ||
-      (error instanceof ApiError &&
-        !!error.code &&
-        RETRYABLE_POW_CODES.has(error.code)) ||
-      (proof?.edge === true && blockedBeforeOurServer(error));
-    if (!retryable) throw error;
-    return send(await authProofFor(purpose, email));
-  }
-}
-
 // ---- Endpoints --------------------------------------------------------------
 
 /**
@@ -923,6 +826,20 @@ export const api = {
   },
 
   /** Upstream has no guest tier — kept for store compatibility, UI hides it. */
+  checkUsername(
+    username: string,
+    signal?: AbortSignal,
+  ): Promise<UsernameAvailability> {
+    const params = new URLSearchParams({
+      username: username.trim().toLowerCase(),
+    });
+    return request<UsernameAvailability>(
+      `/v1/auth/username-available?${params}`,
+      { signal },
+      false,
+    );
+  },
+
   async guestLogin(): Promise<AuthTokens> {
     const result = await request<AuthTokens>("/api/auth/guest", {
       method: "POST",
@@ -952,20 +869,6 @@ export const api = {
     );
     setAuthSession(result);
     return result;
-  },
-
-  checkUsername(
-    username: string,
-    signal?: AbortSignal,
-  ): Promise<UsernameAvailability> {
-    const params = new URLSearchParams({
-      username: username.trim().toLowerCase(),
-    });
-    return request<UsernameAvailability>(
-      `/v1/auth/username-available?${params}`,
-      { signal },
-      false,
-    );
   },
 
   getMe(): Promise<AuthUser> {
@@ -1136,7 +1039,6 @@ export const api = {
   },
 
   async likeTrack(id: string): Promise<void> {
-    if (isLocalTrackId(id)) throw new Error("Local tracks stay on this device");
     const track = await clientCatalog.resolveSnapshot(id);
     return request<void>(
       `/v1/me/library/tracks/${encodeURIComponent(id)}`,
@@ -1169,9 +1071,10 @@ export const api = {
   },
 
   unlikeTrack(id: string): Promise<void> {
-    return request<void>(`/v1/me/library/tracks/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
+    return request<void>(
+      `/v1/me/library/tracks/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    );
   },
 
   listSavedCollections(
@@ -1293,8 +1196,6 @@ export const api = {
     trackId: string,
     snapshot?: ApiTrackBase,
   ): Promise<ApiUserPlaylistItem> {
-    if (isLocalTrackId(trackId))
-      throw new Error("Local tracks stay on this device");
     const track = snapshot ?? (await clientCatalog.resolveSnapshot(trackId));
     return request<ApiUserPlaylistItem>(
       `/v1/me/playlists/${encodeURIComponent(playlistId)}/tracks/${encodeURIComponent(trackId)}`,

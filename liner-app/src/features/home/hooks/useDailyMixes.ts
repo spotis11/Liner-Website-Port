@@ -159,33 +159,6 @@ async function loadInnertubeMixes(): Promise<DailyMix[]> {
   return mixes.filter((mix): mix is DailyMix => mix !== null);
 }
 
-function primeMixCollections(mixes: DailyMix[]): void {
-  for (const mix of mixes) {
-    const collectionData: CollectionPageData = {
-      type: "playlist",
-      title: mix.title,
-      author:
-        mix.clusterArtists.length > 0
-          ? mix.clusterArtists.join(", ")
-          : "Daily Mix",
-      description: mix.description,
-      coverUrl: mix.coverUrl || "",
-      tracks: mix.tracks,
-    };
-    queryCache.set(`collection:playlist:${mix.id}`, collectionData);
-  }
-}
-
-export function dailyMixesCacheKey(owner: string): string {
-  return `home:daily-mixes:${owner}`;
-}
-
-const DAILY_MIXES_POLICY = {
-  isFresh: freshFor(10 * 60_000),
-  revalidateOnFocus: true,
-  sessionOnly: true,
-};
-
 export function useDailyMixes() {
   const owner = useSessionOwner();
   const { data, isLoading } = useCachedResource(

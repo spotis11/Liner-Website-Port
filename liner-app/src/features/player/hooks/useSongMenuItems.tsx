@@ -7,14 +7,14 @@ import {
   LuPlus,
   LuTrash2,
   LuFolderPlus,
-  LuEraser,
 } from "react-icons/lu";
 import { ShareForwardLine } from "@mingcute/react";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import { playerEngine } from "../engine/playerEngine";
 import {
   usePlaylistsList,
-  useToggleTrackLike,
+  useLikeTrack,
+  useUnlikeTrack,
   useIsTrackLiked,
   useModalStore,
 } from "@/features/library";
@@ -71,38 +71,19 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
 
   const { data: playlistsData } = usePlaylistsList();
 
-  const toggleLike = useToggleTrackLike();
+  const likeMutation = useLikeTrack();
+  const unlikeMutation = useUnlikeTrack();
 
   const liked = useIsTrackLiked(id);
 
-  const isTrack = searchType === "track" || !searchType;
-  const cached = useIsTrackCached(isTrack ? id : undefined);
-
-  const handleRemoveFromCache = useCallback(() => {
+  const handleLike = useCallback(async () => {
     if (!id) return;
-    void removeTrackFromCache(id).then(() => {
-      showToast(t("common.removed_from_cache"), "checkmark", {
-        description: artists ? `${title} — ${artists}` : title,
-      });
-    });
-  }, [id, title, artists, t]);
-
-  const handleLike = useCallback(() => {
-    if (!id) return;
-    toggleLike(id);
-  }, [id, toggleLike]);
-
-  const handleShare = useCallback(() => {
-    if (!id) return;
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      const type =
-        (searchType as "track" | "album" | "artist" | "playlist") || "track";
-      void navigator.clipboard.writeText(buildShareUrl(type, id));
-      showToast(t("common.link_copied"), "checkmark", {
-        description: artists ? `${title} — ${artists}` : title,
-      });
+    if (liked) {
+      unlikeMutation.mutate(id);
+    } else {
+      likeMutation.mutate(id);
     }
-  }, [id, searchType, title, artists, t]);
+  }, [id, liked, likeMutation, unlikeMutation]);
 
   const handleShare = useCallback(() => {
     if (!id) return;
@@ -180,7 +161,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
               <LuHeart
                 size={15}
                 className={
-                  liked ? "fill-accent-primary text-accent-primary" : "text-text-secondary"
+                  liked ? "fill-red-500 text-red-500" : "text-text-secondary"
                 }
               />
             ),
@@ -270,7 +251,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
             <LuHeart
               size={15}
               className={
-                liked ? "fill-accent-primary text-accent-primary" : "text-text-secondary"
+                liked ? "fill-red-500 text-red-500" : "text-text-secondary"
               }
             />
           ),
@@ -371,33 +352,5 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     t,
   ]);
 
-  const items = buildMenu();
-  if (!isLocalTrackId(id)) {
-    if (!cached) return items;
-    const removeFromCacheItem: DropdownMenuItem = {
-      id: "remove-from-cache",
-      label: t("common.remove_from_cache"),
-      icon: <LuEraser size={15} />,
-      onClick: handleRemoveFromCache,
-    };
-    const firstDanger = items.findIndex((item) => item.danger);
-    if (firstDanger === -1) return [...items, removeFromCacheItem];
-    return [
-      ...items.slice(0, firstDanger),
-      removeFromCacheItem,
-      ...items.slice(firstDanger),
-    ];
-  }
-  const deviceItems = items.filter((item) => !CLOUD_ONLY_ITEMS.has(item.id));
-  if (!onRemoveFromDevice) return deviceItems;
-  return [
-    ...deviceItems,
-    {
-      id: "remove-from-device",
-      label: t("library.local.remove"),
-      icon: <LuTrash2 size={15} />,
-      danger: true,
-      onClick: onRemoveFromDevice,
-    },
-  ];
+  return buildMenu();
 }

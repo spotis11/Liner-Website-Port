@@ -10,6 +10,7 @@ import { HeartFill, HeartLine } from "@mingcute/react";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import { ScrollableText } from "@/shared/ui/ScrollableText";
 import { useDisableButtonFocus } from "@/features/navigation/hooks/useDisableButtonFocus";
+import { getAuthSession } from "@/shared/api/auth-session";
 import type { OverlayAction, OverlayStatePayload } from "../contracts";
 import {
   useCustomizationStore,
@@ -17,7 +18,13 @@ import {
   DEFAULT_GLASS_CONFIG,
 } from "@/features/settings/store/customizationStore";
 import { useShortcutsStore, matchesShortcut } from "@/features/shortcuts";
-import { isLocalTrackId } from "@/shared/media/local/localTrackIds";
+import { MiniOverlayVisualizer } from "./MiniOverlayVisualizer";
+
+// tryliner/desktop PR #343: the overlay can cycle its info area between the
+// plain track info and a mini visualizer. (Upstream also has a lyrics mode —
+// this fork's overlay state doesn't carry synced lyrics, so the cycle is
+// track_info ⇄ visualizer here.)
+export type OverlayDisplayMode = "track_info" | "visualizer";
 
 function sampledPositionMs({
   status,
@@ -57,6 +64,30 @@ export function OverlayPlayer() {
   const [isShown, setIsShown] = useState(
     () => !window.linerElectron?.onOverlayVisibility,
   );
+  const [displayMode, setDisplayMode] = useState<OverlayDisplayMode>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("liner_overlay_display_mode");
+        if (saved === "track_info" || saved === "visualizer") {
+          return saved;
+        }
+      } catch {}
+    }
+    return "track_info";
+  });
+
+  const handleArtworkDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDisplayMode((prev) => {
+      const next: OverlayDisplayMode =
+        prev === "track_info" ? "visualizer" : "track_info";
+      try {
+        localStorage.setItem("liner_overlay_display_mode", next);
+      } catch {}
+      return next;
+    });
+  }, []);
 
   const anchorPosRef = useRef(state.positionMs);
   const anchorTimeRef = useRef(performance.now());
@@ -227,19 +258,17 @@ export function OverlayPlayer() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
 
-      const { miniplayer, volumeHoldRepeats } = useShortcutsStore.getState();
+      const { miniplayer } = useShortcutsStore.getState();
 
       // Sound up / down shortcuts
       if (matchesShortcut(e, miniplayer.volumeUp)) {
         e.preventDefault();
-        if (e.repeat && !volumeHoldRepeats) return;
         sendAction({ type: "volumeUp" });
         return;
       }
 
       if (matchesShortcut(e, miniplayer.volumeDown)) {
         e.preventDefault();
-        if (e.repeat && !volumeHoldRepeats) return;
         sendAction({ type: "volumeDown" });
         return;
       }
@@ -280,7 +309,7 @@ export function OverlayPlayer() {
       // Like
       if (matchesShortcut(e, miniplayer.likeTrack)) {
         e.preventDefault();
-        if (!isLocalTrackId(stateTrackId)) sendAction({ type: "like" });
+        sendAction({ type: "like" });
         return;
       }
 
@@ -365,7 +394,12 @@ export function OverlayPlayer() {
             onMouseEnter={() => setIsInfoHovered(true)}
             onMouseLeave={() => setIsInfoHovered(false)}
           >
-            <div className="relative h-[32px] w-[32px] shrink-0 overflow-hidden rounded-item bg-[#16161a]">
+            <div
+              className="relative h-[32px] w-[32px] shrink-0 overflow-hidden rounded-[12px] bg-[#16161a] cursor-pointer group/artwork ring-0 hover:ring-1 hover:ring-white/40 transition-all select-none"
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+              onDoubleClick={handleArtworkDoubleClick}
+              title="Double-click to cycle: Info ⇄ Visualizer"
+            >
               {state.track?.coverUrl || state.track?.cover ? (
                 <CoverImage
                   key={state.track.coverUrl || state.track.cover}
@@ -376,7 +410,7 @@ export function OverlayPlayer() {
                   priority
                   unoptimized
                   draggable={false}
-                  className="rounded-item object-cover pointer-events-none select-none"
+                  className="rounded-[12px] object-cover pointer-events-none select-none"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-[11px] text-white/30 select-none">
@@ -385,18 +419,28 @@ export function OverlayPlayer() {
               )}
             </div>
 
-            <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden">
-              <ScrollableText
-                text={state.track?.title || "No track playing"}
-                isParentHovered={isInfoHovered}
-                className="text-body font-normal leading-[16px] text-white tracking-tight"
-              />
-              <ScrollableText
-                text={state.track?.artist || ""}
-                isParentHovered={isInfoHovered}
-                className="mt-[1px] text-[11px] font-light leading-[14px] text-white/50"
-              />
-            </div>
+            {displayMode === "visualizer" ? (
+              <div className="flex min-w-0 flex-1 items-center overflow-hidden">
+                <MiniOverlayVisualizer
+                  isActive={isShown}
+                  isPlaying={isPlaying}
+                  volume={state.volume}
+                />
+              </div>
+            ) : (
+              <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden">
+                <ScrollableText
+                  text={state.track?.title || "No track playing"}
+                  isParentHovered={isInfoHovered}
+                  className="text-[13px] font-normal leading-[16px] text-white tracking-tight"
+                />
+                <ScrollableText
+                  text={state.track?.artist || ""}
+                  isParentHovered={isInfoHovered}
+                  className="mt-[1px] text-[11px] font-light leading-[14px] text-white/50"
+                />
+              </div>
+            )}
           </div>
 
           {/* Right: Like Button + Playback Controls (Previous, Play/Pause, Next) */}
@@ -405,32 +449,30 @@ export function OverlayPlayer() {
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            {!isLocalTrackId(state.track?.id) && (
-              <button
-                type="button"
-                tabIndex={-1}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  sendAction({ type: "like" });
-                }}
-                className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-0 bg-transparent transition-colors outline-none cursor-pointer active:scale-90 ${
-                  state.isLiked
-                    ? "text-[#ff3b5c]"
-                    : "text-white/40 hover:text-white"
-                }`}
-                aria-label={state.isLiked ? "Unlike" : "Like"}
-              >
-                {state.isLiked ? (
-                  <HeartFill size={16} />
-                ) : (
-                  <HeartLine size={16} />
-                )}
-              </button>
-            )}
+            <button
+              type="button"
+              tabIndex={-1}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                sendAction({ type: "like" });
+              }}
+              className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-0 bg-transparent transition-colors outline-none cursor-pointer active:scale-90 ${
+                state.isLiked
+                  ? "text-[#ff3b5c]"
+                  : "text-white/40 hover:text-white"
+              }`}
+              aria-label={state.isLiked ? "Unlike" : "Like"}
+            >
+              {state.isLiked ? (
+                <HeartFill size={16} />
+              ) : (
+                <HeartLine size={16} />
+              )}
+            </button>
 
             <button
               type="button"

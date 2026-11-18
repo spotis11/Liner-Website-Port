@@ -1,5 +1,5 @@
-import { memo, useEffect, useRef, useState } from "react";
-import { More2Fill, RepeatFill } from "@mingcute/react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { HeartFill, HeartLine, More2Fill, RepeatFill } from "@mingcute/react";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import { useTranslation } from "@/languages";
@@ -8,6 +8,8 @@ import HighlightedText from "@/shared/ui/HighlightedText";
 import ExplicitBadge from "@/shared/ui/ExplicitBadge";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import { isCoverReady } from "@/features/covers/lib/coverArt";
+import { hoverPreview } from "../engine/hoverPreview";
+import type { PlayableTrack } from "../engine/playbackStream";
 import type { TrackArtist } from "@/shared/types";
 
 export interface SongCardProps {
@@ -23,6 +25,8 @@ export interface SongCardProps {
   onDoubleClick?: () => void;
   duration?: string;
   releaseDate?: string;
+  dateAdded?: string;
+  albumName?: string;
   explicit?: boolean;
   imageShape?: "square" | "circle";
   trackNumber?: number;
@@ -41,14 +45,13 @@ export interface SongCardProps {
   highlight?: string;
   hideArtists?: boolean;
   trailingAction?: React.ReactNode;
-  /** table mode columns: rendered in fixed-width slots before the duration */
-  albumName?: string;
-  dateAdded?: string;
+  /** when set, hovering the row plays a short preview of this track */
+  previewTrack?: PlayableTrack | null;
+  /** renders a heart state indicator before the duration (red fill = liked) */
+  liked?: boolean;
+  /** clicking the heart indicator toggles the like state */
+  onToggleLike?: () => void;
 }
-
-// fixed widths so a TrackTableHeader can line up with these columns
-export const TRACK_ALBUM_COLUMN = 200;
-export const TRACK_DATE_COLUMN = 110;
 
 function SongCard({
   title,
@@ -78,12 +81,42 @@ function SongCard({
   highlight,
   hideArtists = false,
   trailingAction,
-  albumName,
-  dateAdded,
+  previewTrack,
+  liked,
+  onToggleLike,
 }: SongCardProps) {
   const { t } = useTranslation();
   const [imageLoaded, setImageLoaded] = useState(() => isCoverReady(coverUrl));
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const previewKey = previewTrack?.id ?? null;
+
+  useEffect(() => {
+    return () => {
+      if (previewKey) hoverPreview.hoverEnd(previewKey);
+    };
+  }, [previewKey]);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!previewTrack) return;
+    hoverPreview.hoverStart(previewTrack);
+  }, [previewTrack]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!previewTrack) return;
+    hoverPreview.hoverEnd(previewTrack.id);
+  }, [previewTrack]);
+
+  const handleToggleLikeClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!onToggleLike) return;
+      // keep the row itself from reacting (play / preview / drag)
+      e.stopPropagation();
+      e.preventDefault();
+      onToggleLike();
+    },
+    [onToggleLike],
+  );
 
   useEffect(() => {
     setImageLoaded(isCoverReady(coverUrl));
@@ -94,8 +127,8 @@ function SongCard({
     : hideArtists
       ? "h-[36px] w-[48px]"
       : "h-[48px] w-[48px]";
-  const titleSizeClass = compact ? "text-label" : "text-[16px]";
-  const artistSizeClass = compact ? "text-caption" : "text-title";
+  const titleSizeClass = compact ? "text-[14px]" : "text-[16px]";
+  const artistSizeClass = compact ? "text-[12px]" : "text-[15px]";
   const gapClass = compact ? "gap-[12px]" : "gap-[16px]";
   const paddingClass = compact
     ? "p-[6px]"
@@ -134,10 +167,12 @@ function SongCard({
 
   return (
     <div
-      className={`group w-full flex items-center justify-between rounded-control ${paddingClass} outline-none transition-colors duration-150 ease-out ${
+      className={`group w-full flex items-center justify-between rounded-md ${paddingClass} outline-none transition-colors duration-150 ease-out ${
         className ?? ""
       } ${onPlay ? "cursor-pointer" : ""} ${onPlay && !className?.includes("hover:bg-") ? "hover:bg-border-alpha-14" : ""}`}
       onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onPointerDown={(e) => {
         if (clickTimerRef.current) {
           clearTimeout(clickTimerRef.current);
@@ -180,7 +215,7 @@ function SongCard({
         ) : (
           <div
             className={`relative ${imageSizeClass} shrink-0 overflow-hidden bg-bg-panel flex items-center justify-center ${
-              imageShape === "circle" ? "rounded-full" : "rounded-control"
+              imageShape === "circle" ? "rounded-full" : "rounded-md"
             }`}
           >
             {icon ? (
@@ -223,7 +258,7 @@ function SongCard({
             </h3>
             {repostedBy && (
               <div
-                className="flex items-center gap-[4px] text-text-tertiary text-body"
+                className="flex items-center gap-[4px] text-text-tertiary text-[13px]"
                 title={t("common.reposted_by", { name: repostedBy })}
               >
                 <RepeatFill size={14} />
@@ -258,27 +293,25 @@ function SongCard({
       </div>
 
       <div className="flex items-center shrink-0 ml-[16px] gap-[16px]">
-        {albumName && (
-          <span
-            className="hidden min-[900px]:block w-[200px] truncate text-label text-text-secondary"
-            style={{ fontWeight: 400 }}
-            title={albumName}
+        {onToggleLike && (
+          <button
+            type="button"
+            aria-label={liked ? t("common.unlike") : t("common.like")}
+            title={liked ? t("common.unlike") : t("common.like")}
+            data-prevent-drag
+            onClick={handleToggleLikeClick}
+            className={`shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0 transition-all duration-200 active:scale-[0.9] ${
+              liked
+                ? "flex items-center justify-center text-red-500"
+                : "flex items-center justify-center text-text-secondary opacity-0 transition-opacity group-hover:opacity-100 hover:text-text-primary focus-visible:opacity-100"
+            }`}
           >
-            {albumName}
-          </span>
-        )}
-        {dateAdded && (
-          <span
-            className="hidden min-[900px]:block w-[110px] truncate text-label text-text-tertiary"
-            style={{ fontWeight: 400 }}
-            title={dateAdded}
-          >
-            {dateAdded}
-          </span>
+            {liked ? <HeartFill size={17} /> : <HeartLine size={17} />}
+          </button>
         )}
         {releaseDate && (
           <span
-            className="text-label text-text-tertiary"
+            className="text-[14px] text-text-tertiary"
             style={{
               fontWeight: 400,
             }}
@@ -288,7 +321,7 @@ function SongCard({
         )}
         {duration && (
           <span
-            className="text-label text-text-tertiary"
+            className="text-[14px] text-text-tertiary"
             style={{
               fontWeight: 400,
             }}
@@ -302,7 +335,7 @@ function SongCard({
               <button
                 type="button"
                 aria-label={t("common.more_options")}
-                className="rounded-control bg-transparent border-0 p-0 text-text-primary transition-all duration-200 active:scale-[0.96] flex items-center justify-center cursor-pointer"
+                className="rounded-md bg-transparent border-0 p-0 text-text-primary transition-all duration-200 active:scale-[0.96] flex items-center justify-center cursor-pointer"
               >
                 <More2Fill size={22} />
               </button>

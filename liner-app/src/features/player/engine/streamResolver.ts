@@ -7,19 +7,12 @@ import {
   toVideoId,
 } from "@/shared/youtube";
 import {
-  isOfflineMode,
-  OFFLINE_UNAVAILABLE_MESSAGE,
-} from "@/features/connectivity/store/offlineModeStore";
-import {
   resolveSoundCloudStream,
   toSoundCloudTrackId,
 } from "@/shared/media/soundcloud";
 import { resolveLinerStream } from "@/shared/media/liner/linerPlayback";
-import { isLocalTrackId, localTrackAudioUrl } from "@/shared/media/local";
-import { savedAudioUrl, savedTrackRecord } from "@/shared/media/saved";
 import { isAbortError } from "@/shared/utils/abort";
 import { log } from "@/shared/utils/logger";
-import { rememberStreamOrigin } from "./nowPlayingLog";
 import {
   fromInnertubeStream,
   fromLinerStream,
@@ -140,11 +133,9 @@ async function resolveYoutubeStandIn(
   log(
     "cyan",
     "playback",
-    `resolved youtube stand-in ${videoId} for "${track.title}"`,
+    `playing youtube stand-in ${videoId} for "${track.title}"`,
   );
-  const stream = await resolveYoutubeAudio(videoId, progressive, signal);
-  stream.standIn = true;
-  return stream;
+  return resolveYoutubeAudio(videoId, progressive, signal);
 }
 
 async function resolveSoundCloud(

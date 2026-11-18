@@ -5,3 +5,7 @@ export {
 } from "./store/savedTracksStore";
 export { useSavedTracks } from "./hooks/useSavedTracks";
 export { default as SavedLikesPage } from "./ui/SavedLikesPage";
+export {
+  shouldAskBeforeSignOut,
+  type SignOutChoice,
+} from "./engine/signOutChoice";

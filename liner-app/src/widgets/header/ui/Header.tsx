@@ -1,10 +1,6 @@
 import { forwardRef, memo } from "react";
 import { motion } from "framer-motion";
 import { Search3Line } from "@mingcute/react";
-import WindowControls, {
-  WINDOW_CONTROLS_LAYOUT_ID,
-  WINDOW_CONTROLS_MORPH,
-} from "@/features/navigation/ui/WindowControls";
 import { cn } from "@/shared/lib";
 import { useTranslation } from "@/languages";
 import { HistoryNavIsland } from "./HistoryNavIsland";
@@ -54,17 +50,6 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         </span>
       </button>
 
-      <div className="flex items-center gap-[8px] mr-[2px] shrink-0">
-        <motion.div
-          layoutId={WINDOW_CONTROLS_LAYOUT_ID}
-          transition={WINDOW_CONTROLS_MORPH}
-          data-no-window-drag
-          data-no-tooltip="true"
-          className="h-[38px] flex items-center gap-[2px] px-[4px] rounded-[10px] shrink-0 bg-transparent"
-        >
-          <WindowControls bare />
-        </motion.div>
-      </div>
     </header>
   );
 });

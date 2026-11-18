@@ -44,7 +44,15 @@ interface ShortcutsStoreState extends ShortcutsSettings {
   globalStatus: GlobalShortcutStatusMap;
   rejectedGlobal: RejectedGlobalShortcut | null;
   setIsRecording: (recording: boolean) => void;
+  setVolumeStep: (step: VolumeStep) => void;
+  setVolumeHoldRepeats: (holdRepeats: boolean) => void;
+  setGlobalStatus: (status: GlobalShortcutStatusMap) => void;
+  clearRejectedGlobal: () => void;
   setGlobalShortcut: (
+    action: keyof GlobalShortcutsSettings,
+    rawShortcut: string,
+  ) => void;
+  commitGlobalShortcut: (
     action: keyof GlobalShortcutsSettings,
     rawShortcut: string,
   ) => void;
@@ -73,7 +81,14 @@ function pickKnownShortcuts<T extends object>(
   return result;
 }
 
-function notifyElectronGlobalShortcuts(global: GlobalShortcutsSettings) {
+const SHORTCUTS_STORAGE_KEY = "liner_shortcuts_settings_v1";
+
+let pendingGlobalEdit: PendingGlobalEdit | null = null;
+
+function notifyElectronGlobalShortcuts(
+  global: GlobalShortcutsSettings,
+  volumeHoldRepeats?: boolean,
+) {
   if (
     typeof window !== "undefined" &&
     window.linerElectron?.updateOverlaySettings

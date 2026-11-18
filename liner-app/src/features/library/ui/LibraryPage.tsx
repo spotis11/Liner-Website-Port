@@ -20,10 +20,11 @@ import { useTranslation } from "@/languages";
 import { useModalStore } from "../store/modalStore";
 import { useImportStore } from "../store/importStore";
 import { usePageBackdrop } from "@/shared/lib";
+import { useCustomPlaylistCoverMap } from "@/features/covers";
 import ImportingPlaylistCard from "./ImportingPlaylistCard";
 import OfflineMixCard from "./OfflineMixCard";
-import { LocalFilesCard } from "../local";
 import { CachedSongsCard, useCachedTracksStore } from "../cached";
+import { LocalFilesCard } from "../local";
 import { WifiOffLine } from "@mingcute/react";
 import { useOfflineModeStore } from "@/features/connectivity";
 import { goOnline } from "@/features/connectivity/engine/offlineController";
@@ -78,10 +79,10 @@ function LikesPlaylistCard({
     return (
       <div
         onClick={onClick}
-        className="w-full flex items-center justify-between rounded-control p-[8px] outline-none transition-colors duration-150 ease-out cursor-pointer hover:bg-border-alpha-14 select-none"
+        className="w-full flex items-center justify-between rounded-md p-[8px] outline-none transition-colors duration-150 ease-out cursor-pointer hover:bg-border-alpha-14 select-none"
       >
         <div className="flex items-center gap-[16px] min-w-0">
-          <div className="relative h-[48px] w-[48px] shrink-0 overflow-hidden rounded-control">
+          <div className="relative h-[48px] w-[48px] shrink-0 overflow-hidden rounded-md">
             <img
               src={likesCover}
               alt=""
@@ -100,7 +101,7 @@ function LikesPlaylistCard({
               {t("library.liked_songs")}
             </h3>
             <p
-              className="m-0 flex min-w-0 items-center text-title leading-[1.2] overflow-hidden text-text-secondary"
+              className="m-0 flex min-w-0 items-center text-[15px] leading-[1.2] overflow-hidden text-text-secondary"
               style={{
                 fontWeight: 350,
               }}
@@ -123,7 +124,7 @@ function LikesPlaylistCard({
       className="group flex flex-col gap-[8px] cursor-pointer"
       draggable={false}
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-control">
+      <div className="relative aspect-square w-full overflow-hidden rounded-md">
         <img
           src={likesCover}
           alt=""
@@ -132,13 +133,13 @@ function LikesPlaylistCard({
         />
       </div>
       <div className="flex flex-col gap-[4px]">
-        <span className="truncate text-label font-[500] text-text-primary">
+        <span className="truncate text-[14px] font-[500] text-text-primary">
           {t("library.liked_songs")}
         </span>
         {isLoading || count === undefined ? (
           <div className="h-[13px] w-[56%] animate-pulse rounded bg-border-alpha-14" />
         ) : (
-          <span className="truncate text-body text-text-tertiary">
+          <span className="truncate text-[13px] text-text-tertiary">
             {t("common.songs", { count })}
           </span>
         )}
@@ -208,22 +209,33 @@ function OnlineLibraryPage() {
     useLikedTrackCount();
   const openCreatePlaylist = useModalStore((state) => state.openCreatePlaylist);
 
+  // custom covers (client-side) override the auto-derived playlist artwork
+  const customCoverMap = useCustomPlaylistCoverMap(
+    useMemo(
+      () => (playlistsData?.playlists ?? []).map((p) => p.id),
+      [playlistsData],
+    ),
+  );
+
   const playlistItems: LibraryItemViewModel[] = useMemo(() => {
     if (!playlistsData) return [];
     const list = playlistsData.playlists ?? [];
-    return list.map((playlist) => ({
-      id: playlist.id,
-      title: playlist.title,
-      subtitle: t("common.tracks", { count: playlist.trackCount }),
-      imageUrl: playlist.coverUrl || "",
-      coverUrls: playlist.coverUrls,
-      kind: "playlist" as const,
-      isOwned: true,
-      href: `/library/playlist?id=${encodeURIComponent(playlist.id)}`,
-      addedAt:
-        playlist.updatedAt || playlist.createdAt || new Date().toISOString(),
-    }));
-  }, [playlistsData, t]);
+    return list.map((playlist) => {
+      const custom = customCoverMap[playlist.id];
+      return {
+        id: playlist.id,
+        title: playlist.title,
+        subtitle: t("common.tracks", { count: playlist.trackCount }),
+        imageUrl: custom || playlist.coverUrl || "",
+        coverUrls: custom ? [custom] : playlist.coverUrls,
+        kind: "playlist" as const,
+        isOwned: true,
+        href: `/library/playlist?id=${encodeURIComponent(playlist.id)}`,
+        addedAt:
+          playlist.updatedAt || playlist.createdAt || new Date().toISOString(),
+      };
+    });
+  }, [playlistsData, customCoverMap, t]);
 
   const initialLoading =
     playlistsLoading ||
@@ -392,11 +404,16 @@ function OnlineLibraryPage() {
     <div className="relative h-full w-full overflow-hidden">
       <div
         ref={scrollContainerRef}
-        className="h-full w-full overflow-y-auto bg-transparent pt-(--page-inset-top) pb-(--page-inset-bottom)"
+        className="h-full w-full overflow-y-auto bg-transparent pb-(--page-inset-bottom)"
       >
         <div className="relative z-20 bg-transparent">
-          <div className="px-[12px] pt-[11px] pb-[10px]">
-            <h1 className="text-[26px] font-bold text-text-primary tracking-tight m-0 leading-tight">
+
+          <div className="px-[12px] pt-[36px] pb-[10px]">
+            <h1
+              className="text-[26px] font-bold text-text-primary tracking-tight m-0 leading-tight"
+              style={{ fontFamily: "var(--font-inter), sans-serif" }}
+            >
+
               {t("library.title")}
             </h1>
           </div>
@@ -424,7 +441,7 @@ function OnlineLibraryPage() {
 
         <div className="px-[12px] pt-[4px] pb-[20px]">
           {activeTab === "playlists" && playlistsError ? (
-            <div className="mb-[10px] text-caption text-accent-secondary">
+            <div className="mb-[10px] text-[12px] text-accent-secondary">
               {t("playlist.error_loading")}
             </div>
           ) : null}
@@ -504,17 +521,17 @@ function OfflineLibraryPage() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <div className="h-full w-full overflow-y-auto bg-transparent pt-(--page-inset-top) pb-(--page-inset-bottom)">
-        <div className="px-[12px] pt-[11px] pb-[10px]">
+      <div className="h-full w-full overflow-y-auto bg-transparent pb-(--page-inset-bottom)">
+        <div className="px-[12px] pt-[36px] pb-[10px]">
           <h1
             className="text-[26px] font-bold text-text-primary tracking-tight m-0 leading-tight"
-            style={{ fontFamily: "var(--font-sf)" }}
+            style={{ fontFamily: "var(--font-inter), sans-serif" }}
           >
             {t("library.title")}
           </h1>
           <div
-            className="mt-[10px] flex flex-wrap items-center gap-[10px] text-body text-text-secondary"
-            style={{ fontFamily: "var(--font-sf)" }}
+            className="mt-[10px] flex flex-wrap items-center gap-[10px] text-[13px] text-text-secondary"
+            style={{ fontFamily: "var(--font-inter), sans-serif" }}
           >
             <span className="flex items-center gap-[8px]">
               <WifiOffLine size={15} className="text-text-tertiary" />
@@ -528,7 +545,7 @@ function OfflineLibraryPage() {
               type="button"
               disabled={checking}
               onClick={() => void goOnline()}
-              className="h-[28px] rounded-[9px] border-0 bg-fill-hover px-[12px] text-[12.5px] font-[500] text-text-primary transition-colors hover:bg-black/[0.1] disabled:cursor-default disabled:opacity-60 dark:hover:bg-white/[0.15] cursor-pointer"
+              className="h-[28px] rounded-[9px] border-0 bg-black/[0.06] px-[12px] text-[12.5px] font-[500] text-text-primary transition-colors hover:bg-black/[0.1] disabled:cursor-default disabled:opacity-60 dark:bg-white/[0.1] dark:hover:bg-white/[0.15] cursor-pointer"
             >
               {checking
                 ? t("connectivity.retrying")

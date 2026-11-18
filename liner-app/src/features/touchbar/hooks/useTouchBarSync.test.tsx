@@ -10,7 +10,8 @@ vi.mock("react-router-dom", () => ({
 
 vi.mock("@/features/library/hooks", () => ({
   useIsTrackLiked: () => false,
-  useToggleTrackLike: () => vi.fn(),
+  useLikeTrack: () => ({ mutate: vi.fn() }),
+  useUnlikeTrack: () => ({ mutate: vi.fn() }),
 }));
 
 vi.mock("@/features/lyrics", async () => ({

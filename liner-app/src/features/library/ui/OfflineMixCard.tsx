@@ -4,14 +4,12 @@ import allOfflineCover from "@/assets/all-offline-cover.svg";
 import { playerEngine } from "@/features/player";
 import { useTranslation } from "@/languages";
 import { useCachedTracksStore } from "../cached";
-import { useLocalTracks } from "../local/hooks/useLocalTracks";
 import { useSavedTracks } from "../saved/hooks/useSavedTracks";
 import { mergeOfflineTracks } from "../lib/offlineMix";
 
 export default function OfflineMixCard() {
   const { t } = useTranslation();
   const { tracks: saved, isLoading: savedLoading } = useSavedTracks();
-  const { tracks: local, isLoading: localLoading } = useLocalTracks();
   const cachedItems = useCachedTracksStore((state) => state.items);
   const cachedLoaded = useCachedTracksStore((state) => state.loaded);
   const loadCached = useCachedTracksStore((state) => state.load);
@@ -25,11 +23,10 @@ export default function OfflineMixCard() {
       mergeOfflineTracks(
         saved,
         cachedItems.map((item) => item.track),
-        local,
       ),
-    [saved, cachedItems, local],
+    [saved, cachedItems],
   );
-  const loading = savedLoading || localLoading || !cachedLoaded;
+  const loading = savedLoading || !cachedLoaded;
   const context = t("library.offline_mix.title");
 
   if (!loading && tracks.length === 0) return null;
@@ -51,7 +48,7 @@ export default function OfflineMixCard() {
       onClick={playAll}
       className="group flex cursor-pointer flex-col gap-[8px]"
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-control">
+      <div className="relative aspect-square w-full overflow-hidden rounded-md">
         <img
           src={allOfflineCover}
           alt=""
@@ -73,13 +70,13 @@ export default function OfflineMixCard() {
         </button>
       </div>
       <div className="flex flex-col gap-[4px]">
-        <span className="truncate text-label font-[500] text-text-primary">
+        <span className="truncate text-[14px] font-[500] text-text-primary">
           {context}
         </span>
         {loading ? (
           <div className="h-[13px] w-[56%] animate-pulse rounded bg-border-alpha-14" />
         ) : (
-          <span className="truncate text-body text-text-tertiary">
+          <span className="truncate text-[13px] text-text-tertiary">
             {t("common.songs", { count: tracks.length })}
           </span>
         )}

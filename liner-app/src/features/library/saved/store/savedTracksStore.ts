@@ -7,6 +7,10 @@ import {
 import type { Track } from "@/shared/types";
 import { log } from "@/shared/utils/logger";
 import {
+  parseSignOutChoice,
+  type SignOutChoice,
+} from "../engine/signOutChoice";
+import {
   isOfflineMode,
   useOfflineModeStore,
 } from "@/features/connectivity/store/offlineModeStore";
@@ -30,6 +34,7 @@ import {
 } from "../engine/savedTrackFetcher";
 
 export const SAVE_LIKED_ENABLED_KEY = "liner_save_liked_enabled";
+export const SIGN_OUT_CHOICE_KEY = "liner_saved_sign_out_choice";
 export const SAVED_LIMIT_KEY = "liner_saved_limit_bytes";
 export const SAVED_SYNC_MEMORY_KEY = "liner_saved_sync_v1";
 export const DEFAULT_SAVED_LIMIT_BYTES = 5 * 1024 * 1024 * 1024;
@@ -44,8 +49,14 @@ interface SavedTracksState {
   enabled: boolean;
   limitBytes: number;
   status: SyncStatus;
+  /* upstream 0.2.12 sign-out guard: keep/remove downloaded songs on logout */
+  sharedCount: number;
+  signOutChoice: SignOutChoice;
+  signOutAnswer: boolean | null;
   load: () => Promise<void>;
   setEnabled: (enabled: boolean) => void;
+  setSignOutChoice: (choice: SignOutChoice) => void;
+  answerSignOut: (keep: boolean, remember: boolean) => void;
   setLimitBytes: (bytes: number) => void;
   removeAll: () => Promise<number>;
 }
@@ -150,6 +161,10 @@ export const useSavedTracksStore = create<SavedTracksState>((set, get) => ({
   limitBytes: readLimit(),
   status: { phase: "starting", pending: 0 },
 
+  sharedCount: 0,
+  signOutChoice: parseSignOutChoice(readStorage(SIGN_OUT_CHOICE_KEY)),
+  signOutAnswer: null,
+
   load: async () => {
     const bridge = window.linerElectron;
     if (!bridge?.savedTracksList) {
@@ -174,6 +189,18 @@ export const useSavedTracksStore = create<SavedTracksState>((set, get) => ({
     scheduleReconcile(0, enabled);
   },
 
+  // upstream 0.2.12: remember whether downloaded songs survive a sign-out
+  setSignOutChoice: (choice) => {
+    writeStorage(SIGN_OUT_CHOICE_KEY, choice);
+    set({ signOutChoice: choice });
+  },
+
+  answerSignOut: (keep, remember) => {
+    set({ signOutAnswer: keep });
+    if (remember) get().setSignOutChoice(keep ? "keep" : "remove");
+  },
+
+
   setLimitBytes: (bytes) => {
     writeStorage(SAVED_LIMIT_KEY, String(bytes));
     set({ limitBytes: bytes });
@@ -193,6 +220,10 @@ export const useSavedTracksStore = create<SavedTracksState>((set, get) => ({
     if (removing.length === 0) return 0;
     return bridge.savedTracksRemove(removing);
   },
+
+  // upstream 0.2.12 “shared with you” saved tracks: the web relay keeps a
+  // single personal cache, so there is nothing shared to clear here.
+  removeShared: async () => 0,
 }));
 
 let reconcileTimer: ReturnType<typeof setTimeout> | null = null;

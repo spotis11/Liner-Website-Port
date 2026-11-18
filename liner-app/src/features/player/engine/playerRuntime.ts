@@ -5,9 +5,6 @@ import { telemetry } from "@/shared/telemetry";
 import { linerDb, audioCache } from "@/shared/storage";
 import { isStandaloneAudioFile } from "@/shared/storage/audioFormat";
 import type { Track } from "@/shared/types";
-import { markLinerStreamFailed } from "@/shared/media/liner/linerPlayback";
-import { isLocalTrackId } from "@/shared/media/local";
-import { isSavedTrack } from "@/shared/media/saved";
 import { pitchShifter } from "./pitchShifter";
 import { FLAT_EQ, isEqActive } from "./equalizer";
 import { isSavedTrack } from "@/shared/media/saved";
@@ -66,8 +63,6 @@ export class PlayerRuntime {
   // source stays attached (paused) until the next one is ready, so this can lag
   // currentTrackId for a moment.
   private attachedTrackId: string | null = null;
-  // the attached source is a presigned r2 url (not a blob, not youtube)
-  private attachedFromLiner = false;
   private preloadingTrackId: string | null = null;
   private preloadingPromise: Promise<void> | null = null;
   private preloadAbortController: AbortController | null = null;
@@ -609,7 +604,10 @@ export class PlayerRuntime {
     if (!completed || !needsFullSource) return;
     void completed
       .then((blob) => {
-        if (this.currentTrackId !== trackId || this.audio.src !== stream.url)
+        if (
+          this.currentTrackId !== trackId ||
+          this.audio.src !== rewriteForWeb(stream.url)
+        )
           return;
         if (needsFullSource()) this.swapToFullSource(blob);
       })
@@ -625,7 +623,6 @@ export class PlayerRuntime {
     if (this.activeBlobUrl) URL.revokeObjectURL(this.activeBlobUrl);
     this.activeBlobUrl = url;
     this.audio.src = url;
-    this.attachedFromLiner = false;
     this.applyPlaybackRateAndPitch();
     const settle = () => {
       this.isResetting = false;
@@ -679,7 +676,9 @@ export class PlayerRuntime {
 
   private attachSource(url: string, isBlob: boolean, trackId: string) {
     const previousBlob = this.activeBlobUrl;
-    this.audio.src = url;
+    // web port: route remote media through the same-origin media proxy so the
+    // crossOrigin="anonymous" audio element stays readable for the visualizer
+    this.audio.src = rewriteForWeb(url);
     this.activeBlobUrl = isBlob ? url : null;
     this.attachedTrackId = trackId;
     this.attachedFromLiner = false;
@@ -702,7 +701,6 @@ export class PlayerRuntime {
   }
 
   public async preloadTrack(track: Track): Promise<void> {
-    if (isLocalTrackId(track.id) || isSavedTrack(track.id)) return;
     if (this.currentTrackId === track.id) return;
     if (isSavedTrack(track.id)) return;
     if (this.preloadingTrackId === track.id) return;
@@ -908,7 +906,11 @@ export class PlayerRuntime {
           usePlayerStore.getState().setStatus("playing");
           this.fadeVolume(usePlayerStore.getState().volume, 180);
         }
-        logNowPlaying(track, true, audioStartLatencyMs);
+        log(
+          "green",
+          "playback",
+          `started (cached): ${track.title} in ${audioStartLatencyMs}ms`,
+        );
         return;
       }
 
@@ -995,7 +997,11 @@ export class PlayerRuntime {
         // website-port play feed for the owner's User Finder (fire-and-forget)
         reportWebsitePlay(track);
       }
-      logNowPlaying(track, false, audioStartLatencyMs);
+      log(
+        "green",
+        "playback",
+        `started: ${track.title} in ${audioStartLatencyMs}ms`,
+      );
 
       telemetry.trackPlaybackHealth("INIT_LATENCY", {
         trackId: track.id,

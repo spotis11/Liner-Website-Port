@@ -1,9 +1,5 @@
 import { initTelemetry } from "@/shared/telemetry";
-import {
-  forgetStorageAnalytics,
-  initBackgroundStorageAnalytics,
-} from "@/shared/utils/cacheManager";
-import { api, initEdgeKey, registerSignOutTask } from "@/shared/api";
+import { initBackgroundStorageAnalytics } from "@/shared/utils/cacheManager";
 import { initClientVisitorSession } from "@/shared/youtube";
 import { initBundleStampLog } from "@/shared/utils/bundleStampLog";
 import { initSavedTracks } from "@/features/library/saved";
@@ -16,6 +12,4 @@ export function initMainWindowServices() {
   initBundleStampLog();
   initOfflineMode();
   initSavedTracks();
-  initEdgeKey(() => api.fetchEdgeKey());
-  registerSignOutTask(forgetStorageAnalytics);
 }

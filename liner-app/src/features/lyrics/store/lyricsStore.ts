@@ -7,7 +7,6 @@ import {
   type SyncedLine,
 } from "../engine/lyricsParser";
 import type { Lyric } from "@braccato/parsers";
-import { hasUsableLyrics } from "./lyricsCache";
 import type {
   LyricsCandidate,
   LyricsSyncLevel,

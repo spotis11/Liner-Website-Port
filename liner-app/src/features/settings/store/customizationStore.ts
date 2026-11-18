@@ -401,8 +401,3 @@ export function useEffectiveCoverGlow(): boolean {
   return false;
 }
 
-export function useHasPageBackdrop(): boolean {
-  const coverGlow = useEffectiveCoverGlow();
-  const hasCover = usePageBackdropStore((s) => Boolean(s.coverUrl));
-  return coverGlow && hasCover;
-}

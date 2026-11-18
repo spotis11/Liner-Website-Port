@@ -58,6 +58,10 @@ export interface WindowState {
 }
 
 export interface LinerElectronApi {
+  // upstream 0.2.12 presence ping from useWindowPresence (desktop only; web never calls it)
+  notePresence?: () => void;
+  getShortcutStatus?: () => Promise<Record<string, string>>;
+  onShortcutStatus?: (cb: (status: Record<string, string>) => void) => () => void;
   platform: string;
   isHyprland: boolean;
   minimize: () => Promise<void>;

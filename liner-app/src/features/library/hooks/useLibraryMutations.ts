@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { api } from "@/shared/api";
 import { notifyLibraryChanged, evictPlaylistFromCache } from "./usePlaylists";
-import { setTrackLiked, toggleTrackLike } from "./useLikedTracks";
+import { applyOptimisticLike, applyOptimisticUnlike } from "./useLikedTracks";
 
 type Options = {
   onSuccess?: (...args: any[]) => void;
@@ -137,11 +137,25 @@ type TrackMutationInput = string | { trackId: string; [key: string]: unknown };
 const trackIdFrom = (input: TrackMutationInput) =>
   typeof input === "string" ? input : input.trackId;
 
-function useTrackLikeMutation(liked: boolean) {
-  const mutateAsync = useCallback(
-    (input: TrackMutationInput) => setTrackLiked(trackIdFrom(input), liked),
-    [liked],
-  );
+export function useLikeTrack() {
+  const [isPending, setIsPending] = useState(false);
+
+  const mutateAsync = useCallback(async (input: TrackMutationInput) => {
+    const trackId = trackIdFrom(input);
+    setIsPending(true);
+    const rollback = applyOptimisticLike(trackId);
+    try {
+      const result = await api.likeTrack(trackId);
+      notifyLibraryChanged();
+      return result;
+    } catch (err) {
+      rollback();
+      throw err;
+    } finally {
+      setIsPending(false);
+    }
+  }, []);
+
   const mutate = useCallback(
     (input: TrackMutationInput, options?: Options) => {
       void mutateAsync(input)
@@ -151,11 +165,8 @@ function useTrackLikeMutation(liked: boolean) {
     },
     [mutateAsync],
   );
-  return { mutate, mutateAsync, isPending: false };
-}
 
-export function useLikeTrack() {
-  return useTrackLikeMutation(true);
+  return { mutate, mutateAsync, isPending };
 }
 
 export function useUnlikeTrack() {

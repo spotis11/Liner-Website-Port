@@ -68,6 +68,7 @@ export {
   HERO_SUBTITLE_CLASS,
   HeroSubtitle,
   HeroEyebrow,
+  HERO_CHIP_CLASS,
   HeroMeta,
   HERO_BUTTON_CLASS,
   HERO_GLASS_BUTTON_CLASS,

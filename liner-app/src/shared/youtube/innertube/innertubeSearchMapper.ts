@@ -1,4 +1,4 @@
-import type { SearchResult, TrackArtist } from "@/shared/contracts";
+import type { SearchResult } from "@/shared/contracts";
 import { asArray, asRecord, type JsonRecord } from "@/shared/utils/json";
 import {
   getBrowseEndpoint,
@@ -92,10 +92,7 @@ function mapListRow(row: ListRow): SearchResult | null {
   return null;
 }
 
-export function mapInnertubeSearchResult(
-  raw: unknown,
-  fallbackArtists: TrackArtist[] = [],
-): SearchResult | null {
+export function mapInnertubeSearchResult(raw: unknown): SearchResult | null {
   const card = mapCardShelf(raw);
   if (card) return card;
   const track = mapInnertubeTrack(raw);
@@ -113,20 +110,7 @@ export function mapInnertubeSearchResult(
   return row ? mapListRow(row) : null;
 }
 
-interface SearchEntry {
-  item: unknown;
-  fallbackArtists: TrackArtist[];
-}
-
-function cardArtists(card: SearchResult | null): TrackArtist[] {
-  if (!card) return [];
-  if (card.type === "artist") return [{ id: card.id, name: card.name }];
-  if (card.type === "track" || card.type === "album")
-    return card.artists.filter((artist) => artist.id !== "unknown");
-  return [];
-}
-
-function getSearchEntries(response: unknown): SearchEntry[] {
+export function getSearchItems(response: unknown): unknown[] {
   const tabs = asArray(
     asRecord(
       asRecord(asRecord(response)?.contents)?.tabbedSearchResultsRenderer,
@@ -137,40 +121,21 @@ function getSearchEntries(response: unknown): SearchEntry[] {
   );
   const sections = asRecord(tabContent?.sectionListRenderer)?.contents;
   if (!Array.isArray(sections)) return [];
-  const plain = (item: unknown): SearchEntry => ({
-    item,
-    fallbackArtists: [],
-  });
-  return sections.flatMap((section): SearchEntry[] => {
+  return sections.flatMap((section) => {
     const record = asRecord(section);
     const cardShelf = asRecord(record?.musicCardShelfRenderer);
-    if (cardShelf) {
-      const fallbackArtists = cardArtists(
-        mapCardShelf({ musicCardShelfRenderer: cardShelf }),
-      );
-      return [
-        plain(cardShelf),
-        ...asArray(cardShelf.contents).map((item) => ({
-          item,
-          fallbackArtists,
-        })),
-      ];
-    }
+    if (cardShelf) return [cardShelf, ...asArray(cardShelf.contents)];
     const shelf = asRecord(record?.musicShelfRenderer);
-    if (Array.isArray(shelf?.contents)) return shelf.contents.map(plain);
-    return asArray(asRecord(record?.itemSectionRenderer)?.contents).map(plain);
+    if (Array.isArray(shelf?.contents)) return shelf.contents;
+    return asArray(asRecord(record?.itemSectionRenderer)?.contents);
   });
-}
-
-export function getSearchItems(response: unknown): unknown[] {
-  return getSearchEntries(response).map((entry) => entry.item);
 }
 
 export function mapSearchResponse(response: unknown): SearchResult[] {
   const results: SearchResult[] = [];
   const seen = new Set<string>();
-  for (const { item, fallbackArtists } of getSearchEntries(response)) {
-    const mapped = mapInnertubeSearchResult(item, fallbackArtists);
+  for (const item of getSearchItems(response)) {
+    const mapped = mapInnertubeSearchResult(item);
     if (!mapped) continue;
     const key = `${mapped.type}:${mapped.id}`;
     if (seen.has(key)) continue;

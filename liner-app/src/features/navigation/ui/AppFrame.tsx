@@ -62,7 +62,6 @@ import {
   ImportReviewModal,
   LocalDropZone,
   CreatePlaylistModal,
-  LocalDropZone,
   useModalStore,
 } from "@/features/library";
 import {
@@ -71,16 +70,12 @@ import {
   useHasCustomBackground,
   useHasPageBackdrop,
   useClassicSurfaces,
+  useEffectiveCoverGlow,
 } from "@/features/settings";
 import { UpdateModal, UpdateToastBridge } from "@/features/updater";
 import { YoutubeSignInNotice } from "@/features/youtube-auth";
 import { AnnouncementPopup } from "@/features/announcements";
 import { ChangelogModal } from "@/features/changelog";
-  useHasPageBackdrop,
-  useEffectiveCoverGlow,
-} from "@/features/settings";
-import { UpdateModal, UpdateToastBridge } from "@/features/updater";
-import { YoutubeSignInNotice } from "@/features/youtube-auth";
 import { HumanCheckNotice } from "@/features/human-check";
 import { useOfflineModeStore } from "@/features/connectivity";
 

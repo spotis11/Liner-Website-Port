@@ -43,6 +43,7 @@ import {
   ModerationTab,
 } from "./tabs";
 import { AiTranslateSettingsTab } from "@/features/lyrics";
+import { useAuthStore } from "@/features/auth";
 import { isWebsiteAdmin } from "@/features/announcements";
 import { SettingsSidebar, type SettingsNavIconProps } from "./SettingsSidebar";
 
