@@ -68,7 +68,7 @@ export function useRecentlyPlayed(limit = 20) {
   const owner = useSessionOwner();
   const { data, isLoading } = useCachedResource(
     `home:recent:${owner}:${limit}`,
-    () => loadRecentlyPlayed(limit),
+    () => (owner ? loadRecentlyPlayed(limit) : Promise.resolve([])),
     RECENT_POLICY,
   );
   return { data: data ?? EMPTY_ITEMS, isLoading };

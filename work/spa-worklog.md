@@ -139,3 +139,27 @@ honestly, no loop. Live: same bundle, dialog renders on submit.
 User-facing reality: their credentials also came back INVALID_CREDENTIALS when
 the gate was off — they should re-check the real Liner email/password; and
 their SW serves the shell network-first so the next visit picks this build up.
+
+## 2026-11-18 (late 2) — credentials puzzle + guest 401 noise
+
+User reports seekfromohio@gmail.com is suspended (official app fails too) but
+goodbye42@gmail.com + the same password works in the official app. Live relay
+login for goodbye42 reached the real credential check (gate was off) and still
+got INVALID_CREDENTIALS. My login body is byte-identical to the official
+desktop's ({email, password, pow, turnstile} -> /v1/auth/login), so the shape
+is right; the working official app on the user's network proves their IP is
+not WAF-blocked for API traffic — only the verify PAGE is. Conclusion: up-
+stream most likely answers a generic INVALID_CREDENTIALS to auth from the
+relay's datacenter egress (bot suspicion), and a turnstile token attached to
+the login may be the risk-lifter. User-side discriminators: (1) fully sign
+out in the official app and re-sign-in to truly verify the password; (2) if
+official re-sign-in works, do the one-time popup check on a VPN, then sign in
+via the fork. The fork's own Discord button (relay-local OAuth, /api/auth/
+discord/start) is a working site-account alternative that never touches
+Liner's Cloudflare.
+
+Shipped (dep_aj7ifhupiqng6zmwmmpt, index-BgylCuwj.js): guest-state 401 storm
+fixed — isRetryable no longer retries 401 (api layer already refreshes), and
+useDailyMixes/useRecentlyPlayed skip the /v1/me/* calls entirely for guests
+(both UI trees). Verified: zero /v1/me requests in guest state, locally and
+live.

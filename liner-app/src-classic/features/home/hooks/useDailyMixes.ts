@@ -164,15 +164,19 @@ export function useDailyMixes() {
   const { data, isLoading } = useCachedResource(
     dailyMixesCacheKey(owner),
     () =>
-      loadWithRetry(
-        () => api.getDailyMixes(),
-        () => true,
-      )
-        .then((res) => toDailyMixes(res.items))
-        .catch(() => [] as DailyMix[])
-        .then((mixes) =>
-          mixes.length > 0 ? mixes : loadInnertubeMixes(),
-        ),
+      // guests have no recommendations endpoint access — skip the guaranteed
+      // 401 and go straight to the Innertube fallback mixes
+      (owner
+        ? loadWithRetry(
+            () => api.getDailyMixes(),
+            () => true,
+          )
+            .then((res) => toDailyMixes(res.items))
+            .catch(() => [] as DailyMix[])
+        : Promise.resolve([] as DailyMix[])
+      ).then((mixes) =>
+        mixes.length > 0 ? mixes : loadInnertubeMixes(),
+      ),
     DAILY_MIXES_POLICY,
   );
 

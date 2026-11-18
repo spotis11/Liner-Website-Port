@@ -21,7 +21,6 @@ function isRetryable(err: unknown): boolean {
   if (typeof status !== "number") return true;
   return (
     status === 0 ||
-    status === 401 ||
     status === 408 ||
     status === 429 ||
     status >= 500
