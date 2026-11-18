@@ -9,6 +9,7 @@ export interface PopularAlbumItem {
   id: string;
   title: string;
   artist: string;
+  artistList?: TrackArtist[];
   coverUrl: string;
   totalTracks: number;
   albumType: string;

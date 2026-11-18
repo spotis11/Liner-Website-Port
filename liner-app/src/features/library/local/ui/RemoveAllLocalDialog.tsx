@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DialogActions,
   DialogButton,
@@ -22,13 +22,24 @@ export default function RemoveAllLocalDialog({
   const { t } = useTranslation();
   const { toast } = useToast();
   const count = useLocalLibraryStore((state) => state.records.length);
-  const records = useLocalLibraryStore((state) => state.records);
   const removeAll = useLocalLibraryStore((state) => state.removeAll);
+  const [bytes, setBytes] = useState<number | null>(null);
   const [removing, setRemoving] = useState(false);
-  const bytes = useMemo(
-    () => records.reduce((sum, record) => sum + record.byteSize, 0),
-    [records],
-  );
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setBytes(null);
+    void window.linerElectron
+      ?.localTracksUsage()
+      .then((usage) => {
+        if (active) setBytes(usage.bytes);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   const confirm = async () => {
     setRemoving(true);
@@ -37,7 +48,7 @@ export default function RemoveAllLocalDialog({
       toast(t("library.local.removed_all"), "info");
       onClose();
     } catch {
-      toast(t("library.local.remove_failed"), "error");
+      toast(t("settings.cache.local_cache.error"), "error");
     } finally {
       setRemoving(false);
     }
@@ -54,8 +65,8 @@ export default function RemoveAllLocalDialog({
           className="mb-[20px]"
           title={t("library.local.remove_all_title")}
           description={t("library.local.remove_all_desc", {
-            tracks: t("common.songs", { count }),
-            size: formatStorageBytes(bytes),
+            tracks: t("common.tracks", { count }),
+            size: bytes === null ? "…" : formatStorageBytes(bytes),
           })}
         />
         <DialogActions>

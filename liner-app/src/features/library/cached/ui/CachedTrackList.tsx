@@ -10,8 +10,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { SongCardWithMenu, playerEngine } from "@/features/player";
 import type { Track } from "@/shared/types";
 import { useTranslation } from "@/languages";
-import { formatTrackDuration } from "@/shared/utils/formatTrackDurations";
-import { useCachedTracksStore } from "../store/cachedTracksStore";
+import { formatTrackDuration } from "../../local/lib/formatLocalDurations";
 
 const ROW_HEIGHT = 64;
 

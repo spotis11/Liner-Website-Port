@@ -11,7 +11,7 @@ import { SongCardWithMenu, playerEngine } from "@/features/player";
 import { localFileId } from "@/shared/media/local";
 import type { Track } from "@/shared/types";
 import { useTranslation } from "@/languages";
-import { formatTrackDuration } from "@/shared/utils/formatTrackDurations";
+import { formatTrackDuration } from "../lib/formatLocalDurations";
 import { useLocalLibraryStore } from "../store/localLibraryStore";
 
 const ROW_HEIGHT = 64;

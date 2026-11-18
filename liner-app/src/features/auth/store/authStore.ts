@@ -8,6 +8,7 @@ import {
   recoverAccount,
   setAuthSession,
   refreshAuthSession,
+  runSignOutTasks,
   type AuthUser,
   type PublicUser,
   type UpdateProfileInput,
@@ -17,11 +18,16 @@ import { queryCache } from "@/shared/cache/queryCache";
 import { checkBan, ModerationError } from "@/features/moderation/lib/moderationApi";
 import { useBanStore } from "@/features/moderation/store/banStore";
 import { useWelcomeStore } from "@/features/welcome/store/welcomeStore";
-import { clearScreenCache } from "@/shared/cache/screenCache";
 import {
   readLikedCache,
   reloadLikedTracks,
 } from "@/features/library/hooks/useLikedTracks";
+import {
+  clearPersistedScreenCache,
+  clearScreenCache,
+} from "@/shared/cache/screenCache";
+import { useSearchHistoryStore } from "@/features/search/store/searchHistoryStore";
+import { prefersSignOutWithLiner, signOutYoutube } from "@/shared/youtube";
 
 export type AuthStatus = "initializing" | "authenticated" | "anonymous";
 export interface DiscordLoginPayload {
@@ -234,8 +240,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       window.location.hash = "#/";
     }
     await clearAuthSession();
+    if (prefersSignOutWithLiner()) void signOutYoutube().catch(() => {});
     queryCache.clear();
     clearScreenCache();
+    clearPersistedScreenCache();
+    useSearchHistoryStore.getState().clearHistory();
+    await runSignOutTasks(SIGN_OUT_TASKS_TIMEOUT_MS);
     set({ status: "anonymous", user: null });
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("library:changed"));
@@ -272,6 +282,7 @@ async function enforceWebsiteBan(user: { username?: string | null; avatarUrl?: s
 }
 
 const PLAYBACK_CLEAR_TIMEOUT_MS = 3_000;
+const SIGN_OUT_TASKS_TIMEOUT_MS = 10_000;
 
 async function clearPlayback(): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;

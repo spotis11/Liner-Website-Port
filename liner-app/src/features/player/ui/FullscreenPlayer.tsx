@@ -1,50 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePlayerState } from "../hooks/usePlayerState";
+import { usePlayerStore } from "../store/playerStore";
 import { useGlassBlur, useKawarpEnabled } from "../store/visualModeStore";
+import { cn } from "@/shared/lib";
 import { Notch } from "@/shared/ui";
 import { FullscreenTopNotch } from "./FullscreenTopNotch";
 import { LyricsNotchStatus } from "./LyricsNotchStatus";
 import { FullscreenFrameGlass } from "./FullscreenFrameGlass";
-import {
-  useLyricsStore,
-  LyricsProviderIsland,
-  AiTranslateButton,
-  useCanvasTranslatedLyrics,
-} from "@/features/lyrics";
+import { useLyricsStore, LyricsProviderIsland } from "@/features/lyrics";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlayerUiElements } from "./PlayerUiElements";
-import { DownLine, Music2Fill } from "@mingcute/react";
+import { DownLine } from "@mingcute/react";
 import { preloadCoverArt, useCoverSrc } from "@/features/covers";
 import KawarpWrapper from "./KawarpWrapper";
-import { SpectrumVisualizer } from "@/features/visualizer";
+import AmbientLayer from "./AmbientLayer";
+import { BetaVisualsWarning } from "./BetaVisualsWarning";
+import { CanvasLyricsView } from "./CanvasLyricsView";
 import { useTranslation } from "@/languages";
 import { useSettledLyricsLayout } from "../hooks/useSettledLyricsLayout";
-import { CanvasLyricsView } from "./CanvasLyricsView";
-import AmbientLayer from "./AmbientLayer";
-import { useCoverTone } from "../hooks/useCoverTone";
-import { BetaVisualsWarning } from "./BetaVisualsWarning";
 
 const KAWARP_FADE_IN_MS = 600;
-
-const LYRICS_VISIBLE_STORAGE_KEY = "liner.fullscreen.lyricsVisible";
-/** smooth expo-ish curve shared by the lyrics show/hide choreography */
-const LYRICS_TOGGLE_TRANSITION = {
-  duration: 0.5,
-  ease: [0.32, 0.72, 0, 1] as const,
-};
-
-/**
- * Persisted lyrics-pane visibility for the fullscreen player. The Liner
- * desktop app remembers whether you closed the lyrics pane; we do the same.
- */
-function readStoredLyricsVisible(): boolean {
-  try {
-    return localStorage.getItem(LYRICS_VISIBLE_STORAGE_KEY) !== "0";
-  } catch {
-    return true;
-  }
-}
 
 export interface FullscreenPlayerProps {
   effectsReady?: boolean;
@@ -56,13 +31,12 @@ export function FullscreenPlayer({
   onClose,
 }: FullscreenPlayerProps) {
   const { t } = useTranslation();
-  const player = usePlayerState();
-  const currentTrack = player.currentTrack;
-  const nextCoverUrl = player.queue[player.currentIndex + 1]?.coverUrl;
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const nextCoverUrl = usePlayerStore(
+    (s) => s.queue[s.currentIndex + 1]?.coverUrl,
+  );
   const coverUrl = currentTrack?.coverUrl;
   const kawarpSrc = useCoverSrc(coverUrl);
-  // visualizer tint follows the cover (see useCoverTone — PR #343 barColor)
-  const coverBarColor = useCoverTone(coverUrl);
 
   useEffect(() => {
     if (!currentTrack) {
@@ -79,10 +53,6 @@ export function FullscreenPlayer({
     availableProviders,
     currentLyricsTrackId,
   } = useLyricsStore();
-
-  // AI translations merged into the line models — the canvas draws them as
-  // per-line subtitles, the same way upstream renders native translations
-  const lyrics = useCanvasTranslatedLyrics();
 
   const onError = useCallback((err: Error) => {
     console.error("kawarp load error:", err);
@@ -120,36 +90,10 @@ export function FullscreenPlayer({
     (instrumental || plainLyrics === "[INSTRUMENTAL]");
   const isLyricsLoading = !hasLyrics && lyricsLoading;
   const isLyricsMissing = isMatchingTrack && !hasLyrics && !lyricsLoading;
-
-  // lyrics pane toggle (fork, restored) — top-left notch "Lyrics" pill
-  const [lyricsVisible, setLyricsVisible] = useState(readStoredLyricsVisible);
-  // every press fires one expanding ring on the pill (see the pulse span below)
-  const [lyricsPulse, setLyricsPulse] = useState(0);
-  const toggleLyrics = useCallback(() => {
-    setLyricsPulse((n) => n + 1);
-    setLyricsVisible((v) => {
-      const next = !v;
-      try {
-        localStorage.setItem(LYRICS_VISIBLE_STORAGE_KEY, next ? "1" : "0");
-      } catch {
-        // storage unavailable — the toggle still works for this session
-      }
-      return next;
-    });
-  }, []);
-
-  const paneOpen = hasLyrics && lyricsVisible;
-
-  // upstream layout rule — vertical (cover stacked above the controls) while
-  // the lyrics pane is on, horizontal (cover beside the controls) when the
-  // pane is off or the track resolves without lyrics. The fork feeds the hook
-  // the toggle-aware paneOpen, so flipping the Lyrics pill off collapses the
-  // split into the centered horizontal layout; while a lookup is still in
-  // flight the previous shape is kept (the "settled" part of the hook).
   const isCompactLayout = useSettledLyricsLayout({
     isMatchingTrack,
     lyricsLoading,
-    hasLyrics: paneOpen,
+    hasLyrics,
   });
 
   return (
@@ -188,83 +132,52 @@ export function FullscreenPlayer({
 
       <div className="absolute inset-0 z-[1] bg-black/40" />
 
-      {/* Fullscreen Audio Spectrum Visualizer Backdrop (tryliner/desktop PR #343).
-          barColor: website-port tint derived from the cover so the bars follow
-          the artwork the way upstream's bright ambient wash makes them read. */}
-      <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden select-none">
-        <SpectrumVisualizer
-          className="w-full h-full"
-          barCount={32}
-          barColor={coverBarColor}
-        />
-      </div>
-
       <FullscreenFrameGlass />
 
       <div className="absolute inset-1.5 z-10 flex">
-        {/* left: player UI — vertical while the lyrics pane is on (upstream
-            cover-on-top arrangement), horizontal once the pane is toggled off
-            or the track has no lyrics; glides from half-width to centered as
-            the pane collapses (fork lyrics toggle choreography) */}
-        <motion.div
-          initial={false}
-          animate={{ width: paneOpen ? "50%" : "100%" }}
-          transition={LYRICS_TOGGLE_TRANSITION}
-          className="flex flex-1 flex-col items-center justify-center gap-5 overflow-hidden"
-        >
+        <div className="flex-1 flex flex-col items-center justify-center gap-5">
           <PlayerUiElements
             onClose={onClose}
             layout={isCompactLayout ? "horizontal" : "vertical"}
           />
-        </motion.div>
+        </div>
 
-        {/* right: lyrics pane — collapses to zero width (slide + fade) while
-            the left column expands; fixed-width inner keeps the canvas
-            un-squished during the tween */}
-        <motion.div
-          initial={false}
-          animate={{
-            width: paneOpen ? "50%" : "0%",
-            opacity: paneOpen ? 1 : 0,
-            x: paneOpen ? 0 : 48,
-          }}
-          transition={LYRICS_TOGGLE_TRANSITION}
-          className="h-full min-h-0 flex flex-col relative overflow-hidden"
+        <div
+          className={cn(
+            "h-full min-h-0 flex flex-col relative overflow-hidden",
+            isCompactLayout ? "grow-0 basis-0 px-0" : "grow basis-0 pl-2 pr-6",
+          )}
         >
-          <div className="w-[50vw] h-full min-h-0 pl-2 pr-6 flex flex-col relative shrink-0">
-            <div
-              className="flex-1 min-h-0 relative w-full h-full"
-              style={{
-                display: hasLyrics ? "flex" : "none",
-              }}
-            >
-              <AnimatePresence initial={false}>
-                {paneOpen && (
-                  <motion.div
-                    key={`lyrics-${currentTrackId}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, pointerEvents: "none" }}
-                    transition={{ duration: 0.22, ease: "easeInOut" }}
-                    className="absolute inset-0 flex flex-col"
-                  >
-                    <CanvasLyricsView lyrics={lyrics} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+          <div
+            className="flex-1 min-h-0 relative w-full h-full"
+            style={{
+              display: hasLyrics ? "flex" : "none",
+            }}
+          >
+            <AnimatePresence initial={false}>
+              {hasLyrics && (
+                <motion.div
+                  key={`lyrics-${currentTrackId}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, pointerEvents: "none" }}
+                  transition={{ duration: 0.22, ease: "easeInOut" }}
+                  className="absolute inset-0 flex flex-col"
+                >
+                  <CanvasLyricsView lyrics={braccatoLyrics} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       <div className="absolute top-1.5 left-1/2 z-30 flex -translate-x-1/2 justify-center pointer-events-none">
         <FullscreenTopNotch>
           <BetaVisualsWarning docked={false} />
-          {lyricsVisible && showProviderIsland && <LyricsProviderIsland />}
-          {lyricsVisible && isLyricsLoading && (
-            <LyricsNotchStatus kind="loading" />
-          )}
-          {lyricsVisible && isLyricsMissing && (
+          {showProviderIsland && <LyricsProviderIsland />}
+          {isLyricsLoading && <LyricsNotchStatus kind="loading" />}
+          {isLyricsMissing && (
             <LyricsNotchStatus
               kind={isInstrumental ? "instrumental" : "missing"}
             />
@@ -283,67 +196,6 @@ export function FullscreenPlayer({
           >
             <DownLine size={16} />
           </button>
-
-          {/* lyrics pane toggle (fork, restored) — press springs the pill,
-              fires one expanding ring, and the music glyph slides in while
-              the pane choreographs across (LYRICS_TOGGLE_TRANSITION) */}
-          <button
-            type="button"
-            aria-pressed={lyricsVisible}
-            aria-label={t("player.lyrics")}
-            title={t("player.lyrics")}
-            onClick={toggleLyrics}
-            data-no-window-drag
-            className={`relative inline-flex h-[26px] cursor-pointer select-none items-center overflow-hidden rounded-control border-none px-[9px] transition-colors duration-200 ease-out active:scale-[0.9] ${
-              lyricsVisible
-                ? "bg-white/15 text-white hover:bg-white/25"
-                : "bg-transparent text-white/60 hover:bg-white/10 hover:text-white"
-            }`}
-          >
-            {lyricsPulse > 0 && (
-              <motion.span
-                key={lyricsPulse}
-                initial={{ opacity: 0.5, scale: 0.55 }}
-                animate={{ opacity: 0, scale: 2.1 }}
-                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                className="pointer-events-none absolute inset-0 rounded-control bg-white"
-                aria-hidden
-              />
-            )}
-            <motion.span
-              className="relative inline-flex items-center gap-[4px] text-[12px] font-[600] leading-none tracking-wide"
-              animate={{ scale: lyricsVisible ? 1 : 0.97 }}
-              transition={{ type: "spring", stiffness: 350, damping: 22 }}
-            >
-              <AnimatePresence initial={false} mode="popLayout">
-                {lyricsVisible && (
-                  <motion.span
-                    key="lyrics-pill-icon"
-                    initial={{ opacity: 0, width: 0, scale: 0.4 }}
-                    animate={{ opacity: 1, width: 14, scale: 1 }}
-                    exit={{ opacity: 0, width: 0, scale: 0.4 }}
-                    transition={{
-                      duration: 0.28,
-                      ease: [0.32, 0.72, 0, 1],
-                    }}
-                    className="inline-flex items-center justify-center overflow-hidden"
-                    aria-hidden
-                  >
-                    <Music2Fill size={12} />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-              <span className="relative">{t("player.lyrics")}</span>
-            </motion.span>
-          </button>
-        </Notch>
-      </div>
-
-      {/* AI translate toggle (fork feature) — top-right glass notch, the
-          mirror of upstream's close notch */}
-      <div className="absolute top-1.5 right-1.5 z-30">
-        <Notch align="end" tone="glass" blur={glassBlur}>
-          <AiTranslateButton />
         </Notch>
       </div>
     </div>

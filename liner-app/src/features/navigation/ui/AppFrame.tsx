@@ -32,6 +32,7 @@ import DynamicBlurBackground from "./DynamicBlurBackground";
 import AmbientTopGlow from "./AmbientTopGlow";
 import { useGlobalShortcuts } from "../hooks/useGlobalShortcuts";
 import { useDisableButtonFocus } from "../hooks/useDisableButtonFocus";
+import { useWindowPresence } from "../hooks/useWindowPresence";
 import { useWindowState } from "../hooks/useWindowState";
 import {
   useSearchTracks,
@@ -59,6 +60,7 @@ import {
   RemoveFromLibraryModal,
   ImportLikesModal,
   ImportReviewModal,
+  LocalDropZone,
   CreatePlaylistModal,
   LocalDropZone,
   useModalStore,
@@ -74,6 +76,12 @@ import { UpdateModal, UpdateToastBridge } from "@/features/updater";
 import { YoutubeSignInNotice } from "@/features/youtube-auth";
 import { AnnouncementPopup } from "@/features/announcements";
 import { ChangelogModal } from "@/features/changelog";
+  useHasPageBackdrop,
+  useEffectiveCoverGlow,
+} from "@/features/settings";
+import { UpdateModal, UpdateToastBridge } from "@/features/updater";
+import { YoutubeSignInNotice } from "@/features/youtube-auth";
+import { HumanCheckNotice } from "@/features/human-check";
 import { useOfflineModeStore } from "@/features/connectivity";
 
 interface AppFrameProps {
@@ -81,7 +89,7 @@ interface AppFrameProps {
 }
 
 const RIGHT_DRAWER_WIDTH = 440;
-const SIDEBAR_WIDTH = 58;
+const SIDEBAR_WIDTH = 232;
 const SHELL_EDGE_GAP = 6;
 const SEARCH_QUERY_CACHE_TTL_MS = 60_000;
 const LEGACY_LAYOUT_STORAGE_KEYS = [
@@ -108,6 +116,10 @@ const AppOverlays = memo(function AppOverlays() {
       <UpdateToastBridge />
       <ChangelogModal />
       <AnnouncementPopup />
+      {/* cloudflare's check when the edge challenges an api call after sign-in;
+          the login page mounts its own */}
+      <HumanCheckNotice />
+      <UpdateToastBridge />
     </>
   );
 });
@@ -297,6 +309,7 @@ export default function AppFrame({ children }: AppFrameProps) {
   const isBackNavigableRoute =
     pathname === "/artist" ||
     pathname === "/library/playlist" ||
+    pathname === "/library/local" ||
     pathname === "/library/cached" ||
     pathname === "/library/saved" ||
     pathname === "/collection";
@@ -315,6 +328,7 @@ export default function AppFrame({ children }: AppFrameProps) {
   ]);
 
   useDisableButtonFocus();
+  useWindowPresence();
 
   useGlobalShortcuts({
     searchOpen,
@@ -739,7 +753,7 @@ export default function AppFrame({ children }: AppFrameProps) {
       ref={appFrameRef}
       className={`app-shell-enter relative flex flex-col h-full w-full overflow-hidden p-1.5 gap-1.5 ${
         hasCustomBg || isFullscreenPlayer ? "bg-black" : "bg-bg-canvas"
-      } ${isEdgeToEdge ? "rounded-none" : "rounded-[12px]"}`}
+      } ${isEdgeToEdge ? "rounded-none" : "rounded-item"}`}
       style={isEdgeToEdge ? undefined : { clipPath: "inset(0 round 12px)" }}
       onScroll={(e) => {
         if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
@@ -785,7 +799,7 @@ export default function AppFrame({ children }: AppFrameProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            className="absolute inset-x-1.5 top-1.5 z-[45]"
+            className="absolute left-[244px] right-1.5 top-1.5 z-[45]"
           >
             <Header
               searchOpen={searchOpen}
@@ -803,7 +817,7 @@ export default function AppFrame({ children }: AppFrameProps) {
       >
         <aside
           ref={sidebarRef}
-          className="w-[58px] mt-[56px] shrink-0 z-[45] relative flex flex-col"
+          className="w-[232px] shrink-0 z-[45] relative flex flex-col"
         >
           <Sidebar
             searchOpen={searchOpen}
@@ -812,10 +826,12 @@ export default function AppFrame({ children }: AppFrameProps) {
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 h-full relative gap-1.5 overflow-hidden">
-          <main
-            className={cn(
-              "flex-1 min-w-0 flex flex-col relative h-full overflow-hidden [--page-inset-top:56px]",
-              "rounded-xl",
+            <main
+              className={cn(
+                // the header (nav arrows, search pill) floats over the page top,
+                // so pages start below it to keep the hero clear
+                "flex-1 min-w-0 flex flex-col relative h-full overflow-hidden [--page-inset-top:58px]",
+              "rounded-item",
               shouldShowMiniPlayer && hasPageBackdrop
                 ? "[--page-inset-bottom:64px] [--floating-inset-bottom:70px]"
                 : "[--page-inset-bottom:0px] [--floating-inset-bottom:0px]",
@@ -834,18 +850,12 @@ export default function AppFrame({ children }: AppFrameProps) {
               </div>
             </div>
 
-            <AnimatePresence>
-              {searchOpen && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 bg-black/12 backdrop-blur-[2px] pointer-events-auto z-[30]"
-                  onClick={() => closeSearch()}
-                />
-              )}
-            </AnimatePresence>
+            {searchOpen && (
+              <div
+                className="absolute inset-0 pointer-events-auto z-[30]"
+                onClick={() => closeSearch()}
+              />
+            )}
 
             {!isFullscreenPlayer && (
               <AnimatePresence initial={false}>
@@ -857,7 +867,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                     animate={{ x: 0 }}
                     exit={{ x: RIGHT_DRAWER_WIDTH }}
                     transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                    className="pointer-events-auto absolute top-(--page-inset-top) bottom-(--floating-inset-bottom) right-0 z-[50]"
+                    className="pointer-events-auto absolute top-[56px] bottom-(--floating-inset-bottom) right-0 z-[50]"
                     style={{ width: RIGHT_DRAWER_WIDTH }}
                   >
                     <RightDrawer onClose={closeRightPanel} />
@@ -918,6 +928,21 @@ export default function AppFrame({ children }: AppFrameProps) {
         ) : null}
       </AnimatePresence>
 
+      {/* dims the whole window, header and player included; clicks pass through so
+          window controls and dragging keep working, the page is guarded above */}
+      <AnimatePresence>
+        {searchOpen && (
+          <motion.div
+            key="search-dim"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute inset-0 z-[50] bg-black/20 pointer-events-none rounded-[inherit]"
+          />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {searchOpen && (
           <motion.div
@@ -934,7 +959,7 @@ export default function AppFrame({ children }: AppFrameProps) {
               top: 6,
             }}
           >
-            <div className="w-[min(660px,calc(100vw-72px))] h-[54px] rounded-[8px] pointer-events-auto flex items-center px-[18px] gap-[14px] bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl">
+            <div className="w-[min(660px,calc(100vw-72px))] h-[54px] rounded-control pointer-events-auto flex items-center px-[18px] gap-[14px] bg-bg-panel border border-border-primary/50">
               <span className="shrink-0 flex items-center justify-center text-text-tertiary">
                 <AnimatePresence mode="wait" initial={false}>
                   {searchLoading ? (
@@ -1012,7 +1037,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.99 }}
                   transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[500px] h-[500px] rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"
+                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[500px] h-[500px] rounded-control pointer-events-auto flex flex-col overflow-hidden bg-bg-panel border border-border-primary/50"
                 >
                   <div className="flex gap-[6px] px-[14px] pt-[12px] pb-[6px] shrink-0 overflow-x-auto">
                     {filterKeys.map((key) => {
@@ -1030,7 +1055,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                           type="button"
                           onClick={() => setActiveFilter(key)}
                           className={`
-                            relative flex items-center gap-[7px] px-[13px] py-[7px] rounded-[12px] text-[13.5px] font-normal transition-colors border-none bg-transparent cursor-pointer select-none shrink-0
+                            relative flex items-center gap-[7px] px-[13px] py-[7px] rounded-item text-[13.5px] font-normal transition-colors border-none bg-transparent cursor-pointer select-none shrink-0
                             ${
                               isActive
                                 ? "text-text-primary font-medium"
@@ -1044,7 +1069,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                           {isActive && (
                             <motion.div
                               layoutId="activeFilterPill"
-                              className="absolute inset-0 rounded-[12px] bg-border-alpha-14 pointer-events-none z-0"
+                              className="absolute inset-0 rounded-item bg-border-alpha-14 pointer-events-none z-0"
                               transition={{
                                 type: "spring",
                                 stiffness: 450,
@@ -1072,10 +1097,10 @@ export default function AppFrame({ children }: AppFrameProps) {
                           transition={{ duration: 0.08 }}
                           className="flex h-full flex-col items-center justify-center gap-[6px] px-[20px] text-center"
                         >
-                          <p className="m-0 text-[14px] text-text-primary font-medium">
+                          <p className="m-0 text-label text-text-primary font-medium">
                             {t("common.no_results")}
                           </p>
-                          <p className="m-0 text-[12px] text-text-tertiary">
+                          <p className="m-0 text-caption text-text-tertiary">
                             {t("common.try_another_search")}
                           </p>
                         </motion.div>
@@ -1114,7 +1139,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.99 }}
                   transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[480px] h-auto rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"
+                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[480px] h-auto rounded-control pointer-events-auto flex flex-col overflow-hidden bg-bg-panel border border-border-primary/50"
                 >
                   <SearchHistoryList
                     onSelectQuery={handleSelectHistoryQuery}

@@ -124,8 +124,8 @@ export default function AddToPlaylistModal() {
             {t("common.add_to_playlist")}
           </h2>
           {track && (
-            <div className="mt-[10px] flex items-center gap-[10px] rounded-md bg-bg-elevated/60 px-[10px] py-[8px]">
-              <div className="relative h-[40px] w-[40px] shrink-0 overflow-hidden rounded-md bg-bg-elevated flex items-center justify-center">
+            <div className="mt-[10px] flex items-center gap-[10px] rounded-control bg-bg-elevated/60 px-[10px] py-[8px]">
+              <div className="relative h-[40px] w-[40px] shrink-0 overflow-hidden rounded-control bg-bg-elevated flex items-center justify-center">
                 {track.coverUrl ? (
                   <CoverImage
                     src={track.coverUrl}
@@ -171,7 +171,7 @@ export default function AddToPlaylistModal() {
                   </button>
                 ) : null
               }
-              className="!h-[36px] w-full rounded-md !border-transparent bg-bg-elevated text-[13px]"
+              className="!h-[36px] w-full rounded-control !border-transparent bg-bg-elevated text-body"
             />
           </div>
         )}
@@ -196,7 +196,7 @@ export default function AddToPlaylistModal() {
                 type="button"
                 disabled={addingTo !== null}
                 onClick={() => handleAddToPlaylist(playlist.id)}
-                className="flex items-center gap-[12px] p-[8px] rounded-md transition-colors hover:bg-bg-elevated active:bg-border-alpha-14 text-left group w-full border-none bg-transparent cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-[12px] p-[8px] rounded-control transition-colors hover:bg-bg-elevated active:bg-border-alpha-14 text-left group w-full border-none bg-transparent cursor-pointer disabled:opacity-50"
               >
                 <div className="relative h-[44px] w-[44px] rounded-lg bg-bg-elevated overflow-hidden shrink-0 flex items-center justify-center">
                   {playlist.coverUrl ? (
@@ -235,7 +235,7 @@ export default function AddToPlaylistModal() {
               <span className="h-[16px] w-[16px] animate-spin rounded-full border-[2px] border-text-tertiary border-t-text-primary" />
             </div>
           ) : (
-            <div className="mx-[8px] flex flex-col items-center gap-[8px] rounded-md bg-bg-elevated/60 px-[12px] py-[24px] text-center">
+            <div className="mx-[8px] flex flex-col items-center gap-[8px] rounded-control bg-bg-elevated/60 px-[12px] py-[24px] text-center">
               <span className="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-bg-elevated text-text-tertiary">
                 <PlaylistFill size={18} />
               </span>

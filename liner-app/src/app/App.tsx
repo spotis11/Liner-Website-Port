@@ -83,7 +83,7 @@ export default function App() {
       <CoverSwRegistrar />
       <ThemeProvider
         attribute="data-theme"
-        defaultTheme="system"
+        defaultTheme="dark"
         enableSystem={true}
         disableTransitionOnChange
       >

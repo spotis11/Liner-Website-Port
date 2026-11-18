@@ -1,11 +1,11 @@
 import localFilesCover from "@/assets/local-files-cover.svg";
 import { cn } from "@/shared/lib";
 
-export default function LocalFilesCover({
-  className,
-}: {
+interface LocalFilesCoverProps {
   className?: string;
-}) {
+}
+
+export default function LocalFilesCover({ className }: LocalFilesCoverProps) {
   return (
     <img
       src={localFilesCover}

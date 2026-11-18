@@ -2,17 +2,12 @@ import { memo, useCallback, useMemo, useState } from "react";
 import SongCard from "./SongCard";
 import { useSongMenuItems } from "../hooks/useSongMenuItems";
 import { playerEngine } from "../engine/playerEngine";
-import type { PlayableTrack } from "../engine/playbackStream";
 import { usePlayerStore } from "../store/playerStore";
-import {
-  useLikeTrack,
-  useUnlikeTrack,
-} from "@/features/library/hooks/useLibraryMutations";
-import { useIsTrackLiked } from "@/features/library/hooks/useIsTrackLiked";
 import { useToast } from "@/shared/ui";
 import { useTranslation } from "@/languages";
 
 import type { TrackArtist } from "@/shared/types";
+import { isLocalTrackId } from "@/shared/media/local";
 
 export interface SongCardWithMenuProps {
   id?: string;
@@ -43,9 +38,11 @@ export interface SongCardWithMenuProps {
   onGrabStart?: (e: React.PointerEvent<HTMLDivElement>) => void;
   highlight?: string;
   trailingAction?: React.ReactNode;
+  /** table mode columns passed through to SongCard */
+  albumName?: string;
+  dateAdded?: string;
   /** play queue rows: adds "Remove from queue" to the card menu */
   onRemoveFromQueue?: () => void;
-  /** "on this device" rows: adds "Remove from device" and hides cloud-only actions */
   onRemoveFromDevice?: () => void;
 }
 
@@ -78,6 +75,8 @@ function SongCardWithMenu({
   onGrabStart,
   highlight,
   trailingAction,
+  albumName,
+  dateAdded,
   onRemoveFromQueue,
   onRemoveFromDevice,
 }: SongCardWithMenuProps) {
@@ -116,33 +115,11 @@ function SongCardWithMenu({
     y: number;
   } | null>(null);
 
-  // hovering the row auditions this track (only when nothing is playing)
-  const previewTrack = useMemo<PlayableTrack | undefined>(() => {
-    if (!id || !onPlay) return undefined;
-    return { id, title, artists: artists ?? "", durationMs: resolvedDurationMs };
-  }, [id, title, artists, resolvedDurationMs, onPlay]);
-
   const { t } = useTranslation();
   const { toast } = useToast();
   const trackDoubleClickBehavior = usePlayerStore(
     (state) => state.trackDoubleClickBehavior,
   );
-
-  // liked-state heart ("see which songs I like in an album/playlist"):
-  // wired automatically for every row with a track id — red filled heart when
-  // liked, outline heart on hover to like from the row itself
-  const likedEntry = useIsTrackLiked(id);
-  const likeMutation = useLikeTrack();
-  const unlikeMutation = useUnlikeTrack();
-
-  const handleToggleLike = useCallback(() => {
-    if (!id) return;
-    if (likedEntry) {
-      unlikeMutation.mutate(id);
-    } else {
-      likeMutation.mutate(id);
-    }
-  }, [id, likedEntry, likeMutation, unlikeMutation]);
 
   const handleDoubleClick = useCallback(() => {
     if (!id) return;
@@ -197,7 +174,7 @@ function SongCardWithMenu({
       artists={artists}
       artistId={artistId}
       artistList={artistList}
-      artistsClickable
+      artistsClickable={!isLocalTrackId(id)}
       coverUrl={coverUrl}
       className={className}
       onPlay={onPlay}
@@ -220,9 +197,8 @@ function SongCardWithMenu({
       showReorderHandle={showReorderHandle}
       onGrabStart={onGrabStart}
       trailingAction={trailingAction}
-      previewTrack={previewTrack}
-      liked={likedEntry}
-      onToggleLike={id ? handleToggleLike : undefined}
+      albumName={albumName}
+      dateAdded={dateAdded}
     />
   );
 }

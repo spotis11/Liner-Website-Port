@@ -2,12 +2,10 @@ import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   CloseLine,
-  Search2Line,
-  CloseCircleFill,
-  ExitLine,
   DiscordFill,
   KeyboardLine,
   User3Line,
+  KeyboardFill,
   YoutubeFill,
   AnnouncementLine,
   ForbidCircleLine,
@@ -17,8 +15,6 @@ import {
   Play,
   Palette,
   InfoCircle,
-  Book2,
-  QuestionCircle,
   Database,
   Widget5,
   Gallery,
@@ -26,12 +22,10 @@ import {
   Crown,
 } from "@solar-icons/react";
 import Dialog from "@/shared/ui/Dialog";
-import { UserAvatar } from "@/shared/ui";
+import { DialogHeader } from "@/shared/ui";
 import { useScrollFade } from "@/shared/hooks";
 import { useTranslation, getTranslationsForAllLocales } from "@/languages";
 import { useModalStore } from "@/features/library";
-import { useAuthStore } from "@/features/auth";
-import { userDisplayName } from "@/entities/user";
 import {
   PlaybackTab,
   ShortcutsTab,
@@ -50,6 +44,7 @@ import {
 } from "./tabs";
 import { AiTranslateSettingsTab } from "@/features/lyrics";
 import { isWebsiteAdmin } from "@/features/announcements";
+import { SettingsSidebar, type SettingsNavIconProps } from "./SettingsSidebar";
 
 type TabId =
   | "Account"
@@ -75,7 +70,7 @@ const TAB_ICONS: Record<TabId, React.ComponentType<any>> = {
   Account: User3Line,
   Pro: Crown,
   Playback: Play,
-  Shortcuts: KeyboardLine,
+  Shortcuts: KeyboardFill,
   Overlay: Widget5,
   Discord: DiscordFill,
   Youtube: YoutubeFill,
@@ -352,6 +347,11 @@ const SETTING_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
     titleKey: "settings.youtube.sync_library.title",
     descKey: "settings.youtube.sync_library.description",
   },
+  {
+    tabId: "Youtube",
+    titleKey: "settings.youtube.sign_out_with_liner.title",
+    descKey: "settings.youtube.sign_out_with_liner.description",
+  },
 
   // Appearance
   {
@@ -406,6 +406,27 @@ const SETTING_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
     tabId: "Storage",
     titleKey: "settings.storage.open_folder",
     descKey: "settings.storage.open_folder_description",
+  },
+  {
+    tabId: "Storage",
+    titleKey: "settings.storage.sign_out_choice",
+    descKey: "settings.storage.sign_out_choice_ask",
+  },
+  { tabId: "Storage", titleKey: "settings.storage.downloads_title" },
+  { tabId: "Storage", titleKey: "settings.storage.categories.liked" },
+  { tabId: "Storage", titleKey: "settings.storage.categories.local" },
+  { tabId: "Storage", titleKey: "settings.storage.categories.shared" },
+  { tabId: "Storage", titleKey: "settings.storage.downloads_limit" },
+  {
+    tabId: "Storage",
+    titleKey: "settings.storage.cache_row_title",
+    descKey: "settings.storage.cache_row_desc",
+  },
+  { tabId: "Storage", titleKey: "settings.storage.cache_limit" },
+  {
+    tabId: "Storage",
+    titleKey: "settings.storage.cached_in_library",
+    descKey: "settings.storage.cached_in_library_desc",
   },
 
   // About
@@ -476,8 +497,6 @@ export default function SettingsModal() {
 
   const [activeTab, setActiveTab] = useState<TabId>("Account");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
-
   // The sidebar Profile button (and other deep links) can request a tab:
   // honor it whenever the modal opens, then clear the request.
   useEffect(() => {
@@ -506,12 +525,6 @@ export default function SettingsModal() {
         : SETTING_ITEMS,
     [isAdmin],
   );
-  const {
-    attach: attachNavFade,
-    onScroll: onNavScroll,
-    style: navFadeStyle,
-  } = useScrollFade<HTMLElement>();
-  const searchCentered = !searchQuery && !searchFocused;
 
   const handleClose = () => {
     setSearchQuery("");
@@ -670,244 +683,59 @@ export default function SettingsModal() {
     }
   }, [searchQuery, matchingTabIds, activeTab, visibleGroups]);
 
-  const openExternal = (url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-  const displayName = userDisplayName(user) ?? "Liner";
-  const handle = user?.username
-    ? `@${user.username}`
-    : (user?.email ?? t("settings.manage_account"));
+  const {
+    attach: attachContentFade,
+    onScroll: onContentScroll,
+    style: contentFadeStyle,
+  } = useScrollFade<HTMLDivElement>();
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => (!next ? handleClose() : undefined)}
-      maxWidth={900}
-      className="p-0 h-[700px] !max-h-[90vh] !flex-row overflow-hidden !bg-bg-surface/70 dark:!bg-bg-elevated/50 !backdrop-blur-[60px] !border-0"
+      maxWidth={940}
+      className="p-0 h-[720px] !max-h-[90vh] !flex-row overflow-hidden"
     >
-      <aside className="w-[248px] shrink-0 flex flex-col min-h-0 bg-transparent">
-        <div className="px-[12px] pt-[14px] pb-[8px]">
-          <div className="relative flex items-center">
-            <span
-              aria-hidden
-              className={`pointer-events-none absolute inset-y-0 flex items-center gap-[6px] text-text-tertiary text-[13px] transition-all duration-200 ${
-                searchCentered ? "left-1/2 -translate-x-1/2" : "left-[10px]"
-              }`}
-              style={font}
-            >
-              <Search2Line size={15} className="shrink-0" />
-              {!searchQuery && (
-                <span className="whitespace-nowrap">
-                  {t("settings.search_placeholder")}
-                </span>
-              )}
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              aria-label={t("settings.search_placeholder")}
-              className="w-full h-[34px] pl-[28px] pr-[26px] bg-bg-surface/70 dark:bg-white/[0.08] text-text-primary text-[13px] rounded-[10px] border-0 outline-none placeholder:text-text-tertiary focus:bg-bg-surface dark:focus:bg-white/[0.12] transition-colors"
-              style={font}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-[6px] p-0 border-0 bg-transparent text-text-tertiary hover:text-text-primary cursor-pointer flex items-center justify-center"
-              >
-                <CloseCircleFill size={14} />
-              </button>
-            )}
-          </div>
-        </div>
+      <SettingsSidebar
+        groups={filteredGroups}
+        activeTab={activeTab}
+        onSelect={setActiveTab}
+        labels={tabLabels}
+        icons={TAB_ICONS}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onClose={handleClose}
+      />
 
-        <nav
-          ref={attachNavFade}
-          onScroll={onNavScroll}
-          style={navFadeStyle}
-          className="flex-1 min-h-0 overflow-y-auto px-[12px] pb-[12px] flex flex-col gap-[10px]"
-          role="tablist"
-          aria-label={t("settings.title")}
-        >
-          {filteredGroups.length === 0 ? (
-            <p
-              className="text-text-tertiary text-[12px] px-[10px] py-[8px] m-0"
-              style={font}
-            >
-              {t("search.no_results") || "Ничего не найдено"}
-            </p>
-          ) : (
-            filteredGroups.map((group) => (
-              <div key={group.labelKey} className="flex flex-col">
-                <p
-                  className="text-text-tertiary text-[11px] font-[500] m-0 px-[10px] pb-[4px] pt-[2px]"
-                  style={font}
-                >
-                  {t(`settings.groups.${group.labelKey}`)}
-                </p>
-                <div className={navGroupClass}>
-                  {group.ids.map((id) => {
-                    const isActive = id === activeTab;
-                    const Icon = TAB_ICONS[id];
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        onClick={() => setActiveTab(id)}
-                        className={`w-full flex items-center gap-[10px] px-[10px] py-[7px] rounded-[10px] border-0 cursor-pointer text-left transition-colors ${
-                          isActive
-                            ? "bg-transparent text-text-primary"
-                            : "bg-transparent text-text-secondary hover:bg-black/[0.04] hover:text-text-primary dark:hover:bg-white/[0.05]"
-                        }`}
-                        style={{
-                          ...font,
-                          fontSize: "13px",
-                          fontWeight: isActive ? 600 : 400,
-                        }}
-                      >
-                        <Icon
-                          size={18}
-                          weight="Bold"
-                          className={
-                            isActive
-                              ? "text-text-primary shrink-0"
-                              : "text-text-tertiary shrink-0"
-                          }
-                        />
-                        <span className="truncate leading-none">
-                          {tabLabels[id]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))
-          )}
-
-          <div className="flex flex-col">
-            <p
-              className="text-text-tertiary text-[11px] font-[500] m-0 px-[10px] pb-[4px] pt-[2px]"
-              style={font}
-            >
-              {t("settings.groups.help")}
-            </p>
-            <div className={navGroupClass}>
-              <button
-                type="button"
-                onClick={() =>
-                  openExternal(
-                    "https://github.com/spotis11/Liner-Website-Port/blob/main/README.md",
-                  )
-                }
-                className="w-full flex items-center gap-[10px] px-[10px] py-[7px] rounded-[10px] border-0 bg-transparent text-text-secondary hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-text-primary cursor-pointer text-left transition-colors"
-                style={{ ...font, fontSize: "13px" }}
-              >
-                <Book2
-                  size={18}
-                  weight="Bold"
-                  className="text-text-tertiary shrink-0"
-                />
-                <span className="leading-none">{t("settings.docs")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => openExternal("https://t.me/liner_app?direct")}
-                className="w-full flex items-center gap-[10px] px-[10px] py-[7px] rounded-[10px] border-0 bg-transparent text-text-secondary hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-text-primary cursor-pointer text-left transition-colors"
-                style={{ ...font, fontSize: "13px" }}
-              >
-                <QuestionCircle
-                  size={18}
-                  weight="Bold"
-                  className="text-text-tertiary shrink-0"
-                />
-                <span className="leading-none">{t("settings.support")}</span>
-              </button>
-            </div>
-          </div>
-        </nav>
-
-        <div className="shrink-0 p-[12px] pt-[8px]">
-          <div className="flex items-center gap-[10px] px-[6px] py-[4px] min-w-0">
-            <span className="relative shrink-0">
-              <UserAvatar user={user ?? null} size={32} />
-              <span
-                className="absolute right-[-1px] bottom-[-1px] w-[10px] h-[10px] rounded-full bg-[#12B76A] border-2 border-bg-primary"
-                aria-hidden
-              />
-            </span>
-            <span className="flex-1 min-w-0 flex flex-col leading-tight">
-              <button
-                type="button"
-                onClick={() => setActiveTab("Account")}
-                title={t("settings.profile.edit_profile") || "Edit profile"}
-                className="text-text-primary text-[13px] font-[500] truncate text-left border-0 bg-transparent p-0 cursor-pointer hover:underline"
-                style={font}
-              >
-                {displayName}
-              </button>
-              <span
-                className="text-text-tertiary text-[12px] truncate"
-                style={font}
-              >
-                {handle}
-              </span>
-            </span>
-            <button
-              type="button"
-              onClick={async () => {
-                handleClose();
-                await logout();
-              }}
-              title={t("settings.profile.sign_out") || "Log out"}
-              aria-label={t("settings.profile.sign_out") || "Log out"}
-              className="p-1.5 rounded-md text-text-tertiary hover:text-[#E81123] hover:bg-border-alpha-14 transition-colors border-0 bg-transparent cursor-pointer flex items-center justify-center shrink-0"
-            >
-              <ExitLine size={18} className="shrink-0" />
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* ── Right secondary frame: same roundness, inset with padding, darker ── */}
-      <div className="flex-1 min-w-0 min-h-0 flex">
-        <div className="flex-1 min-w-0 min-h-0 flex flex-col rounded-[20px] bg-bg-primary/40 overflow-hidden">
-          <div className="flex items-start justify-between gap-[16px] px-[24px] pt-[24px] pb-[16px] shrink-0">
-            <div className="min-w-0">
-              <h3 className="font-montserrat text-text-primary text-[20px] m-0 font-[700] tracking-[-0.01em]">
-                {tabLabels[activeTab]}
-              </h3>
-              <p
-                className="text-text-secondary text-[12.5px] m-0 mt-[4px] leading-snug"
-                style={font}
-              >
-                {tabDescriptions[activeTab]}
-              </p>
-            </div>
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <DialogHeader
+          className="shrink-0 px-[20px] pt-[20px] pb-[16px]"
+          title={tabLabels[activeTab]}
+          description={tabDescriptions[activeTab]}
+          trailing={
             <button
               type="button"
               aria-label={t("common.close") || "Close"}
               onClick={handleClose}
-              className="w-[28px] h-[28px] shrink-0 inline-flex items-center justify-center rounded-md text-text-tertiary hover:text-text-primary hover:bg-border-alpha-14 transition-colors border-0 bg-transparent p-0 cursor-pointer"
+              className="-mt-[2px] -mr-[6px] inline-flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-control border-0 bg-transparent p-0 text-text-tertiary transition-colors hover:bg-fill hover:text-text-primary"
             >
               <CloseLine size={17} />
             </button>
-          </div>
+          }
+        />
 
-          <div className="flex-1 min-h-0 overflow-y-auto px-[24px] pb-[16px] flex flex-col">
+        <div
+          ref={attachContentFade}
+          onScroll={onContentScroll}
+          style={contentFadeStyle}
+          className="min-h-0 flex-1 overflow-y-auto"
+        >
+          <div className="flex min-h-full w-full flex-col px-[20px] pt-[2px] pb-[20px] font-sans">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 7 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.12, ease: "easeOut" }}
+              transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
               className="flex-1 flex flex-col"
             >
               {activeTab === "Account" && (

@@ -1,9 +1,7 @@
 import { MenuSelect } from "@/shared/ui";
 import { useTranslation, LOCALE_OPTIONS } from "@/languages";
-import { useShowcaseName } from "@/features/showcase";
 import { Squiggle, Sparks, Asterisk } from "@/shared/ui/Doodles";
 import logo from "@/assets/logo.svg";
-import loginMark from "@/assets/login-mark.svg";
 
 export type LoginPanelVariant = "original" | "new";
 
@@ -32,53 +30,30 @@ const CARD_ART = [
   },
 ];
 
-export function LoginBrandPanel({
-  title,
-  subtitle,
-  variant = "original",
-}: LoginBrandPanelProps) {
+export function LoginBrandPanel({ title, subtitle }: LoginBrandPanelProps) {
   const { locale, setLocale, t } = useTranslation();
-  // Website Showcase mode: scrambles into random letters while it is on
-  const siteName = useShowcaseName();
-
-  const isNew = variant === "new";
-
   // squiggle sits under the last word, like evi underlines its own name
   const lastSpace = title.lastIndexOf(" ");
-  const head = isNew && lastSpace > 0 ? title.slice(0, lastSpace) : "";
-  const tail = isNew && lastSpace > 0 ? title.slice(lastSpace + 1) : title;
+  const head = lastSpace > 0 ? title.slice(0, lastSpace) : "";
+  const tail = lastSpace > 0 ? title.slice(lastSpace + 1) : title;
 
   return (
-    <aside className="relative flex min-h-[340px] flex-col overflow-hidden rounded-[14px] bg-black/[0.03] p-[24px] dark:bg-white/[0.035]">
-      {isNew ? (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute right-[18px] top-[16px] hidden h-[132px] w-[240px] select-none sm:block"
-        >
-          {CARD_ART.map((card, index) => (
-            <div
-              key={index}
-              className={`absolute rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.35)] ${card.className}`}
-              style={{ background: card.background }}
-            />
-          ))}
-          <Sparks className="absolute right-[4px] top-[-6px] h-[32px] w-[42px] rotate-[12deg] text-doodle-lime" />
-          <Asterisk className="absolute bottom-[6px] left-[40px] h-[28px] w-[28px] rotate-[-14deg] text-doodle-orange" />
-        </div>
-      ) : (
-        <>
-          <img
-            src={loginMark}
-            alt=""
-            aria-hidden="true"
-            width={435}
-            height={598}
-            draggable={false}
-            className="theme-logo pointer-events-none absolute inset-x-0 top-0 h-auto w-full select-none mask-b-from-40% mask-b-to-100%"
+    <aside className="relative flex min-h-[340px] flex-col overflow-hidden rounded-item bg-black/[0.03] p-[24px] dark:bg-white/[0.035]">
+      {/* stacked cover cards + doodles */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[18px] top-[16px] hidden h-[132px] w-[240px] select-none sm:block"
+      >
+        {CARD_ART.map((card, index) => (
+          <div
+            key={index}
+            className={`absolute rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.35)] ${card.className}`}
+            style={{ background: card.background }}
           />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-linear-to-t from-transparent to-transparent dark:from-black/25" />
-        </>
-      )}
+        ))}
+        <Sparks className="absolute right-[4px] top-[-6px] h-[32px] w-[42px] rotate-[12deg] text-doodle-lime" />
+        <Asterisk className="absolute bottom-[6px] left-[40px] h-[28px] w-[28px] rotate-[-14deg] text-doodle-orange" />
+      </div>
 
       <div className="relative flex items-center gap-[10px]">
         <img
@@ -89,8 +64,8 @@ export function LoginBrandPanel({
           draggable={false}
           className="theme-logo h-[22px] w-auto object-contain select-none"
         />
-        <span className="text-[18px] font-[650] tracking-[-0.03em] text-text-primary">
-          {siteName}
+        <span className="text-heading font-[650] tracking-[-0.03em] text-text-primary">
+          Liner
         </span>
       </div>
 
@@ -112,13 +87,11 @@ export function LoginBrandPanel({
           {head}{" "}
           <span className="relative inline-block">
             {tail}
-            {isNew && (
-              <Squiggle className="absolute -bottom-[7px] left-0 h-[9px] w-full text-doodle-lime" />
-            )}
+            <Squiggle className="absolute -bottom-[7px] left-0 h-[9px] w-full text-doodle-lime" />
           </span>
         </h1>
         <p
-          className="m-0 mt-[10px] max-w-[240px] text-[13.5px] leading-[1.5] text-text-secondary"
+          className="m-0 mt-[14px] max-w-[240px] text-[13.5px] leading-[1.5] text-text-secondary"
           style={{ textWrap: "pretty" }}
         >
           {subtitle}

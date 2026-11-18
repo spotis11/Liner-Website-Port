@@ -390,3 +390,19 @@ export function useClassicSurfaces(): boolean {
   const hasCustomBg = useHasCustomBackground();
   return !coverGlow && !hasCustomBg;
 }
+export function useIsDarkTheme(): boolean {
+  const { resolvedTheme } = useTheme();
+  return resolvedTheme ? resolvedTheme === "dark" : getIsDarkTheme();
+}
+
+export function useEffectiveCoverGlow(): boolean {
+  // flat dark design: the backdrop stays a solid surface, cover art does not
+  // bleed into the chrome anymore
+  return false;
+}
+
+export function useHasPageBackdrop(): boolean {
+  const coverGlow = useEffectiveCoverGlow();
+  const hasCover = usePageBackdropStore((s) => Boolean(s.coverUrl));
+  return coverGlow && hasCover;
+}

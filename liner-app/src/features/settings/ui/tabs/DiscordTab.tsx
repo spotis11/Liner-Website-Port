@@ -63,7 +63,7 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
       {/* Main enable switch */}
       <SettingSection>
         <SettingRow
-          title={t("settings.discord.enable.title") || "Discord Rich Presence"}
+          title={t("settings.discord.enable.title") || "Rich Presence"}
           description={
             t("settings.discord.enable.description") ||
             "Broadcast your active music playback to your Discord profile."
@@ -77,11 +77,11 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
 
       {/* Display Options */}
       <SettingSection
-        label={t("settings.discord.section_display") || "Display Options"}
+        label={t("settings.discord.section_display") || "Display"}
       >
         {/* Status Line Format */}
         <SettingRow
-          title={t("settings.discord.status_display.title") || "Status Format"}
+          title={t("settings.discord.status_display.title") || "Status line"}
           description={
             t("settings.discord.status_display.description") ||
             "Choose what appears in Discord's 'Listening to...' status header."
@@ -94,7 +94,7 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
             mounted ? (
               <MenuSelect<DiscordStatusDisplayType>
                 aria-label={
-                  t("settings.discord.status_display.title") || "Status Format"
+                  t("settings.discord.status_display.title") || "Status line"
                 }
                 className="w-[210px]"
                 value={statusDisplayType}
@@ -104,13 +104,12 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
                   {
                     value: "artist",
                     label:
-                      t("settings.discord.status_display.artist") ||
-                      "Artist (Default)",
+                      t("settings.discord.status_display.artist") || "Artist",
                   },
                   {
                     value: "title",
                     label:
-                      t("settings.discord.status_display.song") || "Song Title",
+                      t("settings.discord.status_display.song") || "Song title",
                   },
                   {
                     value: "artist_title",
@@ -126,9 +125,7 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
                   },
                   {
                     value: "app",
-                    label:
-                      t("settings.discord.status_display.app") ||
-                      "Liner (App name)",
+                    label: t("settings.discord.status_display.app") || "Liner",
                   },
                 ]}
               />
@@ -141,7 +138,7 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
         {/* Timeline progress bar */}
         <SettingRow
           title={
-            t("settings.discord.show_timeline.title") || "Playback Timeline"
+            t("settings.discord.show_timeline.title") || "Playback timeline"
           }
           description={
             t("settings.discord.show_timeline.description") ||
@@ -162,7 +159,7 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
 
         {/* Track artwork */}
         <SettingRow
-          title={t("settings.discord.show_artwork.title") || "Track Artwork"}
+          title={t("settings.discord.show_artwork.title") || "Track artwork"}
           description={
             t("settings.discord.show_artwork.description") ||
             "Show track or album cover in the Discord activity card."
@@ -204,7 +201,7 @@ export function DiscordTab({ searchQuery }: { searchQuery?: string }) {
 
         {/* Show when paused */}
         <SettingRow
-          title={t("settings.discord.show_paused.title") || "Show when Paused"}
+          title={t("settings.discord.show_paused.title") || "Show when paused"}
           description={
             t("settings.discord.show_paused.description") ||
             "Keep status visible on Discord with a paused indicator when music is paused."

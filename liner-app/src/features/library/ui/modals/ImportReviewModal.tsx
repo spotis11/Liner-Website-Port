@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   CheckLine,
@@ -23,7 +24,14 @@ import {
   type ImportReviewDecision,
 } from "@/shared/api";
 import { playerEngine, usePlayerState } from "@/features/player";
-import { useToast, DialogActions, DialogButton } from "@/shared/ui";
+import {
+  useToast,
+  DialogActions,
+  DialogButton,
+  UsageOverview,
+} from "@/shared/ui";
+import { useTweenedNumber } from "@/shared/hooks";
+import { cn } from "@/shared/lib";
 import { notifyLibraryChanged } from "../../hooks/usePlaylists";
 
 function formatDuration(ms?: number): string {
@@ -73,19 +81,19 @@ function ImportReviewSkeletonRows() {
       {Array.from({ length: 3 }, (_, i) => (
         <div
           key={i}
-          className="flex flex-col gap-[10px] p-[12px] rounded-lg border border-border-primary/40 bg-bg-elevated/50"
+          className="flex flex-col gap-[10px] p-[12px] rounded-item bg-fill"
         >
           <div className="flex items-center justify-between">
-            <div className="h-[13px] w-[58%] animate-pulse rounded bg-border-alpha-33" />
-            <div className="h-[19px] w-[68px] animate-pulse rounded-md bg-border-alpha-14" />
+            <div className="h-[13px] w-[58%] animate-pulse rounded-full bg-fill-hover" />
+            <div className="h-[19px] w-[68px] animate-pulse rounded-full bg-fill" />
           </div>
-          <div className="flex items-center gap-[10px] p-[8px] rounded-md border border-border-primary/60 bg-bg-primary/80">
-            <div className="h-[38px] w-[38px] shrink-0 animate-pulse rounded-md bg-border-alpha-14" />
+          <div className="flex items-center gap-[10px] p-[8px] rounded-control bg-fill-subtle">
+            <div className="h-[38px] w-[38px] shrink-0 animate-pulse rounded-control bg-fill" />
             <div className="flex flex-col gap-[6px] flex-1 min-w-0">
-              <div className="h-[12px] w-[46%] animate-pulse rounded bg-border-alpha-33" />
-              <div className="h-[10px] w-[28%] animate-pulse rounded bg-border-alpha-14" />
+              <div className="h-[12px] w-[46%] animate-pulse rounded-full bg-fill-hover" />
+              <div className="h-[10px] w-[28%] animate-pulse rounded-full bg-fill" />
             </div>
-            <div className="h-[27px] w-[118px] shrink-0 animate-pulse rounded-md bg-border-alpha-14" />
+            <div className="h-[30px] w-[132px] shrink-0 animate-pulse rounded-item bg-fill" />
           </div>
         </div>
       ))}
@@ -359,7 +367,7 @@ export default function ImportReviewModal() {
             <h2 className="m-0 text-[18px] font-[500] text-text-primary flex items-center gap-[8px]">
               {t("import.review_title")}
               {items.length > 0 && (
-                <span className="text-[12px] px-[8px] py-[2px] rounded-full bg-border-alpha-14 text-text-secondary font-normal">
+                <span className="text-caption px-[8px] py-[2px] rounded-full bg-fill text-text-secondary font-normal tabular-nums">
                   {items.length}
                 </span>
               )}
@@ -374,7 +382,7 @@ export default function ImportReviewModal() {
               <button
                 type="button"
                 onClick={handleSelectAll}
-                className="text-[12px] font-[500] text-text-secondary hover:text-text-primary px-[8px] py-[4px] rounded-md hover:bg-border-alpha-14 transition-colors cursor-pointer border border-transparent hover:border-border-primary"
+                className="text-caption font-[500] text-text-secondary hover:text-text-primary px-[8px] py-[4px] rounded-control bg-transparent hover:bg-fill transition-colors cursor-pointer border-0"
               >
                 {t("import.select_all")}
               </button>
@@ -382,13 +390,45 @@ export default function ImportReviewModal() {
               <button
                 type="button"
                 onClick={handleDeselectAll}
-                className="text-[12px] font-[500] text-text-secondary hover:text-text-primary px-[8px] py-[4px] rounded-md hover:bg-border-alpha-14 transition-colors cursor-pointer border border-transparent hover:border-border-primary"
+                className="text-caption font-[500] text-text-secondary hover:text-text-primary px-[8px] py-[4px] rounded-control bg-transparent hover:bg-fill transition-colors cursor-pointer border-0"
               >
                 {t("import.deselect_all")}
               </button>
             </div>
           )}
         </div>
+
+        {!loading && items.length > 0 && (
+          <UsageOverview
+            value={String(addCount)}
+            unit={t("import.overview_unit", { count: addCount })}
+            meta={
+              <span className="text-body tabular-nums text-text-tertiary">
+                {t("import.overview_review", { count: items.length })}
+              </span>
+            }
+            segments={[
+              {
+                key: "matched",
+                value: matchedCount,
+                swatch: "bg-text-primary",
+                label: t("import.overview_matched", { count: matchedCount }),
+              },
+              {
+                key: "added",
+                value: approvedCount,
+                swatch: "bg-text-secondary",
+                label: t("import.overview_added", { count: approvedCount }),
+              },
+              {
+                key: "skipped",
+                value: skippedCount,
+                swatch: "bg-text-tertiary/40",
+                label: t("import.overview_skipped", { count: skippedCount }),
+              },
+            ]}
+          />
+        )}
 
         {/* Content list */}
         <div
@@ -398,7 +438,7 @@ export default function ImportReviewModal() {
           {!loading && items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-[48px] gap-[10px] text-text-tertiary">
               <PlaylistFill size={28} className="opacity-70" />
-              <span className="text-[13px]">{t("common.no_results")}</span>
+              <span className="text-body">{t("common.no_results")}</span>
             </div>
           ) : loading ? (
             <div className="flex flex-col gap-[10px]">
@@ -437,11 +477,10 @@ export default function ImportReviewModal() {
                       width: "100%",
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
-                    className={`flex flex-col gap-[10px] p-[12px] rounded-lg border transition-all ${
-                      isApproved
-                        ? "bg-bg-elevated border-border-primary/80"
-                        : "bg-bg-elevated/50 border-border-primary/40 opacity-75 hover:opacity-100"
-                    }`}
+                    className={cn(
+                      "flex flex-col gap-[10px] p-[12px] rounded-item bg-fill transition-opacity duration-300",
+                      !isApproved && "opacity-60 hover:opacity-100",
+                    )}
                   >
                     {/* Original track row */}
                     <div className="flex items-start justify-between gap-[10px]">

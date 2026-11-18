@@ -83,7 +83,7 @@ export default function ImportLikesModal() {
             if (e.key === "Enter") void handleImport();
           }}
           maxLength={100}
-          className="!rounded-[12px] !border-transparent !bg-black/[0.05] dark:!bg-white/[0.07]"
+          className="!rounded-item !border-transparent !bg-fill"
         />
 
         {importError && (

@@ -3,8 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // the player feature pulls lottie/canvas ui that jsdom cannot load; initialize() never touches it
 const player = vi.hoisted(() => ({ stopAndClear: vi.fn(async () => {}) }));
 vi.mock("@/features/player", () => ({ playerEngine: player }));
+const youtube = vi.hoisted(() => ({ signOut: vi.fn(async () => {}) }));
+vi.mock("@/shared/youtube", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/shared/youtube")>()),
+  signOutYoutube: youtube.signOut,
+}));
 
 import { useAuthStore } from "./authStore";
+import { useYoutubePreferences } from "@/shared/youtube";
 import {
   api,
   ApiError,

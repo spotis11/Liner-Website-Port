@@ -13,6 +13,7 @@ import cleanDuckAnimationData from "@/assets/animations/clean_duck.json";
 import {
   getCachedStorageAnalytics,
   refreshStorageAnalytics,
+  subscribeStorageAnalytics,
   clearStorageCategories,
   openCacheFolder,
   formatStorageBytes,
@@ -68,7 +69,7 @@ function TelegramCleaningDuck({ size = 130 }: { size?: number }) {
   );
 }
 
-type ClearKind = "cache" | "liked";
+type ClearKind = "cache" | "liked" | "local" | "shared";
 
 const CLEAR_COPY: Record<
   ClearKind,
@@ -85,6 +86,18 @@ const CLEAR_COPY: Record<
     workingDesc: "settings.storage.removing_subtitle",
     done: "settings.storage.removed_title",
     doneDesc: "settings.storage.removed_liked_subtitle",
+  },
+  local: {
+    working: "settings.storage.removing_local_title",
+    workingDesc: "settings.storage.removing_subtitle",
+    done: "settings.storage.removed_title",
+    doneDesc: "settings.storage.removed_local_subtitle",
+  },
+  shared: {
+    working: "settings.storage.removing_shared_title",
+    workingDesc: "settings.storage.removing_subtitle",
+    done: "settings.storage.removed_title",
+    doneDesc: "settings.storage.removed_shared_subtitle",
   },
 };
 
@@ -110,6 +123,7 @@ export function StorageTab({ searchQuery }: { searchQuery?: string }) {
     getAudioCacheLimitBytes(),
   );
   const savedCount = useSavedTracksStore((state) => state.records.length);
+  const sharedCount = useSavedTracksStore((state) => state.sharedCount);
   const cachedVisibleOnline = useCachedTracksStore(
     (state) => state.visibleOnline,
   );
@@ -126,6 +140,8 @@ export function StorageTab({ searchQuery }: { searchQuery?: string }) {
     await setAudioCacheLimitBytes(newLimit);
     await refresh();
   };
+
+  useEffect(() => subscribeStorageAnalytics(setAnalytics), []);
 
   useEffect(() => {
     if (!getCachedStorageAnalytics()) return;
@@ -149,7 +165,7 @@ export function StorageTab({ searchQuery }: { searchQuery?: string }) {
         });
     }, 600);
     return () => clearTimeout(timer);
-  }, [savedCount, t, toast]);
+  }, [savedCount, sharedCount, t, toast]);
 
   const { cacheCategories, musicCategories } = useMemo(() => {
     const all = analytics?.categories ?? [];
@@ -239,7 +255,7 @@ export function StorageTab({ searchQuery }: { searchQuery?: string }) {
             <h3 className="text-text-primary text-[17px] font-[600] m-0 mt-3">
               {t(CLEAR_COPY[clearKind].working)}
             </h3>
-            <p className="text-text-tertiary text-[13px] max-w-[320px] m-0 mt-1 leading-normal">
+            <p className="text-text-tertiary text-body max-w-[320px] m-0 mt-1 leading-normal">
               {t(CLEAR_COPY[clearKind].workingDesc)}
             </p>
             <div className="w-[200px] h-[4px] bg-border-alpha-14 rounded-full overflow-hidden mt-5">
@@ -258,14 +274,14 @@ export function StorageTab({ searchQuery }: { searchQuery?: string }) {
             <div className="w-[64px] h-[64px] rounded-full bg-border-alpha-14 flex items-center justify-center text-text-primary mb-2">
               <CheckCircle size={36} weight="Bold" />
             </div>
-            <h3 className="text-text-primary text-[18px] font-[600] m-0 mt-2">
+            <h3 className="text-text-primary text-heading font-[600] m-0 mt-2">
               {freedBytes > 0
                 ? t("settings.storage.freed_title", {
                     size: formatStorageBytes(freedBytes),
                   })
                 : t(CLEAR_COPY[clearKind].done)}
             </h3>
-            <p className="text-text-tertiary text-[13px] max-w-[340px] m-0 mt-1 leading-normal">
+            <p className="text-text-tertiary text-body max-w-[340px] m-0 mt-1 leading-normal">
               {t(CLEAR_COPY[clearKind].doneDesc)}
             </p>
             <Button
@@ -295,6 +311,8 @@ export function StorageTab({ searchQuery }: { searchQuery?: string }) {
             <StorageDownloadsSection
               songBytes={songBytes}
               liked={musicCategories.find((c) => c.id === "liked")}
+              local={musicCategories.find((c) => c.id === "local")}
+              shared={musicCategories.find((c) => c.id === "shared")}
               onRemove={(kind, bytes, remove) =>
                 void runClear(kind, bytes, remove)
               }

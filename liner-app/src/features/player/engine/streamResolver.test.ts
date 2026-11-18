@@ -207,3 +207,52 @@ describe("resolvePlaybackStream for ids of unknown sources", () => {
     );
   });
 });
+
+describe("resolvePlaybackStream for album rows that are not the song", () => {
+  afterEach(() => clearExactSongVersions());
+
+  it("plays the exact song version instead of the music video", async () => {
+    mocks.searchRaw.mockResolvedValue([
+      searchTrack("Fb3j_yuFh1s", "Blinding Lights", "The Weeknd", 200_000),
+    ]);
+    mocks.resolveDirectAudioStream.mockResolvedValue(directStream);
+
+    await resolvePlaybackStream({
+      ...track("NLZRYQMLDW4"),
+      audioVariant: "music-video",
+    });
+
+    expect(mocks.resolveDirectAudioStream).toHaveBeenCalledWith("Fb3j_yuFh1s", {
+      signal: undefined,
+    });
+  });
+
+  it("keeps the album row when nothing matches exactly", async () => {
+    mocks.searchRaw.mockResolvedValue([
+      searchTrack(
+        "Fb3j_yuFh1s",
+        "Blinding Lights (Remix)",
+        "The Weeknd",
+        200_000,
+      ),
+    ]);
+    mocks.resolveDirectAudioStream.mockResolvedValue(directStream);
+
+    await resolvePlaybackStream({
+      ...track("jvDZEoEdjzo"),
+      audioVariant: "premium-only",
+    });
+
+    expect(mocks.resolveDirectAudioStream).toHaveBeenCalledWith("jvDZEoEdjzo", {
+      signal: undefined,
+    });
+  });
+
+  it("never searches for tracks that are already the song", async () => {
+    mocks.resolveDirectAudioStream.mockResolvedValue(directStream);
+
+    await resolvePlaybackStream(track("dQw4w9WgXcQ"));
+
+    expect(mocks.searchRaw).not.toHaveBeenCalled();
+  });
+});

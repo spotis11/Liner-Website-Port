@@ -5,6 +5,7 @@ import DropdownMenu from "@/shared/ui/DropdownMenu";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import type { PlaylistVariant } from "../types";
 import CoverImage from "@/features/covers/ui/CoverImage";
+import { cn } from "@/shared/lib";
 
 export interface PlaylistCardProps {
   title: string;
@@ -21,7 +22,15 @@ export interface PlaylistCardProps {
   menuItems?: DropdownMenuItem[];
 }
 
-function CoverCollage({ urls, title }: { urls: string[]; title: string }) {
+export function CoverCollage({
+  urls,
+  title,
+  className,
+}: {
+  urls: string[];
+  title: string;
+  className?: string;
+}) {
   const count = Math.min(urls.length, 4);
 
   if (count === 1) {
@@ -41,7 +50,12 @@ function CoverCollage({ urls, title }: { urls: string[]; title: string }) {
   const cells = urls.slice(0, count);
 
   return (
-    <div className="absolute inset-0 grid grid-cols-2 gap-[1.5px] bg-border-alpha-8">
+    <div
+      className={cn(
+        "absolute inset-0 grid grid-cols-2 gap-[1.5px] bg-border-alpha-8",
+        className,
+      )}
+    >
       {cells.map((url, i) => {
         const spanFull = count === 3 && i === 0;
         return (
@@ -109,7 +123,7 @@ function PlaylistCard({
     <>
       <div
         className={`relative aspect-square w-full overflow-hidden bg-border-alpha-14 ${
-          variant === "artist" ? "rounded-full" : "rounded-md"
+          variant === "artist" ? "rounded-full" : "rounded-control"
         } flex items-center justify-center`}
       >
         {effectiveUrls.length > 0 ? (
@@ -141,10 +155,10 @@ function PlaylistCard({
           variant === "artist" ? "items-center text-center" : ""
         }`}
       >
-        <span className="truncate text-[14px] font-[500] text-text-primary">
+        <span className="truncate text-label font-[500] text-text-primary">
           {title}
         </span>
-        <span className="flex min-w-0 items-center gap-[5px] text-[13px] text-text-tertiary">
+        <span className="flex min-w-0 items-center gap-[5px] text-body text-text-tertiary">
           {badge}
           <span className="truncate">{author}</span>
         </span>

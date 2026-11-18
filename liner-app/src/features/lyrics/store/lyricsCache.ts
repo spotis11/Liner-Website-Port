@@ -4,6 +4,7 @@ import type {
 } from "@/shared/contracts/lyrics";
 import { parseRawLyrics } from "../engine/lyricsParser";
 import type { LyricsProviderOption } from "./lyricsStore";
+import { parseRawLyrics } from "../engine/lyricsParser";
 
 export interface CachedLyricsItem {
   trackId: string;

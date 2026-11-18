@@ -65,11 +65,17 @@
     "coming_soon": "Yakında",
     "play_all": "Tümünü çal",
     "add_to_queue": "Sıraya ekle",
+    "remove_from_queue": "Sıradan kaldır",
+    "remove_from_cache": "Önbellekten kaldır",
+    "removed_from_cache": "Önbellekten kaldırıldı",
+    "removed_from_queue": "Sıradan kaldırıldı",
+    "undo": "Geri al",
     "shuffle": "Karıştır",
     "remove_from_library": "Kitaplıktan kaldır",
     "save_to_library": "Kitaplığa kaydet",
     "share": "Paylaş",
     "back": "Geri",
+    "forward": "İleri",
     "link_copied": "Bağlantı kopyalandı",
     "download": "İndir",
     "more": "Daha fazla",
@@ -250,6 +256,8 @@
     "btn_continue": "Devam",
     "btn_back": "Geri",
     "username_hint": "3-30 karakter: küçük harf, rakam veya alt çizgi.",
+    "username_checking": "Kullanıcı adının boş olup olmadığı kontrol ediliyor...",
+    "username_available": "Bu kullanıcı adı boş.",
     "label_email": "E-posta",
     "label_username": "Kullanıcı adı (@tanıtıcı)",
     "placeholder_username": "soundwave",
@@ -410,6 +418,27 @@
     "reverb": "Yankı",
     "reverb_hint": "Atmosferik alan ve ortam derinliği",
     "reverb_amount": "Yankı",
+    "beta_visuals": {
+      "label": "Uyarı",
+      "ambient_title": "Ambient beta aşamasında",
+      "ambient_body": "Bu parçanın kendine ait animasyonlu bir arka planı var. Hâlâ beta aşamasında ve zayıf cihazları yorabilir; oynatıcı takılırsa daha hafif bir mod seç.",
+      "settings_title": "Görsel kalite",
+      "settings_body": "Tam ekran oynatıcının ne kadar hareketli olacağını seç. Hafif modlar pil tasarrufu sağlar ve zayıf cihazlarda daha akıcı çalışır.",
+      "modes": {
+        "full": {
+          "name": "Tüm efektler",
+          "hint": "Her şey açık, bulanık söz kenarları dahil"
+        },
+        "balanced": {
+          "name": "Dengeli",
+          "hint": "Hareketli arka planlar, söz bulanıklığı yok"
+        },
+        "lite": {
+          "name": "Hafif",
+          "hint": "Sabit kapak, sade sözler"
+        }
+      }
+    },
     "equalizer": "Ekolayzer",
     "miniplayer": "Mini oynatıcı",
     "close_miniplayer": "Mini oynatıcıyı kapat",
@@ -597,6 +626,10 @@
       "label": "Dil",
       "description": "Arayüz dilini seç"
     },
+    "remember_window_bounds": {
+      "title": "Pencere boyutunu ve konumunu hatırla",
+      "description": "Pencereyi kapattığınız boyut ve konumda yeniden açın."
+    },
     "autoplay_similar": {
       "title": "Benzer parçaları otomatik çal",
       "description": "Sıra bittiğinde benzer şarkıları otomatik olarak ekler."
@@ -672,8 +705,12 @@
         "covers": "Kapak Görselleri",
         "audio": "Ses Parçaları",
         "lyrics": "Şarkı Sözleri",
-        "metadata": "Katalog ve Arama"
-      }
+        "metadata": "Katalog ve Arama",
+        "local": "Yerel Müzik"
+      },
+      "local_confirm_title": "Yerel müziğin de silinsin mi?",
+      "local_confirm_desc": "Yerel Müzik, içe aktardığın kitaplığındır, önbellek değil. {tracks} ({size}) kapaklarıyla birlikte Liner'dan silinecek. Orijinal dosyaların yerinde kalır.",
+      "local_confirm_button": "Yerel müziği sil"
     },
     "theme": {
       "title": "Tema",
@@ -711,7 +748,6 @@
     },
     "profile": {
       "title": "Profil",
-      "description": "Herkese açık profilini, avatarını ve gizlilik tercihlerini güncelle.",
       "signed_in_as": "Giriş yapılan hesap",
       "not_signed_in": "Şu anda tanınan bir oturumda giriş yapılmamış.",
       "sign_in": "Liner'a giriş yap",
@@ -734,14 +770,6 @@
       "display_name_placeholder": "Adın veya takma adın",
       "avatar_url_label": "Avatar URL'si",
       "avatar_url_placeholder": "https://example.com/avatar.jpg",
-      "avatar_change": "Fotoğraf yükle",
-      "avatar_remove": "Fotoğrafı kaldır",
-      "avatar_updated": "Profil fotoğrafı güncellendi",
-      "avatar_removed": "Profil fotoğrafı kaldırıldı",
-      "avatar_invalid": "Lütfen PNG, JPEG, WebP veya GIF bir görsel seç.",
-      "avatar_too_large": "Görsel çok büyük. Lütfen 10 MB altında bir dosya seç.",
-      "avatar_failed": "Bu görsel işlenemedi. Lütfen başka bir tane dene.",
-      "avatar_gif_too_large": "Bu animasyonlu GIF çok büyük. Liner Pro, 30 MB'a kadar animasyonlu avatarları açar.",
       "bio_label": "Biyografi",
       "bio_placeholder": "Müzik zevkini dünyaya anlat...",
       "save_changes": "Değişiklikleri kaydet",
@@ -773,6 +801,15 @@
       },
       "badge_public": "Herkese açık",
       "badge_private": "Gizli",
+      "description": "Herkese açık profilini, avatarını ve gizlilik tercihlerini güncelle.",
+      "avatar_change": "Fotoğraf yükle",
+      "avatar_remove": "Fotoğrafı kaldır",
+      "avatar_updated": "Profil fotoğrafı güncellendi",
+      "avatar_removed": "Profil fotoğrafı kaldırıldı",
+      "avatar_invalid": "Lütfen PNG, JPEG, WebP veya GIF bir görsel seç.",
+      "avatar_too_large": "Görsel çok büyük. Lütfen 10 MB altında bir dosya seç.",
+      "avatar_failed": "Bu görsel işlenemedi. Lütfen başka bir tane dene.",
+      "avatar_gif_too_large": "Bu animasyonlu GIF çok büyük. Liner Pro, 30 MB'a kadar animasyonlu avatarları açar.",
       "security_section": "Güvenlik",
       "change_password": "Şifre değiştir",
       "password_note": "Liner hesapları Liner hizmeti tarafından yönetilir ve hizmet henüz uygulama içi şifre değişikliği sunmuyor. Şifreni değiştirmen gerekiyorsa desteğe ulaş.",
@@ -781,7 +818,7 @@
     "about": {
       "liner": "Liner",
       "telegram": "Kanal",
-      "support": "Destek",
+      "discord": "Discord",
       "github": "GitHub",
       "website": "Web sitesi",
       "tagline": "Hece hece senkronize şarkı sözleriyle modern masaüstü müzik yayın oynatıcısı",
@@ -812,7 +849,8 @@
       "report_issue_desc": "GitHub'da hata raporu, özellik önerisi veya geri bildirim gönder.",
       "special_thanks": "Özel Teşekkürler",
       "special_thanks_desc": "@braccato/core, @kawarp/react, Solar Icons ve MingCute Icons.",
-      "license_notice": "Liner Source-Available & Non-Commercial Lisansı altında dağıtılır."
+      "license_notice": "Liner Source-Available & Non-Commercial Lisansı altında dağıtılır.",
+      "support": "Destek"
     },
     "connection": {
       "open_folder": "Kaydedilen konumu aç"
@@ -1115,6 +1153,7 @@
   "track_sort": {
     "label": "Sırala",
     "default": "Varsayılan",
+    "added": "Eklenme tarihine göre",
     "title": "Başlığa göre (A–Z)",
     "duration": "Süreye göre",
     "popularity": "Popülerliğe göre"

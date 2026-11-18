@@ -1,6 +1,5 @@
 // evi-style hand-drawn doodles: squiggle underline, sparks, asterisk.
 // All strokes use currentColor so the parent picks lime or orange.
-// Ported from the desktop redesign (liner-new-ui source).
 
 export function Squiggle({ className = "" }: { className?: string }) {
   return (

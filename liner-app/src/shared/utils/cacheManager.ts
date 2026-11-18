@@ -1,4 +1,7 @@
 import { linerDb } from "@/shared/storage/linerDb";
+import { useLocalLibraryStore } from "@/features/library/local/store/localLibraryStore";
+import { useSavedTracksStore } from "@/features/library/saved/store/savedTracksStore";
+import { useCachedTracksStore } from "@/features/library/cached/store/cachedTracksStore";
 import {
   audioCache,
   DEFAULT_AUDIO_CACHE_LIMIT_BYTES,
@@ -423,6 +426,9 @@ export async function clearStorageCategories(
   categoryIds: StorageCategoryId[],
 ): Promise<void> {
   const set = new Set(categoryIds);
+  if (set.has("local")) {
+    await useLocalLibraryStore.getState().removeAll();
+  }
   const isAllCategories =
     set.has("audio") &&
     set.has("covers") &&
@@ -501,6 +507,13 @@ export async function clearStorageCategories(
   }
 }
 
+export async function removeTrackFromCache(trackId: string): Promise<void> {
+  await useCachedTracksStore.getState().remove(trackId);
+  lyricsCache.delete(trackId);
+  await linerDb.deleteLyrics(trackId);
+  await refreshStorageAnalytics(true).catch(() => null);
+}
+
 export async function openCacheFolder(): Promise<boolean> {
   if (typeof window !== "undefined" && window.linerElectron?.openCacheFolder) {
     return window.linerElectron.openCacheFolder();
@@ -571,6 +584,7 @@ export async function refreshStorageAnalytics(
     const data = await request;
     cachedStorageAnalytics = data;
     writePersistedAnalytics(data);
+    for (const listener of analyticsListeners) listener(data);
     return data;
   } finally {
     if (inflightAnalytics === request) {

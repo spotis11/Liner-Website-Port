@@ -10,6 +10,7 @@ import {
 } from "@/features/library";
 import ArtistPage from "@/features/artist/ui/ArtistPage";
 import CollectionPage from "@/features/collection/ui/CollectionPage";
+import DesignPreviewPage from "@/features/collection/ui/DesignPreviewPage";
 import LoginPage from "@/features/auth/ui/LoginPage";
 import DiscordCallbackPage from "@/features/auth/ui/DiscordCallbackPage";
 import PlayerPage from "@/features/player/ui/FullscreenPlayer";
@@ -37,12 +38,16 @@ const KEPT_PAGES: ReadonlyArray<{ path: string; element: ReactElement }> = [
 ];
 
 const PLAYER_PATH = "/player";
+// dev-only design preview route, compiled out of production builds
+const DESIGN_PREVIEW_PATH =
+  import.meta.env.DEV ? "/_design" : "/dev-preview-disabled";
 const OFFLINE_PATHS = new Set([
   "/library",
-  "/library/cached",
   "/library/local",
+  "/library/cached",
   "/library/saved",
   PLAYER_PATH,
+  DESIGN_PREVIEW_PATH,
 ]);
 
 export function AppRoutes() {
@@ -76,11 +81,14 @@ export function AppRoutes() {
         <div key={`${pathname}?${search}`} className="page-transition">
           <Routes location={shellLocation}>
             <Route path="/library/playlist" element={<PlaylistPage />} />
-            <Route path="/library/cached" element={<CachedTracksPage />} />
             <Route path="/library/local" element={<LocalTracksPage />} />
+            <Route path="/library/cached" element={<CachedTracksPage />} />
             <Route path="/library/saved" element={<SavedLikesPage />} />
             <Route path="/artist" element={<ArtistPage />} />
             <Route path="/collection" element={<CollectionPage />} />
+            {import.meta.env.DEV && (
+              <Route path={DESIGN_PREVIEW_PATH} element={<DesignPreviewPage />} />
+            )}
             <Route path="/settings" element={<Navigate to="/" replace />} />
             <Route path={PLAYER_PATH} element={null} />
             <Route path="*" element={<Navigate to="/" replace />} />

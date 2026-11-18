@@ -2,16 +2,29 @@ import { useEffect, useRef, useState } from "react";
 import { playerEngine } from "@/features/player/engine/playerEngine";
 import { usePlayerStore } from "@/features/player/store/playerStore";
 import {
-  useIsTrackLiked,
-  useLikeTrack,
-  useUnlikeTrack,
-} from "@/features/library/hooks";
+  stepVolumeGain,
+  toVolumeGain,
+  toVolumeLevel,
+} from "@/features/player/engine/volume";
+import { useIsTrackLiked, useToggleTrackLike } from "@/features/library/hooks";
 import { useCoverSrc } from "@/features/covers";
 import { getAuthSession } from "@/shared/api";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { showToast } from "@/shared/ui/Toast";
 import type { OverlayAction, OverlayStatePayload } from "../contracts";
 import { useOverlaySettingsStore } from "../store/overlaySettingsStore";
+import { useShortcutsStore } from "@/features/shortcuts/store/shortcutsStore";
+
+const PLAYING_RESYNC_DRIFT_MS = 1_500;
+const PAUSED_RESYNC_DRIFT_MS = 250;
+const DEFAULT_UNMUTE_LEVEL = 0.7;
+
+interface SentPosition {
+  positionMs: number;
+  at: number;
+  rate: number;
+  playing: boolean;
+}
 
 const PLAYING_RESYNC_DRIFT_MS = 1_500;
 const PAUSED_RESYNC_DRIFT_MS = 250;
@@ -34,10 +47,9 @@ export function useOverlaySync() {
   const playbackRate = usePlayerStore((s) => s.playbackRate);
   const effectiveCover = useCoverSrc(currentTrack?.coverUrl);
   const isLiked = useIsTrackLiked(currentTrack?.id);
-  const likeMutation = useLikeTrack();
-  const unlikeMutation = useUnlikeTrack();
-  const isTogglingLikeRef = useRef(false);
+  const toggleLike = useToggleTrackLike();
   const sentPositionRef = useRef<SentPosition | null>(null);
+  const lastUnmutedLevelRef = useRef(DEFAULT_UNMUTE_LEVEL);
   const [seekTick, setSeekTick] = useState(0);
 
   // Sync auth status to Electron overlay manager
@@ -104,51 +116,62 @@ export function useOverlaySync() {
               playerEngine.seek(action.payload.positionMs);
             }
             break;
+          case "seekBy": {
+            const deltaMs = action.payload?.deltaMs;
+            if (typeof deltaMs !== "number") break;
+            const { positionMs, durationMs: total } = usePlayerStore.getState();
+            const upperBound =
+              total > 0 ? total : positionMs + Math.abs(deltaMs);
+            playerEngine.seek(
+              Math.min(upperBound, Math.max(0, positionMs + deltaMs)),
+            );
+            break;
+          }
+          case "toggleMute": {
+            const level = toVolumeLevel(usePlayerStore.getState().volume);
+            if (level > 0) {
+              lastUnmutedLevelRef.current = level;
+              playerEngine.setVolume(0);
+            } else {
+              playerEngine.setVolume(
+                toVolumeGain(
+                  lastUnmutedLevelRef.current || DEFAULT_UNMUTE_LEVEL,
+                ),
+              );
+            }
+            break;
+          }
           case "like":
-            if (currentTrack && !isTogglingLikeRef.current) {
-              isTogglingLikeRef.current = true;
+            if (currentTrack) {
               const fromGlobal = Boolean(
                 (action.payload as any)?.fromGlobalShortcut ||
                 (action as any).fromGlobalShortcut,
               );
-              const onSettled = () => {
-                isTogglingLikeRef.current = false;
-              };
-              if (isLiked) {
-                unlikeMutation.mutate(currentTrack.id, {
-                  onSuccess: () => {
-                    if (fromGlobal) {
-                      showToast(currentTrack.title || "Song", "info", {
-                        description: "Removed from favorites",
-                      });
-                    }
-                  },
-                  onSettled,
-                });
-              } else {
-                likeMutation.mutate(currentTrack.id, {
-                  onSuccess: () => {
-                    if (fromGlobal) {
-                      showToast(currentTrack.title || "Song", "checkmark", {
-                        description: "Added to favorites",
-                      });
-                    }
-                  },
-                  onSettled,
-                });
-              }
+              toggleLike(currentTrack.id, {
+                onSuccess: (liked) => {
+                  if (!fromGlobal) return;
+                  showToast(
+                    currentTrack.title || "Song",
+                    liked ? "checkmark" : "info",
+                    {
+                      id: `like-toast-${currentTrack.id}`,
+                      description: liked
+                        ? "Added to favorites"
+                        : "Removed from favorites",
+                    },
+                  );
+                },
+              });
             }
             break;
-          case "volumeUp": {
-            const current = usePlayerStore.getState().volume;
-            const next = Math.min(1, Math.round((current + 0.05) * 100) / 100);
-            playerEngine.setVolume(next);
-            break;
-          }
+          case "volumeUp":
           case "volumeDown": {
             const current = usePlayerStore.getState().volume;
-            const next = Math.max(0, Math.round((current - 0.05) * 100) / 100);
-            playerEngine.setVolume(next);
+            const { volumeStep } = useShortcutsStore.getState();
+            const direction = action.type === "volumeUp" ? 1 : -1;
+            playerEngine.setVolume(
+              stepVolumeGain(current, direction, volumeStep),
+            );
             break;
           }
           case "setVolume": {
@@ -165,7 +188,7 @@ export function useOverlaySync() {
     );
 
     return cleanup;
-  }, [currentTrack, isLiked, likeMutation, unlikeMutation]);
+  }, [currentTrack, toggleLike]);
 
   useEffect(() => {
     return usePlayerStore.subscribe((state, prev) => {

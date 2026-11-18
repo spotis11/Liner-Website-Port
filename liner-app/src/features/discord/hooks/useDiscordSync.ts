@@ -183,7 +183,7 @@ export function useDiscordSync() {
       status: player.status,
       track: currentTrack
         ? {
-            id: currentTrack.id,
+            id: isLocalTrackId(currentTrack.id) ? "" : currentTrack.id,
             title: currentTrack.title,
             artist: artistName,
             artistId: primaryArtistId,

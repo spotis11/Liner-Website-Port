@@ -34,6 +34,12 @@ export interface AuthTokens {
   recoveryToken?: string;
 }
 
+export interface UsernameAvailability {
+  username: string;
+  valid: boolean;
+  available: boolean;
+}
+
 export interface AuthResult {
   accessToken: string;
   refreshToken: string;

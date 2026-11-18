@@ -67,7 +67,8 @@ export {
   HERO_TITLE_CLASS,
   HERO_SUBTITLE_CLASS,
   HeroSubtitle,
-  HERO_CHIP_CLASS,
+  HeroEyebrow,
+  HeroMeta,
   HERO_BUTTON_CLASS,
   HERO_GLASS_BUTTON_CLASS,
   HERO_GLASS_CLASS,
@@ -89,3 +90,16 @@ export {
 } from "./DialogActions";
 export { default as QrCode, type QrCodeProps } from "./QrCode";
 export { ISLAND_SURFACE } from "./islandSurface";
+export {
+  default as Panel,
+  ListPanel,
+  PANEL_GLASS_CLASS,
+  PANEL_FILL_CLASS,
+  type PanelProps,
+} from "./Panel";
+export { default as ConfirmPill, type ConfirmPillProps } from "./ConfirmPill";
+export {
+  default as UsageOverview,
+  SegmentBar,
+  type UsageSegment,
+} from "./UsageOverview";

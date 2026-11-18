@@ -15,47 +15,39 @@ import {
   RepeatOne,
   Shuffle,
 } from "@solar-icons/react";
-import { HeartFill, HeartLine, AddLine, MiniplayerLine } from "@mingcute/react";
+import { HeartFill, HeartLine } from "@mingcute/react";
 
 import { PlayerMorphIcon, ICON_PLAY, ICON_PAUSE } from "./morphPlayerIcons";
 
 import { usePlayerState } from "../hooks/usePlayerState";
 import { playerEngine } from "../engine/playerEngine";
-import {
-  isMiniPipSupported,
-  openMiniPip,
-} from "../engine/miniPipController";
 import { isRadioContext, nextRepeatMode } from "../engine/radioMode";
 import { useTranslation } from "@/languages";
-import {
-  useIsTrackLiked,
-  useLikeTrack,
-  useUnlikeTrack,
-} from "@/features/library/hooks";
+import { useIsTrackLiked, useToggleTrackLike } from "@/features/library/hooks";
 import { usePlayerStore } from "../store/playerStore";
-import { useAddCurrentTrackToPlaylist } from "../hooks/useAddCurrentTrackToPlaylist";
 import { toVolumeGain, toVolumeLevel } from "../engine/volume";
 import { VolumeColumn } from "./VolumeColumn";
 import { SpeedPitchPicker } from "./SpeedPitchPicker";
-import { isEqActive } from "../engine/equalizer";
 import { EqualizerPicker } from "./EqualizerPicker";
+import { isEqActive } from "../engine/equalizer";
 import { TimelineSlider } from "./TimelineSlider";
 import { useTheme } from "next-themes";
-import { useCoverReady, CoverImage, loadCoverElement } from "@/features/covers";
-import {
-  useBlockCustomizationStyle,
-  useHasPageBackdrop,
-} from "@/features/settings/store/customizationStore";
+import { CoverImage, loadCoverElement } from "@/features/covers";
+import { useHasPageBackdrop } from "@/features/settings/store/customizationStore";
 import { ArtistAvatar, ArtistLink } from "@/features/artist";
+import { isLocalTrackId } from "@/shared/media/local";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import { useSongMenuItems } from "../hooks/useSongMenuItems";
-import { useLiquidGlassEnabled, LiquidGlassPane } from "@/features/liquid-glass";
 
 const PROGRESS_STEP_MS = 1000;
-// anything other than the regular one-step tick (a new track, a seek, a
-// repeat) is a jump: it eases out quickly instead of crawling linearly (upstream eefcc4e)
+const TRACK_SWAP_EASE = [0.22, 1, 0.36, 1] as const;
+const COVER_FADE = { duration: 0.25, ease: TRACK_SWAP_EASE };
+const TEXT_SWAP = { duration: 0.2, ease: TRACK_SWAP_EASE };
 const PROGRESS_JUMP_TRANSITION =
   "transform 380ms cubic-bezier(0.22, 1, 0.36, 1)";
+// the fill moves in one eased step per played second instead of a uniform crawl
+const PROGRESS_TICK_TRANSITION =
+  "transform 600ms cubic-bezier(0.22, 1, 0.36, 1)";
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   r /= 255;
@@ -108,115 +100,100 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
-function extractColorsFromCanvas(
-  canvas: HTMLCanvasElement,
-  isLight = false,
-): {
+function extractColorsFromCanvas(_canvas: HTMLCanvasElement): {
   accentColor: string;
   accentColorSolid: string;
 } {
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) {
-    return {
-      accentColor: "rgba(255, 255, 255, 0.12)",
-      accentColorSolid: "rgb(255, 255, 255)",
-    };
-  }
-
-  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  let totalWeight = 0;
-  let weightedR = 0;
-  let weightedG = 0;
-  let weightedB = 0;
-  let totalR = 0;
-  let totalG = 0;
-  let totalB = 0;
-  const count = data.length / 4;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    totalR += r;
-    totalG += g;
-    totalB += b;
-
-    const [, s, l] = rgbToHsl(r, g, b);
-    if (l > 0.08 && l < 0.95 && s > 0.1) {
-      const vibrancy = s * (1 - Math.abs(l - 0.5) * 1.5);
-      const weight = Math.max(0.01, vibrancy * vibrancy);
-      weightedR += r * weight;
-      weightedG += g * weight;
-      weightedB += b * weight;
-      totalWeight += weight;
-    }
-  }
-
-  let finalR = Math.round(
-    totalWeight > 0.5 ? weightedR / totalWeight : totalR / count,
-  );
-  let finalG = Math.round(
-    totalWeight > 0.5 ? weightedG / totalWeight : totalG / count,
-  );
-  let finalB = Math.round(
-    totalWeight > 0.5 ? weightedB / totalWeight : totalB / count,
-  );
-
-  const [h, s, l] = rgbToHsl(finalR, finalG, finalB);
-
-  if (isLight) {
-    if (s < 0.12) {
-      return {
-        accentColor: "rgba(0, 0, 0, 0.045)",
-        accentColorSolid: "rgb(30, 30, 30)",
-      };
-    }
-    // Luminous vibrant tint for light theme card progress fill
-    const tintL = 0.5;
-    const tintS = Math.max(0.8, s);
-    const [tintR, tintG, tintB] = hslToRgb(h, tintS, tintL);
-
-    // Deep high-contrast tone for bottom timeline line
-    const solidL = Math.max(0.36, Math.min(0.46, l > 0.55 ? 0.4 : l));
-    const solidS = Math.max(0.75, s);
-    const [solidR, solidG, solidB] = hslToRgb(h, solidS, solidL);
-
-    return {
-      accentColor: `rgba(${tintR}, ${tintG}, ${tintB}, 0.09)`,
-      accentColorSolid: `rgb(${solidR}, ${solidG}, ${solidB})`,
-    };
-  }
-
-  // If mostly achromatic / monochrome (black, white, or gray cover)
-  if (s < 0.12) {
-    return {
-      accentColor:
-        l < 0.5 ? "rgba(255, 255, 255, 0.14)" : "rgba(255, 255, 255, 0.09)",
-      accentColorSolid: "rgb(255, 255, 255)",
-    };
-  }
-
-  // Ensure high contrast and vibrant visibility on dark backgrounds
-  const solidL = Math.max(0.65, Math.min(0.82, l < 0.45 ? 0.7 : l));
-  const solidS = Math.max(0.7, s);
-  const [solidR, solidG, solidB] = hslToRgb(h, solidS, solidL);
-
-  const bgOpacity = l < 0.25 ? 0.22 : l < 0.5 ? 0.18 : 0.12;
-
+  // flat dark design: the timeline stays neutral white, the cover no longer
+  // tints the chrome
   return {
-    accentColor: `rgba(${solidR}, ${solidG}, ${solidB}, ${bgOpacity})`,
-    accentColorSolid: `rgb(${solidR}, ${solidG}, ${solidB})`,
+    accentColor: "rgba(255, 255, 255, 0.12)",
+    accentColorSolid: "rgb(255, 255, 255)",
   };
-}
 
-// Computed once — the API availability never changes within a session.
-const miniPipSupported = isMiniPipSupported();
+}
 
 export interface MiniPlayerProps {
   onQueueOpenChange?: (open: boolean) => void;
   onQueueToggle?: () => void;
   onFullscreenOpen?: () => void;
   embedded?: boolean;
+}
+
+/**
+ * The track cover, crossfading on a track change: the incoming cover fades in
+ * over the outgoing one once it has loaded, and only then is the old one
+ * dropped, so the tile never shows empty in between.
+ */
+function CrossfadeCover({
+  url,
+  onLoad,
+}: {
+  url: string;
+  onLoad: (img: HTMLImageElement) => void;
+}) {
+  const [layers, setLayers] = useState<string[]>(() => (url ? [url] : []));
+  const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
+
+  if (!url && layers.length > 0) setLayers([]);
+  else if (url && layers[layers.length - 1] !== url) {
+    setLayers([...layers.filter((layer) => layer !== url), url]);
+  }
+
+  const markLoaded = (layer: string, img: HTMLImageElement) => {
+    if (layer === url) onLoad(img);
+    setLoaded((current) =>
+      current.has(layer) ? current : new Set(current).add(layer),
+    );
+  };
+
+  const dropBelow = (layer: string) => {
+    setLayers((current) => {
+      const index = current.indexOf(layer);
+      return index > 0 ? current.slice(index) : current;
+    });
+    setLoaded((current) => {
+      const next = new Set(
+        [...current].filter((item) => layers.includes(item)),
+      );
+      return next.size === current.size ? current : next;
+    });
+  };
+
+  const nothingShown = !layers.some((layer) => loaded.has(layer));
+
+  return (
+    <>
+      {nothingShown && url && (
+        <div className="absolute inset-0 animate-pulse bg-bg-elevated" />
+      )}
+      {layers.map((layer) => (
+        <motion.div
+          key={layer}
+          className="absolute inset-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: loaded.has(layer) ? 1 : 0 }}
+          transition={COVER_FADE}
+          onAnimationComplete={() => {
+            if (loaded.has(layer)) dropBelow(layer);
+          }}
+        >
+          <CoverImage
+            src={layer}
+            alt="Track artwork"
+            width={38}
+            height={38}
+            priority
+            draggable={false}
+            onLoad={(event) =>
+              markLoaded(layer, event.currentTarget as HTMLImageElement)
+            }
+            className="h-[38px] w-[38px] object-cover rounded-control"
+          />
+        </motion.div>
+      ))}
+    </>
+  );
 }
 
 function MiniPlayer({
@@ -228,13 +205,11 @@ function MiniPlayer({
   const player = usePlayerState();
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
-  const miniplayerCustomStyle = useBlockCustomizationStyle("miniplayer");
   const isLight = resolvedTheme
     ? resolvedTheme === "light"
     : typeof document !== "undefined" &&
       document.documentElement.getAttribute("data-theme") === "light";
   const miniPlayerStyle = usePlayerStore((state) => state.miniPlayerStyle);
-  const miniPlayerEnabled = usePlayerStore((state) => state.miniPlayerEnabled);
   const usesRoundedStyle = !embedded && miniPlayerStyle === "rounded";
   const usesBackgroundProgress = true;
   const hasPageBackdrop = useHasPageBackdrop();
@@ -267,7 +242,7 @@ function MiniPlayer({
         if (!ctx) return;
         ctx.drawImage(img, 0, 0, 64, 64);
         const { accentColor: ac, accentColorSolid: acs } =
-          extractColorsFromCanvas(canvas, isLight);
+          extractColorsFromCanvas(canvas);
         setAccentColor(ac);
         setAccentColorSolid(acs);
       } catch {
@@ -292,7 +267,7 @@ function MiniPlayer({
         if (!ctx) return;
         ctx.drawImage(img, 0, 0, 64, 64);
         const { accentColor: ac, accentColorSolid: acs } =
-          extractColorsFromCanvas(canvas, isLight);
+          extractColorsFromCanvas(canvas);
         setAccentColor(ac);
         setAccentColorSolid(acs);
       } catch {
@@ -330,26 +305,15 @@ function MiniPlayer({
 
   const currentTrack = player.currentTrack;
   const volumeLevel = toVolumeLevel(player.volume);
+  const isLocal = isLocalTrackId(currentTrack?.id);
   const isLiked = useIsTrackLiked(currentTrack?.id);
   const eqActive = isEqActive(player.isEqEnabled, player.eqGains);
-  const likeMutation = useLikeTrack();
-  const unlikeMutation = useUnlikeTrack();
-  const togglingRef = useRef(false);
-  const { openAddToPlaylist: addCurrentTrackToPlaylist } =
-    useAddCurrentTrackToPlaylist();
+  const toggleLike = useToggleTrackLike();
 
   const handleLikeToggle = useCallback(() => {
-    if (!currentTrack || togglingRef.current) return;
-    togglingRef.current = true;
-    const onSettled = () => {
-      togglingRef.current = false;
-    };
-    if (isLiked) {
-      unlikeMutation.mutate(currentTrack.id, { onSettled });
-    } else {
-      likeMutation.mutate(currentTrack.id, { onSettled });
-    }
-  }, [currentTrack, isLiked, likeMutation, unlikeMutation]);
+    if (!currentTrack) return;
+    toggleLike(currentTrack.id);
+  }, [currentTrack, toggleLike]);
 
   const durationMs =
     player.durationMs > 0
@@ -365,24 +329,13 @@ function MiniPlayer({
     isPlaying && durationMs > 0
       ? Math.min(
           1,
-          (Math.floor(player.positionMs / PROGRESS_STEP_MS) + 1) *
+          Math.floor(player.positionMs / PROGRESS_STEP_MS) *
             (PROGRESS_STEP_MS / durationMs),
         )
       : progress;
   const isLoading = player.status === "loading";
   const trackTitle = player.currentTrack?.title ?? t("player.nothing_playing");
-
-  const [shownProgress, setShownProgress] = useState(secondProgress);
-  const [progressJumped, setProgressJumped] = useState(false);
-  if (secondProgress !== shownProgress) {
-    const delta = secondProgress - shownProgress;
-    const step = durationMs > 0 ? PROGRESS_STEP_MS / durationMs : 0;
-    setProgressJumped(delta < 0 || delta > step * 1.5);
-    setShownProgress(secondProgress);
-  }
   const trackArtists = player.currentTrack?.artists ?? t("player.choose_track");
-
-  const isCoverLoaded = useCoverReady(coverUrl);
 
   const songMenuItems = useSongMenuItems({
     id: currentTrack?.id,
@@ -429,7 +382,7 @@ function MiniPlayer({
     : "!bg-[#dfdfe1] dark:!bg-[#292929] !text-text-primary";
 
   const iconButtonClass =
-    "inline-flex h-[30px] w-[30px] max-[540px]:h-[26px] max-[540px]:w-[26px] items-center justify-center rounded-md text-text-secondary transition-colors duration-150 hover:bg-black/[0.05] dark:hover:bg-white/[0.09] hover:text-text-primary active:scale-[0.96] border-none bg-transparent cursor-pointer";
+    "inline-flex h-[30px] w-[30px] items-center justify-center rounded-control text-text-secondary transition-colors duration-150 hover:bg-black/[0.05] dark:hover:bg-white/[0.09] hover:text-text-primary active:scale-[0.96] border-none bg-transparent cursor-pointer";
 
   const clearVolumeHoverTimer = useCallback(() => {
     if (volumeHoverCloseTimerRef.current) {
@@ -589,7 +542,17 @@ function MiniPlayer({
 
   const [scrubRatio, setScrubRatio] = useState<number | null>(null);
   const activeProgress = scrubRatio !== null ? scrubRatio : secondProgress;
-  const liquidGlass = useLiquidGlassEnabled();
+
+  // anything other than the regular one-step tick (a new track, a seek, a
+  // repeat) is a jump: it eases out quickly instead of crawling linearly
+  const [shownProgress, setShownProgress] = useState(secondProgress);
+  const [progressJumped, setProgressJumped] = useState(false);
+  if (secondProgress !== shownProgress) {
+    const delta = secondProgress - shownProgress;
+    const step = durationMs > 0 ? PROGRESS_STEP_MS / durationMs : 0;
+    setProgressJumped(delta < 0 || delta > step * 1.5);
+    setShownProgress(secondProgress);
+  }
 
   return (
     <div
@@ -605,7 +568,7 @@ function MiniPlayer({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96, pointerEvents: "none" }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute bottom-[52px] z-[99] w-[46px] rounded-[11px] p-[4px] bg-black/[0.05] backdrop-blur-2xl backdrop-saturate-150 dark:bg-white/[0.07] prevent-seek"
+            className="absolute bottom-[52px] z-[99] w-[46px] rounded-[11px] p-[4px] bg-fill backdrop-blur-2xl backdrop-saturate-150 prevent-seek"
             style={volumePopupStyle}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseEnter={clearVolumeHoverTimer}
@@ -627,7 +590,7 @@ function MiniPlayer({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.985 }}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute bottom-[74px] z-[92] w-[300px] rounded-[14px] p-[16px] bg-black/[0.05] backdrop-blur-2xl backdrop-saturate-150 dark:bg-white/[0.07] prevent-seek"
+            className="absolute bottom-[74px] z-[92] w-[300px] rounded-[14px] p-[16px] bg-fill backdrop-blur-2xl backdrop-saturate-150 prevent-seek"
             style={speedPopupStyle}
             onPointerDown={(e) => e.stopPropagation()}
           >
@@ -645,7 +608,7 @@ function MiniPlayer({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.985 }}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute bottom-[74px] z-[92] w-[300px] rounded-[14px] p-[16px] bg-black/[0.05] backdrop-blur-2xl backdrop-saturate-150 dark:bg-white/[0.07] prevent-seek"
+            className="absolute bottom-[74px] z-[92] w-[300px] rounded-[14px] p-[16px] bg-fill backdrop-blur-2xl backdrop-saturate-150 prevent-seek"
             style={eqPopupStyle}
             onPointerDown={(e) => e.stopPropagation()}
           >
@@ -655,29 +618,15 @@ function MiniPlayer({
       </AnimatePresence>
 
       <div
-        data-liquid-ignore={liquidGlass ? "" : undefined}
         className={`relative h-[64px] w-full overflow-hidden cursor-pointer ${
           usesRoundedStyle
-            ? `rounded-full ${
-                liquidGlass
-                  ? ""
-                  : "border-[0.5px] border-border-tertiary bg-bg-primary"
-              }`
+            ? "rounded-full border-[0.5px] border-border-tertiary bg-bg-primary"
             : embedded
-              ? `rounded-[12px] ${
-                  liquidGlass
-                    ? ""
-                    : hasPageBackdrop
-                      ? "bg-bg-glass dark:bg-black/20 backdrop-blur-[48px] backdrop-saturate-150"
-                      : "bg-bg-primary"
-                }`
-              : `rounded-3xl ${
-                  liquidGlass
-                    ? ""
-                    : "border-[0.5px] border-border-tertiary bg-bg-primary"
-                }`
+              ? // flat strip pinned to the window bottom: solid surface, one
+                // hairline separating it from the page above
+                "rounded-b-[10px] border-t border-border-alpha-14 bg-bg-surface"
+              : "rounded-3xl border-[0.5px] border-border-tertiary bg-bg-primary"
         }`}
-        style={miniplayerCustomStyle}
         onPointerDown={(e) => {
           if (e.button !== 0) return;
           const target = e.target as Element | null;
@@ -718,7 +667,6 @@ function MiniPlayer({
           window.addEventListener("pointercancel", onUp);
         }}
       >
-        {liquidGlass && <LiquidGlassPane />}
         {usesBackgroundProgress && (
           <div
             className="absolute inset-0 z-0 pointer-events-none origin-left"
@@ -729,7 +677,7 @@ function MiniPlayer({
                 scrubRatio !== null
                   ? "none"
                   : isPlaying && !progressJumped
-                    ? `transform ${PROGRESS_STEP_MS}ms linear`
+                    ? PROGRESS_TICK_TRANSITION
                     : PROGRESS_JUMP_TRANSITION,
             }}
           />
@@ -770,7 +718,7 @@ function MiniPlayer({
         <div
           className={`relative grid h-full pointer-events-none ${
             embedded
-              ? "grid-cols-[minmax(180px,280px)_minmax(0,1fr)_auto]"
+              ? "grid-cols-[280px_minmax(0,1fr)_260px]"
               : "grid-cols-[286px_minmax(0,1fr)]"
           } ${!usesRoundedStyle && !embedded ? "pb-[4px]" : ""}`}
         >
@@ -795,78 +743,82 @@ function MiniPlayer({
               role="button"
               tabIndex={0}
               aria-label="Open player"
-              className={`relative h-[38px] w-[38px] shrink-0 overflow-hidden rounded-[8px] bg-bg-elevated cursor-pointer pointer-events-auto prevent-seek ${
-                coverUrl && !isCoverLoaded ? "animate-pulse" : ""
-              }`}
+              className="relative h-[38px] w-[38px] shrink-0 overflow-hidden rounded-control bg-bg-elevated cursor-pointer pointer-events-auto prevent-seek"
               onClick={onFullscreenOpen}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <CoverImage
-                key={coverUrl}
-                src={coverUrl}
-                alt="Track artwork"
-                width={38}
-                height={38}
-                priority
-                draggable={false}
-                onLoad={(e) => {
-                  extractAccentColor(e.currentTarget as HTMLImageElement);
-                }}
-                className="h-[38px] w-[38px] object-cover rounded-[8px]"
-              />
+              <CrossfadeCover url={coverUrl} onLoad={extractAccentColor} />
             </div>
-            <div className="flex min-w-0 flex-col pointer-events-none">
-              <p
-                className="m-0 truncate text-[16px] font-[400] text-text-primary flex items-center gap-[6px] pointer-events-none"
-                style={{
-                  lineHeight: "18px",
-                  letterSpacing: "0",
-                }}
-              >
-                <span
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Open player"
-                  className="min-w-0 truncate cursor-pointer pointer-events-auto prevent-seek"
-                  onClick={onFullscreenOpen}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onFullscreenOpen?.();
-                    }
-                  }}
+            {/* old title and artist leave upwards while the new ones come in
+                from below; both share one grid cell so nothing reflows */}
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] pointer-events-none">
+              <AnimatePresence initial={false}>
+                <motion.div
+                  key={player.currentTrack?.id ?? "none"}
+                  className="col-start-1 row-start-1 flex min-w-0 flex-col"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={TEXT_SWAP}
                 >
-                  {trackTitle}
-                </span>
-              </p>
-              <p
-                className="m-0 mt-[4px] flex min-w-0 items-center gap-[5px] text-[13px] font-[300] text-text-tertiary pointer-events-none"
-                style={{
-                  lineHeight: "15px",
-                }}
-              >
-                {player.currentTrack?.explicit && (
-                  <span className="inline-flex h-[14px] w-[14px] shrink-0 -translate-y-px items-center justify-center rounded-[3.5px] bg-black/[0.1] dark:bg-white/[0.14] text-[8px] font-[600] leading-none text-text-secondary">
-                    <span className="translate-y-[0.5px] [text-box:trim-both_cap_alphabetic]">
-                      E
+                  <p
+                    className="m-0 truncate text-[16px] font-[400] text-text-primary flex items-center gap-[6px] pointer-events-none"
+                    style={{
+                      lineHeight: "18px",
+                      letterSpacing: "0",
+                    }}
+                  >
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Open player"
+                      className="min-w-0 truncate cursor-pointer pointer-events-auto prevent-seek"
+                      onClick={onFullscreenOpen}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onFullscreenOpen?.();
+                        }
+                      }}
+                    >
+                      {trackTitle}
                     </span>
-                  </span>
-                )}
-                <ArtistAvatar
-                  artistId={player.currentTrack?.artistId}
-                  artistList={player.currentTrack?.artistList}
-                  size={15}
-                />
-                <ArtistLink
-                  name={trackArtists}
-                  artistId={player.currentTrack?.artistId}
-                  artistList={player.currentTrack?.artistList}
-                  className="text-text-tertiary pointer-events-auto"
-                />
-              </p>
+                  </p>
+                  <p
+                    className="m-0 mt-[4px] flex min-w-0 items-center gap-[5px] text-body font-[300] text-text-tertiary pointer-events-none"
+                    style={{
+                      lineHeight: "15px",
+                    }}
+                  >
+                    {player.currentTrack?.explicit && (
+                      <span className="inline-flex h-[14px] w-[14px] shrink-0 -translate-y-px items-center justify-center rounded-[3.5px] bg-fill-strong text-[8px] font-[600] leading-none text-text-secondary">
+                        <span className="translate-y-[0.5px] [text-box:trim-both_cap_alphabetic]">
+                          E
+                        </span>
+                      </span>
+                    )}
+                    {!isLocal && (
+                      <ArtistAvatar
+                        artistId={player.currentTrack?.artistId}
+                        artistList={player.currentTrack?.artistList}
+                        size={15}
+                        className="-translate-y-px"
+                      />
+                    )}
+                    <ArtistLink
+                      name={trackArtists}
+                      artistId={player.currentTrack?.artistId}
+                      artistList={player.currentTrack?.artistList}
+                      plain={isLocal}
+                      className="text-text-tertiary pointer-events-auto"
+                    />
+                  </p>
+                </motion.div>
+              </AnimatePresence>
             </div>
-            <button
+            {!isLocal && (
+              <button
                 type="button"
                 aria-label={isLiked ? "Unlike" : "Like"}
                 className={`${iconButtonClass} shrink-0 transition-colors duration-150 pointer-events-auto prevent-seek ${
@@ -880,17 +832,18 @@ function MiniPlayer({
               >
                 {isLiked ? <HeartFill size={20} /> : <HeartLine size={20} />}
               </button>
+            )}
           </div>
 
           <div
-            className={`flex h-full items-center pl-[10px] pr-[18px] pointer-events-none min-w-0 overflow-x-auto [scrollbar-width:none] ${
+            className={`flex h-full items-center pl-[10px] pr-[18px] pointer-events-none ${
               embedded ? "col-start-3" : ""
             }`}
           >
             <div
               className={`ml-auto flex items-center gap-[2px] rounded-lg p-[3px] pointer-events-auto prevent-seek cursor-default ${
                 hasPageBackdrop
-                  ? "bg-black/[0.04] dark:bg-white/[0.06]"
+                  ? "bg-fill-subtle"
                   : "bg-[#ebebed] dark:bg-[#141414]"
               }`}
               onPointerDown={(e) => e.stopPropagation()}
@@ -1052,22 +1005,6 @@ function MiniPlayer({
               >
                 <MaximizeSquare3 size={18} weight="Outline" />
               </button>
-              {miniPipSupported && miniPlayerEnabled && (
-                <button
-                  type="button"
-                  aria-label={t("player.miniplayer")}
-                  title={t("player.miniplayer")}
-                  className={iconButtonClass}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => {
-                    setSpeedOpen(false);
-                    setVolumeOpen(false);
-                    void openMiniPip().catch(() => {});
-                  }}
-                >
-                  <MiniplayerLine size={18} />
-                </button>
-              )}
               <span
                 className="mx-[3px] h-[16px] w-px bg-border-toolbox-divider"
                 aria-hidden="true"

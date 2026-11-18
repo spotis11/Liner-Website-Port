@@ -5,6 +5,14 @@ import { getAuthSession } from "@/shared/api";
 import AppFrame from "@/features/navigation/ui/AppFrame";
 import { useWindowState } from "@/features/navigation/hooks/useWindowState";
 
+// design-preview harness: with `?_design=1` in a dev build the shell renders
+// without a session so screens can be screenshotted; prod builds compile this
+// whole branch out (import.meta.env.DEV === false)
+const DESIGN_PREVIEW =
+  import.meta.env.DEV &&
+  typeof window !== "undefined" &&
+  window.location.hash.includes("_design=1");
+
 export function AuthLock({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -15,6 +23,18 @@ export function AuthLock({ children }: { children: React.ReactNode }) {
   const { isEdgeToEdge } = useWindowState();
 
   useEffect(() => {
+    if (DESIGN_PREVIEW) {
+      useAuthStore.setState({
+        status: "authenticated",
+        user: {
+          id: "preview-user",
+          username: "olya",
+          displayName: "Olya Hnatiuk",
+          avatarUrl: null,
+        },
+      });
+      return;
+    }
     void initialize();
   }, [initialize]);
 
@@ -49,24 +69,27 @@ export function AuthLock({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [initialize]);
 
+  const effectiveStatus = DESIGN_PREVIEW ? "authenticated" : status;
+  const anonymousAllowed =
+    pathname === "/login" || pathname === "/auth/discord";
+
   useEffect(() => {
-    const anonymousAllowed = pathname === "/login" || pathname === "/auth/discord";
-    if (status === "anonymous" && !anonymousAllowed) {
+    if (effectiveStatus === "anonymous" && !anonymousAllowed) {
       navigate("/login", { replace: true });
     }
-    if (status === "authenticated" && pathname === "/login") {
+    if (effectiveStatus === "authenticated" && pathname === "/login") {
       navigate("/", { replace: true });
     }
-  }, [pathname, navigate, status]);
+  }, [pathname, navigate, effectiveStatus, anonymousAllowed]);
 
   if (
-    status === "initializing" ||
-    (status === "anonymous" && pathname !== "/login" && pathname !== "/auth/discord") ||
-    (status === "authenticated" && pathname === "/login")
+    effectiveStatus === "initializing" ||
+    (effectiveStatus === "anonymous" && !anonymousAllowed) ||
+    (effectiveStatus === "authenticated" && pathname === "/login")
   ) {
     return (
       <div
-        className={`h-full w-full bg-bg-canvas ${isEdgeToEdge ? "rounded-none" : "rounded-[12px]"}`}
+        className={`h-full w-full bg-bg-canvas ${isEdgeToEdge ? "rounded-none" : "rounded-item"}`}
       />
     );
   }

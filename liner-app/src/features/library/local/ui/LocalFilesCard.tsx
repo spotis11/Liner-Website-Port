@@ -1,47 +1,42 @@
-import { useEffect } from "react";
 import { useStableNavigate } from "@/shared/hooks/useStableNavigate";
 import { useTranslation } from "@/languages";
 import { useLocalTracks } from "../hooks/useLocalTracks";
-import { useLocalLibraryStore } from "../store/localLibraryStore";
 import LocalFilesCover from "./LocalFilesCover";
 
-const INTER = { fontFamily: "var(--font-inter), sans-serif" };
+interface LocalFilesCardProps {
+  viewMode?: "grid" | "list";
+}
 
 export default function LocalFilesCard({
   viewMode = "grid",
-}: {
-  viewMode?: "grid" | "list";
-}) {
+}: LocalFilesCardProps) {
   const { t } = useTranslation();
   const navigate = useStableNavigate();
-  const { tracks, isLoading } = useLocalTracks();
-  const load = useLocalLibraryStore((state) => state.load);
+  const { tracks, isLoading, isAvailable } = useLocalTracks();
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  if (!isAvailable) return null;
 
   const open = () => navigate("/library/local");
-  const label = isLoading ? null : t("common.songs", { count: tracks.length });
+  const count = isLoading ? null : t("common.songs", { count: tracks.length });
 
   if (viewMode === "list") {
     return (
       <div
         onClick={open}
-        className="flex w-full cursor-pointer select-none items-center gap-[16px] rounded-md p-[8px] transition-colors duration-150 ease-out hover:bg-border-alpha-14"
+        className="flex w-full cursor-pointer select-none items-center gap-[16px] rounded-control p-[8px] transition-colors duration-150 ease-out hover:bg-border-alpha-14"
       >
-        <div className="relative h-[48px] w-[48px] shrink-0 overflow-hidden rounded-md">
+        <div className="relative h-[48px] w-[48px] shrink-0 overflow-hidden rounded-control">
           <LocalFilesCover />
         </div>
-        <div className="flex min-w-0 flex-col gap-[2px]" style={INTER}>
+        <div className="flex min-w-0 flex-col gap-[2px]">
           <h3 className="m-0 truncate text-[16px] leading-[1.2] font-[400] text-text-primary">
             {t("library.local.title")}
           </h3>
-          {label === null ? (
+          {count === null ? (
             <span className="h-[12px] w-[60px] animate-pulse rounded bg-border-alpha-14" />
           ) : (
-            <p className="m-0 truncate text-[15px] leading-[1.2] font-[350] text-text-secondary">
-              {label}
+            <p className="m-0 truncate text-title leading-[1.2] font-[350] text-text-secondary">
+              {count}
             </p>
           )}
         </div>
@@ -54,19 +49,17 @@ export default function LocalFilesCard({
       onClick={open}
       className="group flex cursor-pointer flex-col gap-[8px]"
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-md">
+      <div className="relative aspect-square w-full overflow-hidden rounded-control">
         <LocalFilesCover />
       </div>
       <div className="flex flex-col gap-[4px]">
-        <span className="truncate text-[14px] font-[500] text-text-primary">
+        <span className="truncate text-label font-[500] text-text-primary">
           {t("library.local.title")}
         </span>
-        {label === null ? (
+        {count === null ? (
           <div className="h-[13px] w-[56%] animate-pulse rounded bg-border-alpha-14" />
         ) : (
-          <span className="truncate text-[13px] text-text-tertiary">
-            {label}
-          </span>
+          <span className="truncate text-body text-text-tertiary">{count}</span>
         )}
       </div>
     </div>

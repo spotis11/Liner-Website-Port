@@ -10,22 +10,23 @@ import {
   BASE_COLUMN_WIDTH,
   fullscreenColumnScale,
 } from "../lib/fullscreenScale";
+import { useWindowState } from "@/features/navigation/hooks/useWindowState";
 
-/**
- * Web adaptation of upstream's electron window-state gate: the web
- * fullscreen player always fills the viewport, so the column scale tracks
- * the window size directly.
- */
 function useFullscreenColumnScale(): number {
+  const { isEdgeToEdge } = useWindowState();
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
+    if (!isEdgeToEdge) {
+      setScale(1);
+      return;
+    }
     const update = () =>
       setScale(fullscreenColumnScale(window.innerWidth, window.innerHeight));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [isEdgeToEdge]);
 
   return scale;
 }
@@ -46,8 +47,8 @@ export function PlayerUiElements({
   layout = "vertical",
 }: PlayerUiElementsProps) {
   const scale = useFullscreenColumnScale();
-  const horizontal = layout === "horizontal";
   const scaled = scale > 1;
+  const horizontal = layout === "horizontal";
   const columnWidth = Math.round(BASE_COLUMN_WIDTH * scale);
   const columnStyle = scaled ? { width: columnWidth } : undefined;
   const columnClass = cn(
