@@ -280,12 +280,13 @@
     "title": "Confirm you're not a bot",
     "description": "A quick Cloudflare check keeps bots away from Liner accounts. It usually passes on its own in a second.",
     "expired": "The check timed out and is starting again.",
-    "failed": "The check didn't load. Check your connection and try again.",
-    "failed_domain": "Liner's verification widget only runs on its own domains (error 110200). Create your account in the official Liner app, then sign in here — sign-in doesn't need this check.",
+    "failed": "The check didn't load or was closed before it finished. An ad-blocker or privacy extension can block it — try an incognito window with extensions off, or try again.",
+    "failed_domain": "Liner's provider is blocking this network from loading the verification page (it showed \"you have been blocked\"). Try a different network or a VPN just for this one-time check — or email Liner support with the Cloudflare Ray ID shown in that popup. Sign-in may also simply work if you retry later: Liner only sometimes requires this check.",
     "waiting": "Checking…",
     "retry": "Try again",
     "cancel": "Cancel",
-    "skip": "Skip"
+    "skip": "Skip",
+    "try_without": "Try without verification"
   },
   "import": {
     "active_import": "Playlist Import",

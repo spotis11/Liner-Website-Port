@@ -14,6 +14,7 @@ interface HumanCheckState {
   solve: (token: string) => void;
   retry: () => void;
   cancel: () => void;
+  skip: () => void;
 }
 
 let settle: ((token: string | null) => void) | null = null;
@@ -65,6 +66,13 @@ export const useHumanCheckStore = create<HumanCheckState>((set) => ({
   cancel: () => {
     set({ request: null });
     finish(null);
+  },
+
+  // "Try without verification" — resolve with "" so the caller proceeds
+  // without a token (upstream only sometimes enforces the check)
+  skip: () => {
+    set({ request: null });
+    finish("");
   },
 }));
 

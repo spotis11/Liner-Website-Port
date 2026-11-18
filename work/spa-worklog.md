@@ -112,3 +112,30 @@ honestly); register triggers the human-check dialog with the popup button and
 the popup opens upstream's verify page (Cloudflare hard-blocks the headless
 fingerprint — a real browser gets the solvable interstitial). The final
 token->postMessage hop is the desktop's protocol and needs a human to solve.
+
+## 2026-11-18 (late) — the widget wall is real for blocked networks
+
+User's real browser got Cloudflare's hard block page ("Sorry, you have been
+blocked", their IP 5.107.210.32) on the verify popup — Liner's provider blocks
+their network outright, so the popup check cannot complete for them without a
+clean network. Probes: challenge gate currently required 8/8 for login AND
+register from the relay egress (flips over hours — a token-less login passed
+earlier and returned the honest INVALID_CREDENTIALS). No alternate upstream
+exists: api.tryliner.com NXDOMAIN, api.getliner.com alive but a different
+(older) API generation with no /v1/auth routes.
+
+Shipped (dep_obsazlfzoeoeqmiueajf, index-DvRtGZPQ.js):
+- human-check failed phase: honest guidance (network blocked / ad-blocker or
+  extensions / VPN for the one-time check / Ray ID to Liner support / retry
+  later) + a "Try without verification" action that proceeds token-less —
+  wins whenever upstream's gate has flipped off (both UI trees)
+- a 60s declined flag so a TURNSTILE_REQUIRED answer right after "try without"
+  never re-opens the dialog in a loop
+- en.json strings updated (other locales fall back to en per key)
+
+Local E2E on the shipped bundle: challenge-required -> dialog -> popup closed
+unsolved -> guidance + try-without -> single token-less login -> 403 surfaced
+honestly, no loop. Live: same bundle, dialog renders on submit.
+User-facing reality: their credentials also came back INVALID_CREDENTIALS when
+the gate was off — they should re-check the real Liner email/password; and
+their SW serves the shell network-first so the next visit picks this build up.

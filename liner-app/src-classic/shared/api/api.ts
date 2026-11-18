@@ -23,6 +23,7 @@ import { solvePow } from "./proofOfWorkRunner";
 import { refreshEdgeKey, type EdgeKeyAnswer } from "./edgeKey";
 import {
   isHumanCheckMode,
+  isHumanCheckDeclined,
   runHumanCheck,
   type HumanCheckAction,
 } from "./humanCheck";
@@ -802,8 +803,11 @@ async function withAuthProof<T>(
       error instanceof ApiError &&
       (error.code === "TURNSTILE_REQUIRED" || error.code === "TURNSTILE_INVALID")
     ) {
-      const token = await runHumanCheck(purpose, "required");
-      if (token) return send({ ...proof, turnstile: token });
+      // respect an explicit "try without verification" — don't loop the dialog
+      if (!isHumanCheckDeclined()) {
+        const token = await runHumanCheck(purpose, "required");
+        if (token) return send({ ...proof, turnstile: token });
+      }
     }
     const retryable =
       error instanceof PowTimeoutError ||

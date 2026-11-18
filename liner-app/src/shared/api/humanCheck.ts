@@ -60,12 +60,30 @@ export function isHumanCheckMode(value: unknown): value is HumanCheckMode {
   return value === "off" || value === "optional" || value === "required";
 }
 
+// the user chose "Try without verification" — remember it for a short
+// window so a following TURNSTILE_REQUIRED answer doesn't re-open the
+// check dialog in a loop
+let declinedUntil = 0;
+
+export function markHumanCheckDeclined() {
+  declinedUntil = Date.now() + 60_000;
+}
+
+export function isHumanCheckDeclined(): boolean {
+  return Date.now() < declinedUntil;
+}
+
 export async function runHumanCheck(
   action: HumanCheckAction,
   mode: HumanCheckMode,
 ): Promise<string | undefined> {
   if (mode === "off") return undefined;
   const token = prompt ? await prompt({ action, mode }) : null;
+  if (token === "") {
+    // explicit "try without verification" — not a cancel
+    markHumanCheckDeclined();
+    return undefined;
+  }
   if (token) return token;
   if (mode === "required") throw new HumanCheckCancelledError();
   return undefined;

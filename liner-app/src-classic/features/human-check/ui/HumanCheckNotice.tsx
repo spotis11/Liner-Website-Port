@@ -18,6 +18,7 @@ export default function HumanCheckNotice() {
   const errorCode = useHumanCheckStore((state) => state.errorCode);
   const retry = useHumanCheckStore((state) => state.retry);
   const cancel = useHumanCheckStore((state) => state.cancel);
+  const skip = useHumanCheckStore((state) => state.skip);
   const failed = phase === "error";
 
   useEffect(() => {
@@ -105,6 +106,15 @@ export default function HumanCheckNotice() {
                 : t("human_check.cancel")}
             </button>
           </div>
+          {!failed ? null : (
+            <button
+              type="button"
+              onClick={skip}
+              className="mx-auto mt-[2px] text-[13px] font-[500] text-text-secondary underline-offset-2 transition-colors hover:text-text-primary hover:underline"
+            >
+              {t("human_check.try_without")}
+            </button>
+          )}
         </motion.div>
       )}
     </AnimatePresence>,
