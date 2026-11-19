@@ -338,8 +338,18 @@
 /* 3d. M3 press ripples + button motion                               */
 /* ------------------------------------------------------------------ */
 
+/* Static hosts get position:relative so the absolute ripple span anchors to
+ * them. Hosts that are ALREADY positioned (absolute/fixed/…) take the -pos
+ * variant instead: overriding their position value made the header search
+ * pill (absolute left-1/2) jump +50% aside on press and swallowed its click. */
 [data-ui-style="material3"] .m3-ripple-host {
   position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* positioned hosts: clip the ripple, never touch `position` */
+[data-ui-style="material3"] .m3-ripple-host-pos {
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
 }
@@ -376,13 +386,17 @@
   transition-timing-function: var(--m3-ease-standard);
 }
 
+/* M3 press state: the standalone `scale` property composes WITH an existing
+ * `transform` instead of replacing it, so buttons positioned via legacy
+ * transform utilities keep their geometry while pressed. (The header search
+ * pill's jump was the ripple-host position override — see .m3-ripple-host.) */
 [data-ui-style="material3"] button:not(:disabled):active {
-  transform: scale(0.97);
+  scale: 0.97;
 }
 
 /* keep the player transport buttons from visually jumping while playing */
 [data-ui-style="material3"] [data-m3-no-scale]:not(:disabled):active {
-  transform: none;
+  scale: none;
 }
 
 /* M3 focus ring: 2px primary outline, rounded */

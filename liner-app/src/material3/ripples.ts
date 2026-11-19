@@ -42,14 +42,22 @@ function spawnRipple(
   ripple.style.left = `${x}px`;
   ripple.style.top = `${y}px`;
 
-  host.classList.add("m3-ripple-host");
+  // The ripple span is absolutely positioned, so a STATIC host needs
+  // position:relative to anchor it (.m3-ripple-host). An already-positioned
+  // host (absolute/fixed/…) must keep its position value: forcing relative
+  // here turned the header search pill's left:50% into a +50% relative
+  // offset and the pill visibly jumped aside mid-press, so the click landed
+  // on the header behind it and the search popup never opened.
+  const alreadyPositioned = getComputedStyle(host).position !== "static";
+  const hostClass = alreadyPositioned ? "m3-ripple-host-pos" : "m3-ripple-host";
+  host.classList.add(hostClass);
   host.appendChild(ripple);
   ripple.addEventListener(
     "animationend",
     () => {
       ripple.remove();
       if (!host.querySelector(".m3-ripple")) {
-        host.classList.remove("m3-ripple-host");
+        host.classList.remove("m3-ripple-host", "m3-ripple-host-pos");
       }
     },
     { once: true },

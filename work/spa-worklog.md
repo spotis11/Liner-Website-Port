@@ -348,3 +348,34 @@ Verified per-frame on :3100 — row heart (default UI) dx:0/dy:-2 through
 65ms; M3 row heart dx:-1/dy:-3 through 94ms; M3 mini player heart
 dx:-1/dy:-3 through 94ms; each then arcs away continuously. The classic
 tree imports the same module, so both designs get it. SPA 1.25.1.
+
+v1.28.0 (2026-11-19) — M3 search bar: ripple host no longer repositions buttons
+User (M3 UI): clicking the header search pill "didn't search and it moves".
+Reproduced headlessly: pointerdown+mousedown targeted the pill's span, but
+mouseup+click landed on the HEADER — the pill moved out from under the
+cursor mid-press, so onClick never fired. Two M3 layer causes:
+1) material3.css .m3-ripple-host forced position:relative onto EVERY ripple
+   host; for the pill (absolute left-1/2 -translate-x-1/2 top-1/2) that
+   turned left:50% into a +50% RELATIVE offset — measured mid-press jump
+   from (479,13) to (929,20) — and the same override would break any
+   fixed/absolute-positioned button on press.
+2) button:active { transform: scale(0.97) } replaced (instead of composed
+   with) legacy transform utilities; switched to the standalone `scale`
+   property which composes cleanly.
+Fix: ripples.ts reads computed position before hosting — static buttons get
+.m3-ripple-host (position:relative anchors the absolute ripple span);
+already-positioned buttons get the new .m3-ripple-host-pos (overflow +
+tap-highlight only, position untouched). Cleanup removes both.
+Verified on :3100 (M3): mid-press rect stays (479,13) with position:absolute
+and pos-host class; on release the popup opens and focus lands in the
+search input; typing "LONOWN" renders results with filter tabs. Like burst
+regression probe on the final bundle: row heart 196px at the box at t=60ms,
+16,662 red pixels at exact viewport centre at t=560ms, button bounce
+(0.9535 spring) at t=1300ms. FULLSCREEN verified earlier this session via
+player-store hydration (injected currentTrack + F shortcut, overlay z-70
+under the portaled z-80 canvas): heart AT the 40px like box t=40/90ms
+(208px), mid-flight 6,706px, 15,186 red px dead-centre t=560ms, back in the
+corridor t=1250ms with the landing bounce already running. Vitest: 2376
+passed; the 9 failing files (UserFinderTab ×2, SignOutDialog,
+useRecentlyPlayed ×2, SpeedPitchPicker, AppearanceTab ×4) fail identically
+on a stashed clean tree — pre-existing, untouched by this change.
