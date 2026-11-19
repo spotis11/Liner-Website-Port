@@ -183,6 +183,19 @@ function tick(now: number): void {
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
   }
+  // A <canvas> is a REPLACED element: `fixed inset-0` alone does not stretch
+  // it — its CSS box stays at the intrinsic (backing-store) size, i.e.
+  // viewport × dpr, with `right`/`bottom` over-constrained and ignored. On any
+  // display with devicePixelRatio > 1 (125%/150% Windows scaling, Retina) the
+  // whole overlay was therefore laid out dpr× too big and every point drawn at
+  // logical (x, y) landed at CSS (x·dpr, y·dpr): the heart appeared to burst in
+  // from off-screen/bottom-right instead of leaving the like button, and the
+  // thump ring missed the viewport centre. Pin the CSS box to the viewport we
+  // actually draw in so 1 backing pixel == 1 CSS pixel after setTransform(dpr).
+  const cssW = `${w}px`;
+  const cssH = `${h}px`;
+  if (canvas.style.width !== cssW) canvas.style.width = cssW;
+  if (canvas.style.height !== cssH) canvas.style.height = cssH;
   const ctx = canvas.getContext("2d")!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
@@ -516,12 +529,14 @@ export function LikeBurstOverlay() {
   // The player has animated/transformed ancestors. Portal the fixed canvas to
   // the document root so its viewport coordinates stay aligned with the like
   // button's getBoundingClientRect() origin on launch and return.
+  // h-full/w-full matter: a canvas is a replaced element, so `fixed inset-0`
+  // alone leaves it at its intrinsic (backing-store) size — see tick().
   return createPortal(
     <canvas
       ref={canvasRef}
       data-like-burst
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-[80]"
+      className="pointer-events-none fixed inset-0 z-[80] h-full w-full"
       style={{ display: "none" }}
     />,
     document.body,
