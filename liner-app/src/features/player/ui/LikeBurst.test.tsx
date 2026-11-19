@@ -64,7 +64,17 @@ describe("LikeBurstOverlay", () => {
     const root: Root = createRoot(host);
     act(() => root.render(<LikeBurstOverlay />));
     launchLikeBurst(button);
-    act(() => nextFrame?.(1500));
+    // mid-launch (150ms into the 260ms hold): the heart must still be AT the
+    // button box (lifted a few px out of it), never teleported to the centre
+    act(() => nextFrame?.(1150));
+    {
+      const [hx, hy] = context.translate.mock.calls[0] as [number, number];
+      expect(hx).toBe(40); // button centre x (rect 20,30,40,40)
+      expect(hy).toBeGreaterThan(30);
+      expect(hy).toBeLessThan(50); // button centre y, minus the hold lift
+    }
+    // the burst ring is drawn after the arc lands (t≈1000 into the flight)
+    act(() => nextFrame?.(2000));
 
     expect(context.arc).toHaveBeenCalled();
     expect(context.arc.mock.calls[0]?.[0]).toBe(window.innerWidth / 2);

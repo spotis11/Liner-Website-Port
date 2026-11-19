@@ -9,11 +9,15 @@
 // on the very first frame — the heart is drawn at the button, box-sized,
 // before the fast-start curves kick in. A rAF-driven port that samples the
 // same cubic-bezier skips that frame and, because both curves start with a
-// slope of ~4, the heart reads as teleporting away from the box. The
-// launch window below holds position (at the box) and size (at glyph scale)
-// for the first 90ms so the departure is VISIBLE, then hands over to the
-// original Mochy curves for the arc, thump, float and dive home.
-const LAUNCH_HOLD_MS = 90;
+// slope of ~4, the heart reads as teleporting away from the box. The launch
+// window below lifts the heart out of the box over 260ms (rising a few px,
+// growing from glyph scale) and the travel curve starts slow, so the
+// departure is VISIBLE, then hands over to the Mochy arc, thump, float and
+// dive home. The flying heart is PINK, not white — white vanished on light
+// color themes (and read as "the burst never left the button").
+const LAUNCH_HOLD_MS = 260;
+const HOLD_LIFT_PX = 14;
+const HOLD_GROW = 1.8;
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -28,8 +32,8 @@ const PARTICLE_W = 14;
 const PARTICLE_COUNT = 8;
 const MAX_FLIGHTS = 4;
 
-const TRAVEL_MS = 460;
-const POP_MS = 460;
+const TRAVEL_DURATION_MS = 470; // arc from the button to the centre
+const TRAVEL_MS = LAUNCH_HOLD_MS + TRAVEL_DURATION_MS; // absolute travel end
 const THUMP_MS = 110;
 const BURST_MS = 620;
 const FLOAT_MS = 640;
@@ -38,8 +42,10 @@ const FLOAT_END_MS = TRAVEL_MS + FLOAT_MS; // heart starts home at 1100
 const RED_DRAIN_START = TRAVEL_MS + 160;
 const RED_DRAIN_MS = 520;
 
-// cubic-bezier(0.3, 1.22, 0.5, 1) — shoots past the centre, settles back
-const TRAVEL_EASING = makeCubicBezier(0.3, 1.22, 0.5, 1);
+// cubic-bezier(0.4, 0.02, 0.32, 1.15) — eases OUT of the button slowly
+// (the exit is the part people actually watch), then sweeps the arc and
+// settles with the same slight overshoot as the original curve
+const TRAVEL_EASING = makeCubicBezier(0.4, 0.02, 0.32, 1.15);
 // cubic-bezier(0.34, 1.56, 0.64, 1) — the pop overshoot
 const POP_EASING = makeCubicBezier(0.34, 1.56, 0.64, 1);
 // linear-out slow-in — thump grow + burst
@@ -209,6 +215,12 @@ function drawFlight(
   const side = flight.side;
   // launch hold: the heart visibly leaves the box (see header note)
   const held = t < LAUNCH_HOLD_MS;
+  // the heart starts a few px above the button centre (out of the box) and
+  // the arc continues from there, so the lift flows into the travel
+  const launchOrigin = {
+    x: flight.origin.x,
+    y: flight.origin.y - HOLD_LIFT_PX,
+  };
 
   // the box this heart came out of (per-flight, so any like button works)
   const homeRect = flight.home?.getBoundingClientRect() ?? null;
@@ -223,13 +235,18 @@ function drawFlight(
   const travel = held
     ? 0
     : t < TRAVEL_MS
-      ? TRAVEL_EASING(clamp01((t - LAUNCH_HOLD_MS) / (TRAVEL_MS - LAUNCH_HOLD_MS)))
+      ? TRAVEL_EASING(
+          clamp01((t - LAUNCH_HOLD_MS) / TRAVEL_DURATION_MS),
+        )
       : 1;
   const pop = held
     ? 0
-    : t < POP_MS
-      ? POP_EASING(clamp01((t - LAUNCH_HOLD_MS) / (POP_MS - LAUNCH_HOLD_MS)))
+    : t < TRAVEL_MS
+      ? POP_EASING(clamp01((t - LAUNCH_HOLD_MS) / TRAVEL_DURATION_MS))
       : 1;
+  // during the hold the heart rises out of the box, growing as it goes
+  const holdT = SLOW_IN_EASING(clamp01(t / LAUNCH_HOLD_MS));
+  const holdLift = held ? holdT : 1;
 
   // thump: grow then spring back (spring k=360, ζ=0.3, from 1.32)
   const thumpGrow =
@@ -238,7 +255,12 @@ function drawFlight(
       : null;
   const springSeconds = Math.max(0, (t - TRAVEL_MS - THUMP_MS) / 1000);
   const scaleValue =
-    thumpGrow ?? (t > TRAVEL_MS ? springAt(springSeconds, 0.32, 360, 0.3) : lerp(GLYPH_SCALE, 1, pop));
+    thumpGrow ??
+      (held
+        ? GLYPH_SCALE * lerp(1, HOLD_GROW, holdT)
+        : t > TRAVEL_MS
+          ? springAt(springSeconds, 0.32, 360, 0.3)
+          : lerp(GLYPH_SCALE * HOLD_GROW, 1, pop));
 
   const redness =
     t < TRAVEL_MS
@@ -270,11 +292,11 @@ function drawFlight(
   const qt = travel;
   const inPos = {
     x:
-      (1 - qt) * (1 - qt) * flight.origin.x +
+      (1 - qt) * (1 - qt) * launchOrigin.x +
       2 * (1 - qt) * qt * travelControl.x +
       qt * qt * center.x,
     y:
-      (1 - qt) * (1 - qt) * flight.origin.y +
+      (1 - qt) * (1 - qt) * launchOrigin.y +
       2 * (1 - qt) * qt * travelControl.y +
       qt * qt * center.y,
   };
@@ -302,7 +324,12 @@ function drawFlight(
       ? homePos
       : float > 0
         ? { x: center.x + bob.x, y: center.y + bob.y }
-        : inPos;
+        : held
+          ? {
+              x: flight.origin.x,
+              y: flight.origin.y - HOLD_LIFT_PX * holdLift,
+            }
+          : inPos;
 
   const wobble = Math.sin(float * 2 * Math.PI * 1.5) * 8;
   const rotation =
@@ -379,8 +406,9 @@ function drawFlight(
     ctx.fillRect(pos.x - HEART_W * s, pos.y - HEART_W * s, HEART_W * 2 * s, HEART_W * 2 * s);
   }
 
-  // the heart ---------------------------------------------------------------
-  const color = mix([255, 255, 255], LIKE_RED, redness);
+  // the heart — PINK during the flight so it stays visible on light color
+  // themes (white vanished against light backgrounds), red at the thump
+  const color = mix(LIKE_PINK, LIKE_RED, redness);
   drawHeart(
     ctx,
     pos.x,
