@@ -36,6 +36,7 @@ import { usePlayerStore } from "../store/playerStore";
 import { useAddCurrentTrackToPlaylist } from "../hooks/useAddCurrentTrackToPlaylist";
 import { toVolumeGain, toVolumeLevel } from "../engine/volume";
 import { VolumeColumn } from "./VolumeColumn";
+import { launchLikeBurst } from "./LikeBurst";
 import { SpeedPitchPicker } from "./SpeedPitchPicker";
 import { isEqActive } from "../engine/equalizer";
 import { EqualizerPicker } from "./EqualizerPicker";
@@ -335,6 +336,7 @@ function MiniPlayer({
   const likeMutation = useLikeTrack();
   const unlikeMutation = useUnlikeTrack();
   const togglingRef = useRef(false);
+  const likeButtonRef = useRef<HTMLButtonElement>(null);
   const { openAddToPlaylist: addCurrentTrackToPlaylist } =
     useAddCurrentTrackToPlaylist();
 
@@ -347,6 +349,9 @@ function MiniPlayer({
     if (isLiked) {
       unlikeMutation.mutate(currentTrack.id, { onSettled });
     } else {
+      // Mochy-style like burst: the heart leaves THIS button's box, thumps
+      // red at the centre of the screen and dives back into the same box.
+      launchLikeBurst(likeButtonRef.current);
       likeMutation.mutate(currentTrack.id, { onSettled });
     }
   }, [currentTrack, isLiked, likeMutation, unlikeMutation]);
@@ -869,6 +874,7 @@ function MiniPlayer({
             <button
                 type="button"
                 aria-label={isLiked ? "Unlike" : "Like"}
+                ref={likeButtonRef}
                 className={`${iconButtonClass} shrink-0 transition-colors duration-150 pointer-events-auto prevent-seek ${
                   isLiked
                     ? "text-accent-primary"

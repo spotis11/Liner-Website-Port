@@ -22,6 +22,19 @@
 [data-ui-style="material3"] {
   color-scheme: dark;
 
+  /* the M3 type stack (Google Sans when present, Roboto fallback) */
+  --m3-font:
+    "Google Sans Text", "Google Sans", "Product Sans", "Roboto", ui-sans-serif,
+    system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* fork radius remap → M3 shape scale (app components read --radius-*) */
+  --radius-xs: 4px !important;
+  --radius-sm: 8px !important;
+  --radius-md: 12px !important;
+  --radius-lg: 16px !important;
+  --radius-2xl: 20px !important;
+  --radius-3xl: 28px !important;
+
   /* riff's M3 dark palette */
   --m3-background: #121214;
   --m3-surface: #121214;
@@ -30,22 +43,35 @@
   --m3-surface-container: #1e1f22;
   --m3-surface-container-high: #28292c;
   --m3-surface-container-highest: #333438;
+  --m3-surface-dim: #121214;
+  --m3-surface-bright: #3a3b3f;
+  --m3-surface-variant: #333438;
   --m3-primary: #5247d1;
   --m3-on-primary: #ffffff;
   --m3-primary-container: #282366;
   --m3-on-primary-container: #e0dfff;
+  --m3-secondary: #ccc2dc;
+  --m3-on-secondary: #332d41;
   --m3-secondary-container: #4a4458;
   --m3-on-secondary-container: #e8def8;
+  --m3-tertiary: #efb8c8;
+  --m3-on-tertiary: #492532;
   --m3-tertiary-container: #633b48;
   --m3-on-tertiary-container: #ffd9e2;
   --m3-error: #f2b8b5;
   --m3-on-error: #601410;
+  --m3-error-container: #8c1d18;
+  --m3-on-error-container: #f9dedc;
   --m3-on-surface: #e6e6e8;
   --m3-on-surface-variant: #cac4d0;
   --m3-outline: #938f99;
   --m3-outline-variant: #49454f;
   --m3-inverse-surface: #e6e6e8;
   --m3-inverse-on-surface: #1e1f22;
+  --m3-inverse-primary: #c7c1ff;
+  --m3-scrim: rgba(0, 0, 0, 0.6);
+  --m3-shadow: rgba(0, 0, 0, 1);
+  --m3-surface-tint: #5247d1;
 
   /* fork token remap → app-wide M3 reskin (dark) */
   --bg-canvas: #0d0e0f;
@@ -83,14 +109,75 @@
   --fill-strong: rgba(230, 230, 232, 0.12) !important;
   --surface-glass: rgba(30, 31, 34, 0.92) !important;
 
-  /* M3 shape + motion (riff) */
-  --radius-xs: 4px !important;
-  --radius-lg: 16px !important;
-  --radius-2xl: 20px !important;
-  --radius-3xl: 28px !important;
+  /* Official M3 motion tokens (m3.material.io/styles/motion) — easings */
+  --m3-ease-linear: linear;
   --m3-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --m3-ease-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --m3-ease-standard-decelerate: cubic-bezier(0, 0, 0, 1);
   --m3-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --m3-ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --m3-ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
   --m3-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Official M3 duration tokens: short 50/100/150/200, medium 250/300/350/400,
+   * long 450/500/550/600, extra-long 700/800/900/1000 */
+  --m3-dur-short1: 50ms;
+  --m3-dur-short2: 100ms;
+  --m3-dur-short3: 150ms;
+  --m3-dur-short4: 200ms;
+  --m3-dur-medium1: 250ms;
+  --m3-dur-medium2: 300ms;
+  --m3-dur-medium3: 350ms;
+  --m3-dur-medium4: 400ms;
+  --m3-dur-long1: 450ms;
+  --m3-dur-long2: 500ms;
+  --m3-dur-long3: 550ms;
+  --m3-dur-long4: 600ms;
+  --m3-dur-xlong1: 700ms;
+  --m3-dur-xlong2: 800ms;
+
+  /* Official M3 elevation tokens (levels 0-5 shadow stacks) */
+  --m3-elevation-level0: none;
+  --m3-elevation-level1: 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --m3-elevation-level2: 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --m3-elevation-level3: 0 1px 3px rgba(0, 0, 0, 0.3),
+    0 4px 8px 3px rgba(0, 0, 0, 0.15);
+  --m3-elevation-level4: 0 2px 3px rgba(0, 0, 0, 0.3),
+    0 6px 10px 4px rgba(0, 0, 0, 0.15);
+  --m3-elevation-level5: 0 4px 4px rgba(0, 0, 0, 0.3),
+    0 8px 12px 6px rgba(0, 0, 0, 0.15);
+
+  /* Official M3 shape scale */
+  --m3-shape-none: 0px;
+  --m3-shape-extra-small: 4px;
+  --m3-shape-small: 8px;
+  --m3-shape-medium: 12px;
+  --m3-shape-large: 16px;
+  --m3-shape-extra-large: 28px;
+
+  /* Official M3 state layers (of the content color) */
+  --m3-state-hover: 8%;
+  --m3-state-focus: 12%;
+  --m3-state-pressed: 12%;
+  --m3-state-dragged: 16%;
+
+  /* Official M3 type scale: size / line-height, letter-spacing, weight */
+  --m3-type-display-large: 400 57px/64px var(--m3-font);
+  --m3-type-display-medium: 400 45px/52px var(--m3-font);
+  --m3-type-display-small: 400 36px/44px var(--m3-font);
+  --m3-type-headline-large: 400 32px/40px var(--m3-font);
+  --m3-type-headline-medium: 400 28px/36px var(--m3-font);
+  --m3-type-headline-small: 400 24px/32px var(--m3-font);
+  --m3-type-title-large: 400 22px/28px var(--m3-font);
+  --m3-type-title-medium: 500 16px/24px var(--m3-font);
+  --m3-type-title-small: 500 14px/20px var(--m3-font);
+  --m3-type-body-large: 400 16px/24px var(--m3-font);
+  --m3-type-body-medium: 400 14px/20px var(--m3-font);
+  --m3-type-body-small: 400 12px/16px var(--m3-font);
+  --m3-type-label-large: 500 14px/20px var(--m3-font);
+  --m3-type-label-medium: 500 12px/16px var(--m3-font);
+  --m3-type-label-small: 500 11px/16px var(--m3-font);
 }
 
 [data-ui-style="material3"][data-theme="light"],
@@ -105,22 +192,35 @@
   --m3-surface-container: #f1ecf4;
   --m3-surface-container-high: #ebe6ee;
   --m3-surface-container-highest: #e5e0e9;
+  --m3-surface-dim: #ded8e1;
+  --m3-surface-bright: #fdf8ff;
+  --m3-surface-variant: #e5e0e9;
   --m3-primary: #4e46cf;
   --m3-on-primary: #ffffff;
   --m3-primary-container: #e4e0ff;
   --m3-on-primary-container: #14056b;
+  --m3-secondary: #625b71;
+  --m3-on-secondary: #ffffff;
   --m3-secondary-container: #e5def9;
   --m3-on-secondary-container: #20104a;
+  --m3-tertiary: #7d5260;
+  --m3-on-tertiary: #ffffff;
   --m3-tertiary-container: #ffd9e2;
   --m3-on-tertiary-container: #2e1120;
   --m3-error: #b3261e;
   --m3-on-error: #ffffff;
+  --m3-error-container: #f9dedc;
+  --m3-on-error-container: #410e0b;
   --m3-on-surface: #1b1b1f;
   --m3-on-surface-variant: #49454f;
   --m3-outline: #79747e;
   --m3-outline-variant: #cac4d0;
   --m3-inverse-surface: #303034;
   --m3-inverse-on-surface: #f3eff4;
+  --m3-inverse-primary: #c7c1ff;
+  --m3-scrim: rgba(0, 0, 0, 0.4);
+  --m3-shadow: rgba(0, 0, 0, 1);
+  --m3-surface-tint: #4e46cf;
 
   --bg-canvas: #e9e4ee;
   --bg-primary: #fdf8ff !important;
@@ -333,7 +433,7 @@
 [data-ui-style="material3"] [role="alertdialog"],
 [data-ui-style="material3"] [role="menu"],
 [data-ui-style="material3"] .rounded-panel {
-  border-radius: 28px !important;
+  border-radius: var(--m3-shape-extra-large) !important;
   overflow: hidden;
 }
 
@@ -341,28 +441,33 @@
 [data-ui-style="material3"] [role="alertdialog"] {
   background: var(--m3-surface-container-high);
   color: var(--m3-on-surface);
-  box-shadow:
-    0 8px 14px rgba(0, 0, 0, 0.18),
-    0 16px 32px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--m3-elevation-level3);
 }
 
+/* M3 menu: surface-container, extra-small corner, level-2 elevation */
 [data-ui-style="material3"] [role="menu"] {
   background: var(--m3-surface-container);
   color: var(--m3-on-surface);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
-  border: 1px solid var(--m3-outline-variant);
+  border-radius: var(--m3-shape-extra-small) !important;
+  box-shadow: var(--m3-elevation-level2);
+  border: none;
 }
 
-/* M3 menu items: full-width rounded rows with state layers */
+/* M3 menu items: full-bleed 48dp rows with an 8% hover state layer */
 [data-ui-style="material3"] [role="menuitem"] {
-  border-radius: 12px;
-  transition: background-color 100ms var(--m3-ease-standard);
+  border-radius: 0;
+  min-height: 48px;
+  transition: background-color var(--m3-dur-short2) var(--m3-ease-standard);
 }
 [data-ui-style="material3"] [role="menuitem"]:hover {
-  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--m3-on-surface) var(--m3-state-hover),
+    transparent
+  );
 }
 
-/* M3 text fields: outlined, 4dp radius, primary focus */
+/* M3 text fields: outlined, extra-small 4dp radius, primary focus */
 [data-ui-style="material3"] form input[type="email"],
 [data-ui-style="material3"] form input[type="password"],
 [data-ui-style="material3"] form input[type="text"],
@@ -370,10 +475,10 @@
 [data-ui-style="material3"] form textarea {
   background: transparent !important;
   border: 1px solid var(--m3-outline) !important;
-  border-radius: 8px !important;
+  border-radius: var(--m3-shape-extra-small) !important;
   color: var(--m3-on-surface);
   caret-color: var(--m3-primary);
-  transition: border-color 120ms var(--m3-ease-standard);
+  transition: border-color var(--m3-dur-short3) var(--m3-ease-standard);
 }
 [data-ui-style="material3"] form input::placeholder,
 [data-ui-style="material3"] form textarea::placeholder {
@@ -406,16 +511,26 @@
   border-radius: 999px !important;
 }
 
-/* M3 type scale on document headings */
+/* M3 type scale on document headings:
+ * h1 = headline-medium (28/36), h2 = headline-small (24/32),
+ * h3 = title-large (22/28), all weight 400 per the official scale */
 [data-ui-style="material3"] h1 {
-  font-size: clamp(22px, 2.4vw, 28px);
-  font-weight: 600;
-  letter-spacing: -0.25px;
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 [data-ui-style="material3"] h2 {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.1px;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+[data-ui-style="material3"] h3 {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 /* M3 list rows on the home screen: 12dp radius + state layer */
@@ -444,4 +559,42 @@
   --login-backdrop: #fdf8ff;
   --login-glow: #e4e0ff;
   --login-glow-secondary: #d6d0f5;
+}
+
+/* M3 snackbar: inverse-surface container, extra-small corner, level-3
+ * elevation, inverse-on-surface content (m3.material.io snackbar spec) */
+[data-ui-style="material3"] [data-toast] [data-no-window-drag] {
+  background: var(--m3-inverse-surface) !important;
+  border-radius: var(--m3-shape-extra-small);
+  box-shadow: var(--m3-elevation-level3);
+}
+[data-ui-style="material3"] [data-toast] [data-no-window-drag],
+[data-ui-style="material3"] [data-toast] [data-no-window-drag] .text-text-primary,
+[data-ui-style="material3"] [data-toast] [data-no-window-drag] .text-text-secondary,
+[data-ui-style="material3"] [data-toast] [data-no-window-drag] .text-text-tertiary {
+  color: var(--m3-inverse-on-surface);
+}
+
+/* M3 chips (assist/filter rows): pill shape, outline-variant border,
+ * label-large text */
+[data-ui-style="material3"] [data-chip],
+[data-ui-style="material3"] .m3-chip {
+  border-radius: 999px;
+  border: 1px solid var(--m3-outline-variant);
+  min-height: 32px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  transition:
+    background-color var(--m3-dur-short2) var(--m3-ease-standard),
+    border-color var(--m3-dur-short2) var(--m3-ease-standard);
+}
+[data-ui-style="material3"] [data-chip]:hover,
+[data-ui-style="material3"] .m3-chip:hover {
+  background: color-mix(
+    in srgb,
+    var(--m3-on-surface) var(--m3-state-hover),
+    transparent
+  );
 }

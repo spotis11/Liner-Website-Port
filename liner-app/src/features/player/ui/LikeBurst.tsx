@@ -2,7 +2,8 @@
 // animation, github.com/realidkroo/Mochy-Music). A heart leaves the like
 // button, arcs up to the middle of the screen, thumps red with a ring and a
 // spray of little hearts, floats, then dives home into the like button,
-// which bounces as it lands. Mounted only in the fullscreen player.
+// which bounces as it lands. One overlay at the app root: every like button
+// (mini player, fullscreen track info, queue rows) launches its own flight.
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -65,17 +66,19 @@ interface Particle {
 interface Flight {
   id: number;
   origin: { x: number; y: number };
+  /** The like button this heart belongs to: it launches from its box and
+   * dives back into it (Mochy's per-slot buttonBounds). */
+  home: HTMLElement | null;
   seed: number;
   side: 1 | -1;
   particles: Particle[];
   start: number;
 }
 
-// --- module-level store (the overlay and the like button meet here) --------
+// --- module-level store (the overlay and the like buttons meet here) --------
 
 let nextFlightId = 1;
 const flights: Flight[] = [];
-let homeButton: HTMLButtonElement | null = null;
 let rafHandle: number | null = null;
 
 function makeParticles(seed: number): Particle[] {
@@ -104,10 +107,18 @@ function makeParticles(seed: number): Particle[] {
   });
 }
 
-/** Called when the fullscreen player LIKES the current track. */
-export function launchLikeBurst(): void {
+/**
+ * Called when a like button LIKES the current track. The heart leaves THAT
+ * button's box, arcs up to the middle of the screen, thumps, floats, and
+ * dives back into the same box (which bounces as it lands).
+ *
+ * Pass the clicked button so the flight can start/end on it; every like
+ * button in the app (mini player, fullscreen track info, queue rows) calls
+ * this with its own ref.
+ */
+export function launchLikeBurst(home?: HTMLElement | null): void {
   if (typeof document === "undefined") return;
-  const rect = homeButton?.getBoundingClientRect();
+  const rect = home?.getBoundingClientRect();
   const origin = rect
     ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
     : {
@@ -119,17 +130,13 @@ export function launchLikeBurst(): void {
   flights.push({
     id: nextFlightId++,
     origin,
+    home: home ?? null,
     seed,
     side: seed % 2 === 0 ? 1 : -1,
     particles: makeParticles(seed),
     start: performance.now(),
   });
   if (rafHandle === null) rafHandle = requestAnimationFrame(tick);
-}
-
-/** Registers the fullscreen like button: hearts launch from / land on it. */
-export function setLikeBurstHomeButton(button: HTMLButtonElement | null): void {
-  homeButton = button;
 }
 
 // --- animation loop ---------------------------------------------------------
@@ -167,13 +174,9 @@ function tick(now: number): void {
   // Use the actual viewport midpoint. The former 44% target made the red
   // impact read as if it burst above the screen center.
   const center = { x: w / 2, y: h / 2 };
-  const homeRect = homeButton?.getBoundingClientRect() ?? null;
-  const homeTarget = homeRect
-    ? { x: homeRect.left + homeRect.width / 2, y: homeRect.top + homeRect.height / 2 }
-    : flights[flights.length - 1]!.origin;
 
   for (const flight of flights) {
-    drawFlight(ctx, flight, now, center, homeTarget, homeRect);
+    drawFlight(ctx, flight, now, center);
   }
   rafHandle = requestAnimationFrame(tick);
 }
@@ -191,11 +194,18 @@ function drawFlight(
   flight: Flight,
   now: number,
   center: { x: number; y: number },
-  homeTarget: { x: number; y: number },
-  homeRect: DOMRect | null,
 ): void {
   const t = now - flight.start;
   const side = flight.side;
+
+  // the box this heart came out of (per-flight, so any like button works)
+  const homeRect = flight.home?.getBoundingClientRect() ?? null;
+  const homeTarget = homeRect
+    ? {
+        x: homeRect.left + homeRect.width / 2,
+        y: homeRect.top + homeRect.height / 2,
+      }
+    : flight.origin;
 
   // phase values ----------------------------------------------------------
   const travel = t < TRAVEL_MS ? TRAVEL_EASING(clamp01(t / TRAVEL_MS)) : 1;
@@ -292,13 +302,13 @@ function drawFlight(
   const alpha = 1 - clamp01((home - 0.84) / 0.16);
   if (alpha <= 0 || s <= 0) return;
 
-  // landing bounce on the button (spring k=520, ζ=0.35, to 1.3)
-  if (homeButton) {
+  // landing bounce on the button the heart belongs to (spring k=520, ζ=0.35)
+  if (flight.home) {
     const landSeconds = Math.max(0, (t - FLOAT_END_MS) / 1000);
     if (t > FLOAT_END_MS && landSeconds < 1) {
-      homeButton.style.transform = `scale(${springAt(landSeconds, 0.3, 520, 0.35)})`;
-    } else if (homeButton.style.transform) {
-      homeButton.style.transform = "";
+      flight.home.style.transform = `scale(${springAt(landSeconds, 0.3, 520, 0.35)})`;
+    } else if (flight.home.style.transform) {
+      flight.home.style.transform = "";
     }
   }
 
@@ -388,6 +398,9 @@ function drawHeart(
   ctx.translate(cx, cy);
   ctx.rotate((rotationDeg * Math.PI) / 180);
   ctx.scale(w / 76, h / 88);
+  // the 76×88 path starts at its top-left corner: pull it back by half so
+  // (cx, cy) really is the heart's centre (Compose centres the glyph too)
+  ctx.translate(-38, -44);
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
   ctx.fill(heartPath());
@@ -442,13 +455,12 @@ export function LikeBurstOverlay() {
 
   useEffect(() => {
     return () => {
-      // unmounting fullscreen clears flights + detaches the loop
+      // unmounting the app clears flights + detaches the loop
       flights.length = 0;
       if (rafHandle !== null) {
         cancelAnimationFrame(rafHandle);
         rafHandle = null;
       }
-      setLikeBurstHomeButton(null);
     };
   }, []);
 

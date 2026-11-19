@@ -26,7 +26,8 @@ function DailyMixCard({ mix, index }: DailyMixCardProps) {
   const subtitleText =
     (mix.clusterArtists && mix.clusterArtists.length > 0
       ? mix.clusterArtists.join(", ")
-      : mix.description) || "";
+      : // some upstream mix descriptions carry stringified objects
+        mix.description?.replace(/\[object Object\],?\s*/g, "")) || "";
 
   const mixNumber = mix.title.match(/\d+/)?.[0] ?? String((index ?? 0) + 1);
 

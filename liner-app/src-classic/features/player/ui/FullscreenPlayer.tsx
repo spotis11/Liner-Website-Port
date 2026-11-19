@@ -24,7 +24,6 @@ import { CanvasLyricsView } from "./CanvasLyricsView";
 import AmbientLayer from "./AmbientLayer";
 import { useCoverTone } from "../hooks/useCoverTone";
 import { BetaVisualsWarning } from "./BetaVisualsWarning";
-import { LikeBurstOverlay } from "@/features/player/ui/LikeBurst";
 
 const KAWARP_FADE_IN_MS = 600;
 
@@ -348,10 +347,6 @@ export function FullscreenPlayer({
         </Notch>
       </div>
 
-      {/* Mochy-style like burst (same port the new UI uses) — a fixed canvas
-          portaled to the document root, so mount position doesn't matter;
-          mounting inside the fullscreen player unmounts it with the player. */}
-      <LikeBurstOverlay />
     </div>
   );
 }

@@ -54,18 +54,16 @@ describe("LikeBurstOverlay", () => {
       context as unknown as CanvasRenderingContext2D,
     );
 
-    const { LikeBurstOverlay, launchLikeBurst, setLikeBurstHomeButton } =
-      await import("./LikeBurst");
+    const { LikeBurstOverlay, launchLikeBurst } = await import("./LikeBurst");
     const button = document.createElement("button");
     document.body.appendChild(button);
     button.getBoundingClientRect = () => new DOMRect(20, 30, 40, 40);
-    setLikeBurstHomeButton(button);
 
     const host = document.createElement("div");
     document.body.appendChild(host);
     const root: Root = createRoot(host);
     act(() => root.render(<LikeBurstOverlay />));
-    launchLikeBurst();
+    launchLikeBurst(button);
     act(() => nextFrame?.(1500));
 
     expect(context.arc).toHaveBeenCalled();

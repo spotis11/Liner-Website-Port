@@ -14,11 +14,7 @@ import { usePlayerStore } from "../store/playerStore";
 import { useGlassBlur } from "../store/visualModeStore";
 import { cn } from "@/shared/lib";
 import { LikeMorphIcon } from "./LikeMorphIcon";
-import {
-  LikeBurstOverlay,
-  launchLikeBurst,
-  setLikeBurstHomeButton,
-} from "./LikeBurst";
+import { launchLikeBurst } from "./LikeBurst";
 
 interface FullscreenTrackInfoProps {
   onClose?: () => void;
@@ -36,6 +32,7 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
   const { canAddToPlaylist, openAddToPlaylist } =
     useAddCurrentTrackToPlaylist();
   const togglingRef = useRef(false);
+  const likeButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleLikeToggle = useCallback(() => {
     if (!track || togglingRef.current) return;
@@ -46,9 +43,10 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
     if (isLiked) {
       unlikeMutation.mutate(track.id, { onSettled });
     } else {
-      // Mochy-style like burst: a heart flies out of this button, thumps at
-      // the centre of the screen and dives back home. Unliking is quiet.
-      launchLikeBurst();
+      // Mochy-style like burst: the heart leaves THIS button's box, thumps
+      // red at the centre of the screen and dives back into the same box.
+      // Unliking is quiet.
+      launchLikeBurst(likeButtonRef.current);
       likeMutation.mutate(track.id, { onSettled });
     }
   }, [track, isLiked, likeMutation, unlikeMutation]);
@@ -96,7 +94,7 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
         type="button"
         aria-label={isLiked ? t("common.unlike") : t("common.like")}
         onClick={handleLikeToggle}
-        ref={setLikeBurstHomeButton}
+        ref={likeButtonRef}
         className={cn(
           "relative inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[11px] border-none bg-white/[0.06] cursor-pointer text-white transition-colors duration-200 ease-out hover:bg-white/[0.12] active:scale-[0.92]",
           glassBlur && "backdrop-blur-xl backdrop-brightness-[1.15]",
@@ -118,8 +116,6 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
         <AddLine size={20} />
       </button>
       </div>
-      {/* Mochy like burst: hearts fly while the fullscreen player is open */}
-      <LikeBurstOverlay />
     </>
   );
 }

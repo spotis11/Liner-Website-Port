@@ -19,7 +19,7 @@ export interface DailyMix {
 }
 
 export function getDailyMixArtists(
-  clusterArtists?: string[],
+  clusterArtists?: (string | { name?: string })[],
   tracks?: Track[],
   targetCount: number = 4,
 ): string[] {
@@ -31,6 +31,8 @@ export function getDailyMixArtists(
     const name = raw.trim();
     if (
       !name ||
+      // upstream sometimes stringifies artist objects into this literal
+      name === "[object Object]" ||
       name.toLowerCase() === "unknown" ||
       seen.has(name.toLowerCase())
     ) {
@@ -41,7 +43,12 @@ export function getDailyMixArtists(
   };
 
   if (Array.isArray(clusterArtists)) {
-    for (const name of clusterArtists) {
+    for (const entry of clusterArtists) {
+      // accept either plain names or {name} objects from the mixes API
+      const name =
+        typeof entry === "string"
+          ? entry
+          : (entry as { name?: string } | null)?.name;
       addName(name);
       if (result.length >= targetCount) return result;
     }

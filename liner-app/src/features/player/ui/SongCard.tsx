@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { HeartFill, HeartLine, More2Fill, RepeatFill } from "@mingcute/react";
+import { launchLikeBurst } from "./LikeBurst";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import { useTranslation } from "@/languages";
@@ -108,14 +109,17 @@ function SongCard({
   }, [previewTrack]);
 
   const handleToggleLikeClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent<HTMLButtonElement>) => {
       if (!onToggleLike) return;
       // keep the row itself from reacting (play / preview / drag)
       e.stopPropagation();
       e.preventDefault();
+      // Mochy-style like burst on like (not unlike): the heart leaves this
+      // row heart's box, thumps red at the centre and dives back into it.
+      if (!liked) launchLikeBurst(e.currentTarget);
       onToggleLike();
     },
-    [onToggleLike],
+    [onToggleLike, liked],
   );
 
   useEffect(() => {

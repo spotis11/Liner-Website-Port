@@ -23,6 +23,7 @@ import { useDiscordSync } from "@classic/features/discord";
 import { useAiTranslatePrefetch } from "@classic/features/lyrics";
 import { AppRoutes } from "./routes";
 import DeeplinkHandler from "./DeeplinkHandler";
+import { LikeBurstOverlay } from "@/features/player/ui/LikeBurst";
 import EnvironmentWarning from "./EnvironmentWarning";
 import { ConnectionIssueModal } from "@classic/features/connectivity";
 import { useThemeCustomizationSync, useAppearanceSync } from "@classic/features/settings";
@@ -102,6 +103,10 @@ export default function App() {
             <ToastProvider>
               <RootErrorBoundary>
                 <WindowAnimationContainer>
+                  {/* Mochy like burst: one full-screen canvas for the whole
+                      app, so hearts fly from any like button while it is on
+                      screen */}
+                  <LikeBurstOverlay />
                   <DeeplinkHandler />
                   <EnvironmentWarning />
                   <ConnectionIssueModal />

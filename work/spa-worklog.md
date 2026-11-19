@@ -297,3 +297,36 @@ MATERIAL 3 → refresh prompt → Okay → boots M3 (md-switch registered); burs
 probe passes in BOTH UIs (maxRed 0.955 classic / 0.952 M3). Deploy
 dep_xa6hfix7gkimp76q7ma5 active — live probe in the default UI: redAtCenter
 true, maxRed 0.931. Previews: download/classic-like-burst*.png.
+
+v1.25.0 (2026-11-19) — like burst from EVERY like button + REAL M3 token system
+User supplied a zip of the repo@45bbb953 (v1.25-era) whose LikeBurst had two
+fixes our tree had lost in the v1.26 rewrite: (1) per-flight home button —
+launchLikeBurst(button) stores the clicked box on the flight so the heart
+launches from and dives back into THAT box (Mochy's per-slot buttonBounds),
+works from any like button; (2) drawHeart translate(-38,-44) — the 76×88
+heart path starts at its top-left corner, so without the pull-back every
+heart painted down-right of its true centre. Merged both, kept the v1.26
+portal + exact-viewport-centre fixes (h/2 per user ask). Removed the single
+registered homeButton API; mounted ONE LikeBurstOverlay at each tree's app
+root (new + classic) instead of inside the fullscreen players. Wired the
+burst to every like surface: mini player + fullscreen track info + row
+hearts (SongCard, fires only on like, not unlike) in BOTH trees.
+REAL M3 (m3.material.io): completed the colour role set (secondary/tertiary
+base + on-*, error-container, surface-dim/bright/variant, inverse-primary,
+scrim/shadow/surface-tint) per the roles page; added the official elevation
+level0-5 shadow stacks, shape scale tokens, motion tokens (standard/
+emphasized accelerate+decelerate + durations 50-800ms), the full type scale
+(display/headline/title/body/label), state-layer tokens (hover 8% / focus
+12% / pressed 12%). Components to spec: text fields extra-small 4dp, menus
+extra-small + level-2 elevation + full-bleed 48dp items with state layer,
+dialogs at level-3, snackbars inverse-surface 4dp level-3, chips pill with
+outline-variant, headings on the type scale (h1 headline-medium, h2
+headline-small, h3 title-large, weight 400).
+Verified locally (:3100, both trees): mini-player heart (570,714) → red at
+centre 0.983 → returns + bounces THE SAME box; row heart (570,458) → 0.978
+→ bounce; M3 mini heart (653,720) → 0.979 → bounce. M3 progress bar moves
+(fill −88.07% → −85.25% while audio advances). /api/ai-translate 200 live
+(correct DE translation); gstatic covers already proxied same-origin.
+Fixed "[object Object]" leak in Daily Mix subtitles (clusterArtists objects
+stringified upstream — normalised in getDailyMixArtists + scrubbed in
+DailyMixCard). SPA 1.25.0; tsc clean; LikeBurst 2/2, useDailyMixes 2/2.
