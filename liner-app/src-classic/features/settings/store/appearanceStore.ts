@@ -19,10 +19,14 @@ export const APPEARANCE_STORAGE_KEY = "liner_web_appearance_v1";
 
 /** Which whole-app design renders. "original" is the classic Liner look
  * (website default, the frozen src-classic tree); "new" is the upstream
- * 0.2.12 redesign merged into src/. One setting drives the app shell and
- * the sign-in page; switching pops the Liner refresh prompt. */
-export type UiStyle = "original" | "new";
-export const UI_STYLES: UiStyle[] = ["original", "new"];
+ * 0.2.12 redesign merged into src/; "material3" is that redesign with the
+ * Material 3 theme layer. One setting drives the app shell and the sign-in
+ * page; switching pops the Liner refresh prompt. The store mirrors the
+ * new-UI store (src/features/settings/store/appearanceStore.ts) so a value
+ * picked here survives the cross-tree reload — main.tsx reads the same
+ * localStorage record with the same UI_STYLES list. */
+export type UiStyle = "original" | "new" | "material3";
+export const UI_STYLES: UiStyle[] = ["original", "new", "material3"];
 
 export interface AppearanceState {
   /** Active accent color theme id; null = default Liner look. */

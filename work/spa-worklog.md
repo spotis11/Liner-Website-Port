@@ -271,3 +271,29 @@ screenshot. Previews: download/m3-{settings,home}-live.png,
 m3-like-burst-{live,mid,heart}.png. Push: no GitHub write credentials in the
 sandbox (rs_ token is running.sh-only, no gh CLI) — 34316cf3 stays local
 until a token with write access lands; fc809281 itself was pushed by the user.
+
+v1.27.0 (2026-11-19) — like burst in every UI + MATERIAL 3 from the default UI
+User report: the Mochy burst read as "still off" — root cause was scope, not
+the animation: the burst only existed in the new-UI tree's fullscreen player
+(new/material3 modes), so liking from the DEFAULT (original) UI did nothing.
+Mochy spec re-checked against work/mochy LikeBurst.kt: heart leaves the like
+button glyph, arcs up (quad bezier, side ±48dp, 110dp above the higher of
+origin/center), thumps RED at screen center (110ms, squash jelly, ring +
+8 seeded mini-hearts, red glow), floats (640ms bob/sway, red drains), dives
+home into the button (540ms, shrink to glyph scale, button bounces 1→1.3→1).
+The web port matches phase-for-phase; center stays the exact viewport
+midpoint (user ask) — verified programmatically by sampling canvas pixels at
+(640,289): 0% red during flight, red thump 70-95% coverage at 494-739ms.
+Changes: classic FullscreenTrackInfo now launches the burst + registers its
+like button as the home (same contract as the new UI); LikeBurstOverlay
+mounted in classic FullscreenPlayer (portaled canvas, unmounts with the
+player). MATERIAL 3 is now selectable from the DEFAULT UI: classic
+appearanceStore UiStyle accepts "material3" (mirrors the new-UI store; same
+localStorage record), AppearanceTab gains the MATERIAL 3 card (flex-wrap),
+classic login panel variant accepts material3 (styled like "new"; M3 login
+actually renders in the new tree). SPA 1.24.0; 22/22 tests pass.
+Verified locally (:3100 standalone): default-UI Appearance shows three cards,
+MATERIAL 3 → refresh prompt → Okay → boots M3 (md-switch registered); burst
+probe passes in BOTH UIs (maxRed 0.955 classic / 0.952 M3). Deploy
+dep_xa6hfix7gkimp76q7ma5 active — live probe in the default UI: redAtCenter
+true, maxRed 0.931. Previews: download/classic-like-burst*.png.

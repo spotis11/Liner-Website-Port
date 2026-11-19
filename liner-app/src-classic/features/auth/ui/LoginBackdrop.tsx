@@ -13,7 +13,7 @@ export function LoginBackdrop({
   edgeToEdge = false,
   variant = "original",
 }: LoginBackdropProps) {
-  const isNew = variant === "new";
+  const isNew = variant !== "original";
   return (
     <div
       className={cn(

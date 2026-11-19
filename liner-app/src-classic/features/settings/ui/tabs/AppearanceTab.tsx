@@ -127,7 +127,7 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
         searchQuery={searchQuery}
         control={
           <div
-            className="flex items-start gap-[10px]"
+            className="flex flex-wrap items-start gap-[10px]"
             role="radiogroup"
             aria-label={t("settings.appearance.ui_style_title") || "UI"}
           >
@@ -144,6 +144,11 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
                   value: "new" as UiStyle,
                   preview: "ui-preview-new.jpg",
                   label: t("settings.appearance.ui_style_new") || "New",
+                },
+                {
+                  value: "material3" as UiStyle,
+                  preview: "ui-preview-material3.jpg",
+                  label: "MATERIAL 3",
                 },
               ] as const
             ).map((option) => {

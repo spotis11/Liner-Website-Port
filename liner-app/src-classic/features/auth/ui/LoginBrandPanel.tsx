@@ -5,7 +5,10 @@ import { Squiggle, Sparks, Asterisk } from "@classic/shared/ui/Doodles";
 import logo from "@classic/assets/logo.svg";
 import loginMark from "@classic/assets/login-mark.svg";
 
-export type LoginPanelVariant = "original" | "new";
+/** The classic login page's panel look. "material3" never actually renders
+ * here (main.tsx routes it to the new tree's login) but the appearance store
+ * can carry it, so the variant accepts it and styles it like "new". */
+export type LoginPanelVariant = "original" | "new" | "material3";
 
 export interface LoginBrandPanelProps {
   title: string;
@@ -41,7 +44,7 @@ export function LoginBrandPanel({
   // Website Showcase mode: scrambles into random letters while it is on
   const siteName = useShowcaseName();
 
-  const isNew = variant === "new";
+  const isNew = variant !== "original";
 
   // squiggle sits under the last word, like evi underlines its own name
   const lastSpace = title.lastIndexOf(" ");

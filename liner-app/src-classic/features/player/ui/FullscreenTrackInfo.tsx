@@ -13,6 +13,10 @@ import { ScrollableText } from "@classic/shared/ui";
 import { usePlayerStore } from "../store/playerStore";
 import { useGlassBlur } from "../store/visualModeStore";
 import { cn } from "@classic/shared/lib";
+import {
+  launchLikeBurst,
+  setLikeBurstHomeButton,
+} from "@/features/player/ui/LikeBurst";
 import { LikeMorphIcon } from "./LikeMorphIcon";
 
 interface FullscreenTrackInfoProps {
@@ -41,6 +45,11 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
     if (isLiked) {
       unlikeMutation.mutate(track.id, { onSettled });
     } else {
+      // Mochy-style like burst (ported from Mochy-Music's LikeBurst.kt), the
+      // same contract as the new-UI player: the heart flies out of this
+      // button, thumps red at the centre of the screen and dives back home.
+      // Unliking is quiet.
+      launchLikeBurst();
       likeMutation.mutate(track.id, { onSettled });
     }
   }, [track, isLiked, likeMutation, unlikeMutation]);
@@ -87,6 +96,7 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
         type="button"
         aria-label={isLiked ? t("common.unlike") : t("common.like")}
         onClick={handleLikeToggle}
+        ref={setLikeBurstHomeButton}
         className={cn(
           "relative inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[11px] border-none bg-white/[0.06] cursor-pointer text-white transition-colors duration-200 ease-out hover:bg-white/[0.12] active:scale-[0.92]",
           glassBlur && "backdrop-blur-xl backdrop-brightness-[1.15]",
