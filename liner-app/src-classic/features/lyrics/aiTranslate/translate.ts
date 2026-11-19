@@ -38,11 +38,6 @@ export class TranslationError extends Error {
 
 const PROXY = "/api/fetch?u=";
 const LINER_ROUTE = "/api/ai-translate";
-const encoder = new TextEncoder();
-
-function utf8Bytes(text: string): number {
-  return encoder.encode(text).length;
-}
 
 async function proxied(
   url: string,
@@ -80,7 +75,13 @@ export function isTranslatableLine(text: string): boolean {
 
 // ------------------------------------------------------------- Google -------
 
-const GOOGLE_MAX_BYTES = 1400; // stay well under the ~2k URL budget
+// Budget is in ENCODED characters (what actually lands in the URL), not raw
+// UTF-8 bytes: encodeURIComponent can triple the length of multi-byte
+// characters (a 3-byte UTF-8 char becomes "%XX%XX%XX", 9 chars), so batching
+// by raw byte count let CJK/Arabic/Cyrillic lyrics build URLs several
+// thousand characters long — well past what the endpoint or an intermediate
+// proxy will accept, risking a 414 instead of just a slower per-line path.
+const GOOGLE_MAX_URL_CHARS = 1200; // stay well under the ~2k URL budget
 const GOOGLE_CONCURRENCY = 4;
 
 function parseGoogleResponse(payload: unknown, sourceLine: string): string {
@@ -142,8 +143,8 @@ async function translateWithGoogle(
   let currentIndexes: number[] = [];
   let budget = 0;
   for (const item of queue) {
-    const size = utf8Bytes(item.text) + 8;
-    if (budget + size > GOOGLE_MAX_BYTES && currentTexts.length > 0) {
+    const size = encodeURIComponent(item.text).length + 8;
+    if (budget + size > GOOGLE_MAX_URL_CHARS && currentTexts.length > 0) {
       batches.push({ texts: currentTexts, indexes: currentIndexes });
       currentTexts = [];
       currentIndexes = [];
@@ -375,6 +376,16 @@ function alignAiOutputStrict(
   if (!output) {
     throw new TranslationError(
       `${providerLabel} answered in an unreadable format — try a different model.`,
+    );
+  }
+  // A merged or dropped line (easy with repeated choruses) is syntactically
+  // valid JSON but wrong length — accepting it anyway would shift every
+  // subsequent line by index and silently serve mistranslations. Throw
+  // instead of returning a plausible-looking but misaligned result, so the
+  // caller surfaces an error rather than caching bad output.
+  if (output.length !== lines.length) {
+    throw new TranslationError(
+      `${providerLabel} returned ${output.length} line(s) for ${lines.length} input line(s) — try again or a different model.`,
     );
   }
   return alignAiOutput(output, lines);
