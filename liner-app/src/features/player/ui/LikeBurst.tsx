@@ -4,6 +4,16 @@
 // spray of little hearts, floats, then dives home into the like button,
 // which bounces as it lands. One overlay at the app root: every like button
 // (mini player, fullscreen track info, queue rows) launches its own flight.
+//
+// Easing note: Compose's animateTo frames its tween from the CURRENT value
+// on the very first frame — the heart is drawn at the button, box-sized,
+// before the fast-start curves kick in. A rAF-driven port that samples the
+// same cubic-bezier skips that frame and, because both curves start with a
+// slope of ~4, the heart reads as teleporting away from the box. The
+// launch window below holds position (at the box) and size (at glyph scale)
+// for the first 90ms so the departure is VISIBLE, then hands over to the
+// original Mochy curves for the arc, thump, float and dive home.
+const LAUNCH_HOLD_MS = 90;
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -197,6 +207,8 @@ function drawFlight(
 ): void {
   const t = now - flight.start;
   const side = flight.side;
+  // launch hold: the heart visibly leaves the box (see header note)
+  const held = t < LAUNCH_HOLD_MS;
 
   // the box this heart came out of (per-flight, so any like button works)
   const homeRect = flight.home?.getBoundingClientRect() ?? null;
@@ -208,9 +220,16 @@ function drawFlight(
     : flight.origin;
 
   // phase values ----------------------------------------------------------
-  const travel = t < TRAVEL_MS ? TRAVEL_EASING(clamp01(t / TRAVEL_MS)) : 1;
-  const pop =
-    t < POP_MS ? POP_EASING(clamp01(t / POP_MS)) : 1;
+  const travel = held
+    ? 0
+    : t < TRAVEL_MS
+      ? TRAVEL_EASING(clamp01((t - LAUNCH_HOLD_MS) / (TRAVEL_MS - LAUNCH_HOLD_MS)))
+      : 1;
+  const pop = held
+    ? 0
+    : t < POP_MS
+      ? POP_EASING(clamp01((t - LAUNCH_HOLD_MS) / (POP_MS - LAUNCH_HOLD_MS)))
+      : 1;
 
   // thump: grow then spring back (spring k=360, ζ=0.3, from 1.32)
   const thumpGrow =

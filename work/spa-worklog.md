@@ -330,3 +330,21 @@ centre 0.983 → returns + bounces THE SAME box; row heart (570,458) → 0.978
 Fixed "[object Object]" leak in Daily Mix subtitles (clusterArtists objects
 stringified upstream — normalised in getDailyMixArtists + scrubbed in
 DailyMixCard). SPA 1.25.0; tsc clean; LikeBurst 2/2, useDailyMixes 2/2.
+
+v1.25.1 (2026-11-19) — like burst VISIBLY leaves the box
+User reported the heart did not come from the like box. Pixel-probed the
+canvas per frame: at t=79ms the heart centroid was already +59px right,
+-193px up from the button — it teleported away instead of leaving it.
+Root cause: Compose's animateTo() always renders its first frame at the
+CURRENT value (heart at the button, box-sized) before the tween moves;
+our rAF port sampled the same cubic-beziers from t=0, and both curves
+(PopEasing 0.34,1.56,0.64,1 and TravelEasing 0.3,1.22,0.5,1) start with a
+slope of ~4 — so in the port the heart jumped to ~47% size and covered
+~40% of the distance within the first 50-80ms. Fix: a 90ms LAUNCH_HOLD
+that pins position (at the box centre) and size (at glyph scale) before
+handing over to the original Mochy curves; thump/float/home timings are
+shifted by the same constant so the rest of the flight is unchanged.
+Verified per-frame on :3100 — row heart (default UI) dx:0/dy:-2 through
+65ms; M3 row heart dx:-1/dy:-3 through 94ms; M3 mini player heart
+dx:-1/dy:-3 through 94ms; each then arcs away continuously. The classic
+tree imports the same module, so both designs get it. SPA 1.25.1.
