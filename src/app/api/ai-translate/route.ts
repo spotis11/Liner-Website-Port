@@ -20,14 +20,25 @@ export const runtime = "nodejs";
 const MAX_LINES = 160;
 const MAX_LINE_CHARS = 600;
 
+// The whole song in ONE completion was the latency killer: a 60-line song
+// made the model emit ~60 lines serially (10–20 s wall time). Chunks of
+// ~24 lines complete in a few seconds each, and running several at once
+// keeps the wall time near a single chunk's round-trip.
+const LLM_CHUNK_SIZE = 24;
+const LLM_CONCURRENCY = 4;
+
 // One SDK client for the process. ZAI.create() pays connection/setup cost
 // on every call; keeping the instance around turns repeat requests into a
-// single model round-trip instead of setup + round-trip.
+// single model round-trip instead of setup + round-trip. Warm it at module
+// load so the FIRST user request doesn't pay setup + round-trip either.
 let zaiClient: Awaited<ReturnType<typeof ZAI.create>> | null = null;
 async function getZai() {
   if (!zaiClient) zaiClient = await ZAI.create();
   return zaiClient;
 }
+getZai().catch(() => {
+  /* warmup is best-effort; the request path retries */
+});
 
 // Warm result cache. Lyric text is deterministic input — the same song in
 // the same language always maps to the same answer, so a finished
@@ -69,8 +80,9 @@ let sdkCooldownUntil = 0;
 
 // Every other provider call in translate.ts wraps its fetch in
 // AbortSignal.timeout(...); this mirrors that for the LLM SDK call, which
-// had no timeout and could hang past the client's own 60s timeout.
-const LLM_TIMEOUT_MS = 20_000;
+// had no timeout and could hang past the client's own 60s timeout. Chunks
+// are small now, so 15 s is generous for one chunk's round-trip.
+const LLM_TIMEOUT_MS = 15_000;
 
 const MM_CONCURRENCY = 6;
 const MM_TIMEOUT_MS = 12_000;
@@ -196,14 +208,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Primary path: the platform LLM. Some hosting datacenters reset outbound
-  // connections to its endpoint (running.sh does), so on failure we open a
-  // cooldown and serve requests from the MyMemory fallback instead of paying
-  // the failing round-trip on every call.
-  let sdkError: string | null = null;
-  let parsed: string[] | null = null;
-  if (Date.now() >= sdkCooldownUntil) {
-    let content: string | undefined;
+  // Primary path: the platform LLM, run as parallel chunks. Some hosting
+  // datacenters reset outbound connections to its endpoint (running.sh
+  // does), so a failed chunk falls to MyMemory for just that slice; the
+  // 10-minute cooldown opens only when EVERY content chunk failed at the
+  // transport level (endpoint down) — not when one chunk timed out or came
+  // back misaligned.
+  const chunkIndexes: number[][] = [];
+  for (let start = 0; start < lines.length; start += LLM_CHUNK_SIZE) {
+    chunkIndexes.push(
+      Array.from(
+        { length: Math.min(LLM_CHUNK_SIZE, lines.length - start) },
+        (_, offset) => start + offset,
+      ),
+    );
+  }
+
+  const translated: (string | null)[] = new Array(lines.length).fill(null);
+  const chunkOk: boolean[] = new Array(chunkIndexes.length).fill(false);
+  let firstSdkError: string | null = null;
+
+  const translateChunk = async (indexes: number[]): Promise<boolean> => {
+    const slice = indexes.map((i) => lines[i]);
+    if (slice.every((line) => !line.trim())) return true; // nothing to do
     try {
       const zai = await getZai();
       const completion = await Promise.race([
@@ -212,7 +239,7 @@ export async function POST(request: NextRequest) {
             { role: "system", content: SYSTEM_PROMPT },
             {
               role: "user",
-              content: `Target language: ${targetLang}.\nLines:\n${JSON.stringify(lines)}`,
+              content: `Target language: ${targetLang}.\nLines:\n${JSON.stringify(slice)}`,
             },
           ],
           temperature: 0.2,
@@ -222,35 +249,92 @@ export async function POST(request: NextRequest) {
           setTimeout(() => reject(new Error("zai timeout")), LLM_TIMEOUT_MS),
         ),
       ]);
-      content = completion.choices[0]?.message?.content;
+      const content = completion.choices[0]?.message?.content;
+      const parsed =
+        typeof content === "string" ? extractJsonArray(content) : null;
+      // Reject a misaligned response instead of silently letting every line
+      // after a merge/drop shift by index — this chunk falls to MyMemory.
+      if (!parsed || parsed.length !== slice.length) return false;
+      indexes.forEach((lineIndex, i) => {
+        const value = parsed[i];
+        if (typeof value === "string" && value.trim()) {
+          translated[lineIndex] = value.trim();
+        }
+      });
+      return true;
     } catch (error) {
-      sdkError = error instanceof Error ? error.message : "translator unavailable";
-      sdkCooldownUntil = Date.now() + SDK_COOLDOWN_MS;
+      if (!firstSdkError) {
+        firstSdkError =
+          error instanceof Error ? error.message : "translator unavailable";
+      }
+      return false;
     }
-    parsed = typeof content === "string" ? extractJsonArray(content) : null;
-    // Reject a misaligned response instead of silently letting every line
-    // after a merge/drop shift by index — fall through to MyMemory instead.
-    if (parsed && parsed.length !== lines.length) parsed = null;
+  };
+
+  if (Date.now() < sdkCooldownUntil) {
+    firstSdkError = "translator in cooldown";
   } else {
-    sdkError = "translator in cooldown";
+    // bounded concurrency: at most LLM_CONCURRENCY completions in flight
+    const queue = chunkIndexes.map((_, k) => k);
+    await Promise.all(
+      Array.from(
+        { length: Math.min(LLM_CONCURRENCY, queue.length) },
+        async () => {
+          for (let k = queue.shift(); k !== undefined; k = queue.shift()) {
+            chunkOk[k] = await translateChunk(chunkIndexes[k]);
+          }
+        },
+      ),
+    );
   }
 
-  if (!parsed) {
-    parsed = await translateViaMyMemory(lines, targetLang);
-    if (!parsed) {
-      return Response.json(
-        { error: sdkError ? `Translation failed — ${sdkError}` : "Translation failed — translators unavailable" },
-        { status: 502 },
-      );
-    }
+  // Fallback for the chunks the LLM could not deliver — only those slices.
+  const failedChunks = chunkIndexes.filter((_, k) => !chunkOk[k]);
+  if (failedChunks.length > 0) {
+    await Promise.all(
+      failedChunks.map(async (indexes) => {
+        const slice = indexes.map((i) => lines[i]);
+        const viaMm = await translateViaMyMemory(slice, targetLang);
+        if (!viaMm) return;
+        indexes.forEach((lineIndex, i) => {
+          if (typeof viaMm[i] === "string" && viaMm[i].trim()) {
+            translated[lineIndex] = viaMm[i].trim();
+          }
+        });
+      }),
+    );
   }
 
-  // align 1:1 — any line the model skipped comes back unchanged
+  const contentChunks = chunkIndexes.filter((indexes) =>
+    indexes.some((i) => lines[i].trim()),
+  );
+  const allContentChunksFailed =
+    contentChunks.length > 0 &&
+    contentChunks.every((indexes) =>
+      chunkOk[chunkIndexes.indexOf(indexes)] === false,
+    );
+  if (allContentChunksFailed && Date.now() >= sdkCooldownUntil) {
+    // the endpoint itself is unreachable — stop paying the failing
+    // round-trip on every call until the cooldown lapses
+    sdkCooldownUntil = Date.now() + SDK_COOLDOWN_MS;
+  }
+
+  const translatedAny = translated.some((value) => value !== null);
+  if (!translatedAny) {
+    return Response.json(
+      {
+        error: firstSdkError
+          ? `Translation failed — ${firstSdkError}`
+          : "Translation failed — translators unavailable",
+      },
+      { status: 502 },
+    );
+  }
+
+  // align 1:1 — any line no translator delivered comes back unchanged
   const aligned = lines.map((line, index) => {
-    const translated = parsed[index];
-    return typeof translated === "string" && translated.trim()
-      ? translated.trim()
-      : line;
+    const value = translated[index];
+    return typeof value === "string" && value.trim() ? value : line;
   });
 
   resultCache.set(cacheKey, aligned);

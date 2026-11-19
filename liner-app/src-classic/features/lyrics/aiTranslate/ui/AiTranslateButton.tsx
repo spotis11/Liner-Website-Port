@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Translate2AiLine } from "@mingcute/react";
-import { useAiTranslateStore } from "../aiTranslateStore";
+import { useAiTranslateStore, translationCacheKey } from "../aiTranslateStore";
 import { getProviderDef } from "../providers";
 import {
   detectLyricsLanguage,
@@ -21,6 +21,7 @@ export function AiTranslateButton() {
   const provider = useAiTranslateStore((s) => s.provider);
   const targetLang = useAiTranslateStore((s) => s.targetLang);
   const cache = useAiTranslateStore((s) => s.cache);
+  const manualTracks = useAiTranslateStore((s) => s.manualTracks);
   const trackId = useLyricsStore((s) => s.currentLyricsTrackId);
   const lyrics = useLyricsStore((s) => s.braccatoLyrics);
 
@@ -37,12 +38,29 @@ export function AiTranslateButton() {
     [lyrics, targetLang],
   );
 
+  // Per-track state, not per-store: "Showing … translation" must only ever
+  // appear once THIS song's translation is actually in the cache, and the
+  // loading state must show while THIS song's fetch (foreground OR the
+  // root prefetcher) is in flight.
+  const trackKey = trackId
+    ? translationCacheKey(trackId, provider, targetLang)
+    : null;
+  const cachedForTrack = trackKey ? cache[trackKey] : undefined;
+  const hasCurrentTranslation = Boolean(
+    cachedForTrack && cachedForTrack.lines.length === lyrics.length,
+  );
+  const loadingThisTrack = Boolean(
+    enabled && trackKey && pendingKey === trackKey && !hasCurrentTranslation,
+  );
   const waitingForThisTrack = Boolean(
-    enabled && !autoTranslate && trackId && !cache[`${trackId}::${provider}::${targetLang}`],
+    enabled &&
+      !autoTranslate &&
+      trackId &&
+      !hasCurrentTranslation &&
+      !manualTracks[trackId],
   );
 
   const busy = Boolean(enabled && pendingKey);
-  const hasCache = Object.keys(cache).length > 0;
   const def = getProviderDef(provider);
 
   // tooltip copy mirrors the desktop app's translate status
@@ -50,10 +68,10 @@ export function AiTranslateButton() {
   if (enabled && noopForThisSong)
     hint = `Lyrics are already in ${languageLabel(detectedLang ?? "")} — choose another language to translate`;
   else if (enabled && lastError) hint = lastError;
-  else if (busy) hint = "Translating lyrics…";
-  else if (waitingForThisTrack)
-    hint = "Tap to translate this song";
-  else if (enabled && hasCache) hint = `Showing ${def.label} translation`;
+  else if (loadingThisTrack) hint = "Loading translation…";
+  else if (enabled && hasCurrentTranslation)
+    hint = `Showing ${def.label} translation`;
+  else if (waitingForThisTrack) hint = "Tap to translate this song";
 
   const isActive = enabled && !lastError && !noopForThisSong;
 
@@ -89,6 +107,7 @@ export function AiTranslateButton() {
           }
         }}
         aria-pressed={enabled}
+        aria-busy={loadingThisTrack || undefined}
         aria-disabled={enabled && noopForThisSong ? true : undefined}
         title={hint}
         className={`h-[32px] min-h-[32px] max-h-[32px] box-border inline-flex items-center gap-[6px] px-[10px] rounded-lg text-[12px] font-[500] border-none cursor-pointer transition-all active:scale-[0.97] ${
@@ -104,9 +123,14 @@ export function AiTranslateButton() {
       >
         <Translate2AiLine
           size={15}
-          className={busy ? "animate-pulse" : ""}
+          className={loadingThisTrack ? "animate-pulse" : ""}
         />
-        <span>AI</span>
+        {/* the load must be visible ON the button, not only in the tooltip —
+            while the fetch (prefetch or foreground) is in flight the pill
+            says so, and only a finished translation says "AI" again */}
+        <span className="whitespace-nowrap">
+          {loadingThisTrack ? "Loading translation…" : "AI"}
+        </span>
       </button>
 
       {/* the error must be VISIBLE, not hidden behind a hover tooltip — the

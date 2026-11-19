@@ -32,6 +32,18 @@ import type { TranslateConfig } from "./translate";
 // foreground open would double-fire too).
 const inflightTranslations = new Map<string, Promise<void>>();
 
+// Silent retry policy for background prefetches: a transient LLM failure
+// used to mean the song never got its translation — the prefetch effect's
+// dependencies don't change after a failure, so nothing ever re-ran. Two
+// patient retries per track (then give up until the user re-triggers).
+const RETRY_DELAYS_MS = [3_000, 10_000];
+const failureCounts = new Map<string, number>();
+
+/** @internal test hook — clears the silent-retry bookkeeping */
+export function resetRetryStateForTests(): void {
+  failureCounts.clear();
+}
+
 export interface EnsureTranslationOptions {
   /**
    * Foreground calls (the user is looking at the lyrics pane) surface
@@ -57,9 +69,18 @@ export function ensureTranslation(
     config.targetLang,
   );
 
-  if (store.cache[cacheKey]) {
-    if (reportErrors) store.setLastError(null);
-    return;
+  const cached = store.cache[cacheKey];
+  if (cached) {
+    // the entry is aligned against the lyric set that was live when it was
+    // fetched — a provider switch mid-song yields a different line count and
+    // makes the entry stale. Without this check the stale entry blocked every
+    // refetch forever (the button claimed the translation was showing while
+    // the lyrics rendered none of it).
+    if (cached.lines.length === sourceLines.length) {
+      if (reportErrors) store.setLastError(null);
+      return;
+    }
+    store.clearCacheEntry(cacheKey);
   }
   if (inflightTranslations.has(cacheKey)) return;
   if (!providerIsReady(config.provider, config)) {
@@ -73,13 +94,15 @@ export function ensureTranslation(
   if (sourceLines.every((line) => !line.trim())) return;
 
   const run = async () => {
+    // pendingKey tracks EVERY in-flight fetch — background prefetches too.
+    // The button must show "Loading translation…" while the prefetch runs,
+    // not claim the translation is already showing (pendingKey is per cache
+    // key, so the button can tell which track it is actually waiting on).
+    // Only lastError stays foreground-gated: a background failure must not
+    // flash UI for a view the user hasn't opened.
     const current = useAiTranslateStore.getState();
-    // presentation state for the CURRENT track — overwriting a slower
-    // fetch's key is the point, not a race to defend against
-    if (reportErrors) {
-      current.setPendingKey(cacheKey);
-      current.setLastError(null);
-    }
+    current.setPendingKey(cacheKey);
+    if (reportErrors) current.setLastError(null);
     try {
       const translated = await translateLines(sourceLines, config);
       const after = useAiTranslateStore.getState();
@@ -87,13 +110,16 @@ export function ensureTranslation(
       // track's fetch, and dropping the result here used to throw away
       // finished work — going back to this song paid for it again
       after.cacheTranslation(cacheKey, translated);
+      failureCounts.delete(cacheKey);
       if (after.pendingKey === cacheKey) after.setPendingKey(null);
     } catch (error) {
       const after = useAiTranslateStore.getState();
+      const stillCurrent = after.pendingKey === cacheKey;
+      if (stillCurrent) after.setPendingKey(null);
       // surface the error only while THIS track is still the one being
-      // waited on — a stale failure must not light the button red on a
-      // song the user has already left
-      if (reportErrors && after.pendingKey === cacheKey) {
+      // waited on and the fetch ran in the foreground — a stale or
+      // background failure must not light the button red uninvited
+      if (reportErrors && stillCurrent) {
         const message =
           error instanceof TranslationError
             ? error.message
@@ -101,7 +127,20 @@ export function ensureTranslation(
               ? error.message
               : String(error);
         after.setLastError(message);
-        after.setPendingKey(null);
+      }
+      // background failures retry silently a bounded number of times;
+      // foreground failures keep the visible "click to retry" contract
+      // instead of auto-re-firing while the user is looking at the error
+      if (!reportErrors) {
+        const failures = failureCounts.get(cacheKey) ?? 0;
+        if (failures < RETRY_DELAYS_MS.length) {
+          failureCounts.set(cacheKey, failures + 1);
+          setTimeout(() => {
+            ensureTranslation(trackId, sourceLines, config, options);
+          }, RETRY_DELAYS_MS[failures]);
+        } else {
+          failureCounts.delete(cacheKey);
+        }
       }
     } finally {
       inflightTranslations.delete(cacheKey);
