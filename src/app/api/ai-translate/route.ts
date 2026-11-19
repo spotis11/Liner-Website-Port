@@ -38,9 +38,15 @@ async function getZai() {
 const RESULT_CACHE_MAX = 200;
 const resultCache = new Map<string, string[]>();
 
+// Bumped when a change to the translation path could make previously
+// cached entries wrong (e.g. the system-prompt-role / alignment fixes below).
+// Rotating the namespace retires stale entries instead of trying to
+// selectively invalidate them.
+const CACHE_VERSION = "v2";
+
 function resultCacheKey(lines: string[], targetLang: string): string {
   return createHash("sha256")
-    .update(`${targetLang}\u0000${JSON.stringify(lines)}`)
+    .update(`${CACHE_VERSION}\u0000${targetLang}\u0000${JSON.stringify(lines)}`)
     .digest("hex");
 }
 
@@ -60,6 +66,11 @@ const SYSTEM_PROMPT =
 
 const SDK_COOLDOWN_MS = 10 * 60_000;
 let sdkCooldownUntil = 0;
+
+// Every other provider call in translate.ts wraps its fetch in
+// AbortSignal.timeout(...); this mirrors that for the LLM SDK call, which
+// had no timeout and could hang past the client's own 60s timeout.
+const LLM_TIMEOUT_MS = 20_000;
 
 const MM_CONCURRENCY = 6;
 const MM_TIMEOUT_MS = 12_000;
@@ -195,22 +206,31 @@ export async function POST(request: NextRequest) {
     let content: string | undefined;
     try {
       const zai = await getZai();
-      const completion = await zai.chat.completions.create({
-        messages: [
-          { role: "assistant", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `Target language: ${targetLang}.\nLines:\n${JSON.stringify(lines)}`,
-          },
-        ],
-        thinking: { type: "disabled" },
-      });
+      const completion = await Promise.race([
+        zai.chat.completions.create({
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: `Target language: ${targetLang}.\nLines:\n${JSON.stringify(lines)}`,
+            },
+          ],
+          temperature: 0.2,
+          thinking: { type: "disabled" },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("zai timeout")), LLM_TIMEOUT_MS),
+        ),
+      ]);
       content = completion.choices[0]?.message?.content;
     } catch (error) {
       sdkError = error instanceof Error ? error.message : "translator unavailable";
       sdkCooldownUntil = Date.now() + SDK_COOLDOWN_MS;
     }
     parsed = typeof content === "string" ? extractJsonArray(content) : null;
+    // Reject a misaligned response instead of silently letting every line
+    // after a merge/drop shift by index — fall through to MyMemory instead.
+    if (parsed && parsed.length !== lines.length) parsed = null;
   } else {
     sdkError = "translator in cooldown";
   }
