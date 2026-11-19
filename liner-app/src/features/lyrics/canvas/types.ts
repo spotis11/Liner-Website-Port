@@ -18,6 +18,9 @@ export interface LyricLineModel {
   instrumental: boolean;
   tokens: LyricToken[];
   subtitle: string | null;
+  /** Timed tokens for the AI translation — copied from the original line's
+   * windows (empty when the line has no translation or no timing). */
+  subtitleTokens: LyricToken[];
 }
 
 export interface LyricsModel {
@@ -44,6 +47,8 @@ export interface LineLayout {
   height: number;
   tokens: PlacedToken[];
   subtitle: PlacedText[];
+  /** Timed, placed translation tokens — karaoke-swept like the main text. */
+  subtitleTokens: PlacedToken[];
 }
 
 export interface LyricsTypography {

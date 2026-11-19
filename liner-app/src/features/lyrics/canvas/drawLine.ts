@@ -40,6 +40,26 @@ export function drawLine(
       tokenHighlight(placed.token, line, timeMs, now),
     );
   }
+  if (layout.subtitleTokens.length > 0) {
+    // Karaoke sweep on the AI translation — same per-token highlight the
+    // main words get, in the windows copied from the original line.
+    ctx.font = subtitleFont(type);
+    for (const placed of layout.subtitleTokens) {
+      drawToken(
+        {
+          ctx,
+          top,
+          rtl: line.rtl,
+          base: SUBTITLE_ALPHA,
+          remPx: REM_PX,
+          dpr,
+        },
+        placed,
+        tokenHighlight(placed.token, line, timeMs, now),
+      );
+    }
+    return;
+  }
   if (layout.subtitle.length === 0) return;
   ctx.font = subtitleFont(type);
   ctx.fillStyle = white(SUBTITLE_ALPHA);

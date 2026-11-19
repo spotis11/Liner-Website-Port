@@ -1,5 +1,6 @@
 import type { Lyric } from "@braccato/parsers";
 import { lineSyncedParts, tokenize } from "./tokens";
+import { translationTokens } from "./translationTiming";
 import type { LineAlign, LyricLineModel, LyricsModel } from "./types";
 
 const RICHSYNC_SHIFT_MS = 150;
@@ -36,6 +37,11 @@ function subtitleOf(line: Lyric): string | null {
   return text && text.trim() ? text.trim() : null;
 }
 
+function translationTextOf(line: Lyric): string | null {
+  const text = line.translation?.text;
+  return text && text.trim() ? text.trim() : null;
+}
+
 export function buildLines(lyrics: Lyric[]): LyricsModel {
   const lines = lyrics.map((line, index): LyricLineModel => {
     const words = line.words ?? "";
@@ -61,6 +67,13 @@ export function buildLines(lyrics: Lyric[]): LyricsModel {
       instrumental: Boolean(line.isInstrumental),
       tokens: line.isInstrumental ? [] : tokenize(parts),
       subtitle: subtitleOf(line),
+      // The AI translation sings with the original line's windows — word
+      // sweeps copied from richsync parts, or the line-synced proportional
+      // split. Static string fallback stays for untimed lines.
+      subtitleTokens:
+        line.isInstrumental || !translationTextOf(line)
+          ? []
+          : translationTokens(parts, translationTextOf(line) ?? ""),
     };
   });
   return {
