@@ -237,3 +237,37 @@ accent-color for checkboxes/radios, login backdrop remapped to tonal purple.
 Push: the provided token authenticates as spotis11 which has pull-only access
 to tryliner/desktop (no fork under spotis11) — commits remain local pending a
 token with write access.
+
+v1.26.0 (2026-11-19) — user's like-burst/M3-switch fix deployed
+Merge: fast-forwarded to fc809281 (spotis11, "Fix like burst and Material 3
+switches"): LikeBurst canvas portaled to document.body (fixed coordinates
+under animated/transformed fullscreen ancestors) + burst re-centered at the
+viewport midpoint; ToggleSwitch swapped to Google's real Material Web
+md-switch (@material/web 2.5.0) with M3 --md-switch-* token styling and a
+controlled selected/change bridge; SPA vite build got css.postcss.plugins:[]
+to stop loading the monorepo-root PostCSS config.
+Build fix: the same commit's root postcss.config.mjs (imported-function
+plugin form) broke the Next Turbopack build ("non-ecmascript placeable
+asset" on lightningcss/oxide native bindings) — reverted the root config to
+the serializable string form; safe because the SPA no longer reads it.
+SPA CSS verified byte-identical to v1.25.0 for App chunks (Tailwind intact).
+Tests: 3/3 pass (LikeBurst 2, ToggleSwitch 1). Bundle: index-DMoEGx_v.js,
+player-BSBCpNN6.js (md-switch inside); 39 assets re-hashed, committed.
+Deploy: dep_h26dhkprnanca5pdu6mj on tryliner-web (svc_vkzivjf5qsvnv3sivtbn,
+project renamed liner-projects) — active, /api/health 200. Variables checked
+via API: 10 present (ADMIN_GATE_SECRET, DATABASE_URL, DB_MIRROR_EXPORT_KEY,
+DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_PUBLIC_BASE,
+DISCORD_REDIRECT_URI, MAIL_PUBLIC_BASE_URL, SMTP_PASS, SMTP_USER; values
+platform-masked; the 3 vars the deploy script doesn't manage were retained).
+Live verification (headless browser): uiStyle=material3 boots on
+liner-web-liner-bot-f3eq.running.sh/, md-switch custom element registered, 5
+switches render in Settings→Playback and toggle round-trip works (true→
+false→true, neighbors untouched); fullscreen progress slider advances with
+playback (aria-valuenow 40376→44357 ms tracking audio 40.5→44.5s — the
+"progress doesn't move" report is fixed in this bundle); like burst launches
+from the fullscreen track-info heart (canvas DPR-sized 1280×577, full
+~2.4s lifecycle, auto-hides) and the flying heart was captured mid-flight on
+screenshot. Previews: download/m3-{settings,home}-live.png,
+m3-like-burst-{live,mid,heart}.png. Push: no GitHub write credentials in the
+sandbox (rs_ token is running.sh-only, no gh CLI) — 34316cf3 stays local
+until a token with write access lands; fc809281 itself was pushed by the user.
