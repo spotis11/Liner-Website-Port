@@ -1,4 +1,6 @@
-import { cn } from "@/shared/lib/utils";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import type { CSSProperties } from "react";
+import "@material/web/switch/switch.js";
 
 export interface ToggleSwitchProps {
   checked: boolean;
@@ -7,52 +9,55 @@ export interface ToggleSwitchProps {
   disabled?: boolean;
 }
 
+type MaterialSwitchElement = HTMLElement & { selected: boolean };
+
+const switchColors = {
+  "--md-switch-selected-track-color":
+    "var(--m3-primary, var(--accent-primary, #6750a4))",
+  "--md-switch-selected-handle-color":
+    "var(--m3-on-primary, var(--btn-primary-text, #ffffff))",
+  "--md-switch-handle-color": "var(--m3-outline, var(--text-tertiary, #79747e))",
+  "--md-switch-track-color":
+    "var(--m3-surface-container-highest, var(--bg-elevated, #e6e0e9))",
+} as CSSProperties;
+
+/** Google Material Web's M3 switch, kept controlled by the React setting state. */
 export function ToggleSwitch({
   checked,
   onChange,
   ariaLabel,
   disabled = false,
 }: ToggleSwitchProps) {
+  const switchRef = useRef<MaterialSwitchElement | null>(null);
+  const onChangeRef = useRef(onChange);
+
+  useLayoutEffect(() => {
+    if (switchRef.current) switchRef.current.selected = checked;
+  }, [checked]);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    const element = switchRef.current;
+    if (!element) return;
+
+    const handleChange = () => onChangeRef.current(element.selected);
+    element.addEventListener("change", handleChange);
+    return () => element.removeEventListener("change", handleChange);
+  }, []);
+
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={ariaLabel}
+    <md-switch
+      ref={(element: HTMLElement | null) => {
+        switchRef.current = element as MaterialSwitchElement | null;
+      }}
+      selected={checked}
       disabled={disabled}
-      onClick={() => !disabled && onChange(!checked)}
-      className={cn(
-        "group relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full border-0 p-0 select-none outline-none",
-        "transition-colors duration-200 ease-out",
-        "focus-visible:ring-2 focus-visible:ring-text-primary/25 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary",
-        checked
-          ? "bg-black/[0.35] dark:bg-white/[0.35]"
-          : "bg-black/[0.1] dark:bg-white/[0.1]",
-        disabled
-          ? "cursor-not-allowed opacity-40"
-          : cn(
-              "cursor-pointer",
-              checked
-                ? "hover:bg-black/[0.42] dark:hover:bg-white/[0.42]"
-                : "hover:bg-black/[0.14] dark:hover:bg-white/[0.14]",
-            ),
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-0 my-auto h-[18px] w-[18px] rounded-full",
-          "transition-[left,width,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.34,1.3,0.64,1)]",
-          !disabled && "group-active:w-[22px]",
-          checked
-            ? cn(
-                "left-[18px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)]",
-                !disabled && "group-active:left-[14px]",
-              )
-            : "left-[2px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] dark:bg-white/50 dark:shadow-none",
-        )}
-      />
-    </button>
+      aria-label={ariaLabel ?? "Toggle setting"}
+      style={switchColors}
+    />
   );
 }
 

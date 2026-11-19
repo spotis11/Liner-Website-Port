@@ -1,4 +1,4 @@
-import localFilesCover from "@classic/assets/local-files-cover.svg";
+import localFilesCover from "@/assets/local-files-cover.svg";
 import { cn } from "@classic/shared/lib";
 
 export default function LocalFilesCover({

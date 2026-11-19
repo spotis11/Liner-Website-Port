@@ -4,6 +4,7 @@
 // spray of little hearts, floats, then dives home into the like button,
 // which bounces as it lands. Mounted only in the fullscreen player.
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 const LIKE_RED = [255, 45, 85] as const; // #FF2D55
 const LIKE_PINK = [255, 143, 171] as const; // #FF8FAB
@@ -163,7 +164,9 @@ function tick(now: number): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
-  const center = { x: w / 2, y: h * 0.44 };
+  // Use the actual viewport midpoint. The former 44% target made the red
+  // impact read as if it burst above the screen center.
+  const center = { x: w / 2, y: h / 2 };
   const homeRect = homeButton?.getBoundingClientRect() ?? null;
   const homeTarget = homeRect
     ? { x: homeRect.left + homeRect.width / 2, y: homeRect.top + homeRect.height / 2 }
@@ -449,13 +452,19 @@ export function LikeBurstOverlay() {
     };
   }, []);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  // The player has animated/transformed ancestors. Portal the fixed canvas to
+  // the document root so its viewport coordinates stay aligned with the like
+  // button's getBoundingClientRect() origin on launch and return.
+  return createPortal(
     <canvas
       ref={canvasRef}
       data-like-burst
       aria-hidden
       className="pointer-events-none fixed inset-0 z-[80]"
       style={{ display: "none" }}
-    />
+    />,
+    document.body,
   );
 }

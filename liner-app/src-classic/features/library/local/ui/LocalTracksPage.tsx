@@ -5,7 +5,7 @@ import { playerEngine } from "@classic/features/player";
 import { useClassicSurfaces } from "@classic/features/settings/store/customizationStore";
 import { useTranslation } from "@classic/languages";
 import { cn, usePageBackdrop } from "@classic/shared/lib";
-import localFilesCover from "@classic/assets/local-files-cover.svg";
+import localFilesCover from "@/assets/local-files-cover.svg";
 import { formatTotalDuration } from "@classic/shared/utils/formatTrackDurations";
 import {
   EntityHero,

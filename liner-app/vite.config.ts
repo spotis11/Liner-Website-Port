@@ -13,6 +13,9 @@ export default defineConfig(({ command, mode }) => {
 
   return {
   base: "/liner/",
+  // Tailwind v4 is handled by @tailwindcss/vite. The monorepo-root PostCSS
+  // config belongs to the Next app and shouldn't be loaded for this SPA.
+  css: { postcss: { plugins: [] } },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },

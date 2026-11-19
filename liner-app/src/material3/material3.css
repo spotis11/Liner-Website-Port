@@ -10,7 +10,7 @@
  *   2. a remap of the fork's own tokens (--bg-*, --text-*, --border-*,
  *      --accent-*, --btn-*, --radius-*) onto M3 values → the entire app
  *      reskins without touching a single component
- *   3. M3 component upgrades: switches (52×32 track, 16→24px thumb), the
+ *   3. M3 component upgrades: Google Material Web switches, the
  *      timeline slider (Google-style growing track + thumb), press ripples
  *      (src/material3/ripples.ts), M3 focus rings, motion curves
  */
@@ -176,54 +176,14 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* 3b. M3 switches — riff's .m3-switch geometry and motion            */
+/* 3b. M3 switches — official Google Material Web component            */
 /* ------------------------------------------------------------------ */
 
-[data-ui-style="material3"] button[role="switch"] {
-  width: 52px !important;
-  height: 32px !important;
-  border-radius: 999px !important;
-  background: var(--m3-surface-container-highest) !important;
-  border: 2px solid var(--m3-outline) !important;
-  transition:
-    background-color 180ms var(--m3-ease-standard),
-    border-color 180ms var(--m3-ease-standard) !important;
-}
-
-[data-ui-style="material3"] button[role="switch"][aria-checked="true"] {
-  background: var(--m3-primary) !important;
-  border-color: transparent !important;
-}
-
-[data-ui-style="material3"] button[role="switch"] > span {
-  width: 16px !important;
-  height: 16px !important;
-  left: 6px !important;
-  background: var(--m3-outline) !important;
-  box-shadow: none !important;
-  transition:
-    left 200ms var(--m3-ease-spring),
-    width 150ms var(--m3-ease-standard),
-    height 150ms var(--m3-ease-standard),
-    background-color 150ms ease !important;
-}
-
-[data-ui-style="material3"] button[role="switch"][aria-checked="true"] > span {
-  width: 24px !important;
-  height: 24px !important;
-  left: 22px !important;
-  background: var(--m3-on-primary) !important;
-}
-
-[data-ui-style="material3"] button[role="switch"]:not(:disabled):active > span {
-  width: 28px !important;
-  height: 28px !important;
-}
-
-[data-ui-style="material3"]
-  button[role="switch"][aria-checked="true"]:not(:disabled):active
-  > span {
-  left: 20px !important;
+[data-ui-style="material3"] md-switch {
+  --md-switch-selected-track-color: var(--m3-primary);
+  --md-switch-selected-handle-color: var(--m3-on-primary);
+  --md-switch-handle-color: var(--m3-outline);
+  --md-switch-track-color: var(--m3-surface-container-highest);
 }
 
 /* ------------------------------------------------------------------ */
