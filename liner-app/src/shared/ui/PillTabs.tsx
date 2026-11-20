@@ -84,7 +84,7 @@ export function PillTabs<T extends string = string>({
             {isActive && (
               <motion.div
                 layoutId={layoutId}
-                className="absolute inset-0 rounded-[inherit] bg-[#adc6ff] dark:bg-[#b4c5ff] shadow-[0_2px_12px_rgba(180,198,255,0.25)]"
+                className="absolute inset-0 rounded-[inherit] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.18)] dark:bg-white"
                 transition={{
                   type: "spring",
                   stiffness: 450,

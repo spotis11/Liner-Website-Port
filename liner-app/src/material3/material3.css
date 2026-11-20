@@ -10,7 +10,7 @@
  *   2. a remap of the fork's own tokens (--bg-*, --text-*, --border-*,
  *      --accent-*, --btn-*, --radius-*) onto M3 values → the entire app
  *      reskins without touching a single component
- *   3. M3 component upgrades: Google Material Web switches, the
+ *   3. M3 component upgrades: the M3 palette on the shared switch and
  *      timeline slider (Google-style growing track + thumb), press ripples
  *      (src/material3/ripples.ts), M3 focus rings, motion curves
  */
@@ -276,14 +276,12 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* 3b. M3 switches — official Google Material Web component            */
+/* 3b. Switch — the shared evi-style pill recolored with M3 tokens     */
+/* (the Google md-switch element is gone; only the palette stays)      */
 /* ------------------------------------------------------------------ */
 
-[data-ui-style="material3"] md-switch {
-  --md-switch-selected-track-color: var(--m3-primary);
-  --md-switch-selected-handle-color: var(--m3-on-primary);
-  --md-switch-handle-color: var(--m3-outline);
-  --md-switch-track-color: var(--m3-surface-container-highest);
+[data-ui-style="material3"] button[role="switch"][aria-checked="true"] {
+  background-color: var(--m3-primary) !important;
 }
 
 /* ------------------------------------------------------------------ */
