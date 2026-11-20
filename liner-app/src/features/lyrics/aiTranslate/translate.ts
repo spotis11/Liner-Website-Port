@@ -235,6 +235,14 @@ function isMostlyLatin(text: string): boolean {
   return latin.length / letters.length > 0.85;
 }
 
+// Translator error banners that must never be treated as translated text.
+// MyMemory puts its own failure messages inside responseData.translatedText
+// with HTTP 200 — "PLEASE SELECT TWO DISTINCT LANGUAGES" on a same-language
+// pair, "MYMEMORY WARNING" on daily-quota exhaustion — and v1.33.3 shipped
+// those to the lyrics pane as if they were translations.
+const BANNER_RE =
+  /PLEASE SELECT TWO DISTINCT|MYMEMORY WARNING|QUOTA EXCEEDED|INVALID LANGUAGE|INVALID SOURCE|INVALID TARGET/i;
+
 async function translateWithMyMemory(
   lines: string[],
   targetLang: string,
@@ -267,7 +275,7 @@ async function translateWithMyMemory(
         if (
           translated &&
           !(Number.isFinite(status) && status !== 200) &&
-          !/MYMEMORY WARNING|QUOTA|INVALID|PLEASE SELECT TWO DISTINCT/i.test(translated)
+          !BANNER_RE.test(translated)
         ) {
           results[item.index] = translated;
         }
@@ -317,6 +325,17 @@ async function translateWithLiner({ config, lines }: ChatArgs): Promise<string[]
   const out = Array.isArray(payload?.lines) ? payload.lines : null;
   if (!out || !out.every((line: unknown) => typeof line === "string")) {
     throw new TranslationError("Unexpected Liner AI response");
+  }
+  // A fallback that answers with its own error banner instead of a
+  // translation must never reach the pane or the persisted cache — v1.33.4's
+  // server fix stopped producing these, but a stale deployment (or a future
+  // fallback bug) must not be able to poison lyrics again. Surfacing it as
+  // a TranslationError keeps the button red with a retry, not lyrics full
+  // of "PLEASE SELECT TWO DISTINCT LANGUAGES".
+  if (out.some((line: string) => BANNER_RE.test(line))) {
+    throw new TranslationError(
+      "The translator returned an error instead of a translation — try again in a moment.",
+    );
   }
   return alignAiOutput(out as string[], lines);
 }
