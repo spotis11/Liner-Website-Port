@@ -7,7 +7,7 @@
 
 <img src="./docs/screenshots/01-album.png" alt="Liner Web — album view with the player bar and blurred artwork background" width="100%" />
 
-### [▶ Open the live port — liner-music.space-z.ai](https://liner-music.space-z.ai/#/)
+### [▶ Open the live port — liner-web-liner-bot-f3eq.running.sh](https://liner-web-liner-bot-f3eq.running.sh/)
 
 [About](#about) • [Screenshots](#screenshots) • [Features](#features) • [Architecture](#architecture) • [Getting Started](#getting-started) • [Building](#building) • [Docs](#docs) • [License](#license)
 
