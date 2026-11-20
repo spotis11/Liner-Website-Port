@@ -294,10 +294,13 @@ function sameOriginCoverSrc(url: string): string {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname;
+    // any gstatic host: YTM default playlist artwork (pbg covers) plus any
+    // other static asset the cover pipeline may point at — www.gstatic.com
+    // sends no Access-Control-Allow-Origin, so everything gstatic goes
+    // through the same-origin proxy (the server allowlists the whole host)
     if (
       parsed.protocol === "https:" &&
-      (host === "www.gstatic.com" || host.endsWith(".gstatic.com")) &&
-      parsed.pathname.startsWith("/youtube/media/ytm/images/pbg/")
+      (host === "www.gstatic.com" || host.endsWith(".gstatic.com"))
     ) {
       return `/api/fetch?u=${encodeURIComponent(parsed.toString())}`;
     }
@@ -328,7 +331,11 @@ export function useCoverReady(url: string | undefined): boolean {
 
 function effectiveCoverSrc(url: string | undefined): string | undefined {
   if (!url) return undefined;
-  return entries.get(resolveKey(url))?.effectiveUrl ?? url;
+  // un-preloaded covers must still render through the same-origin proxy —
+  // a raw cross-origin src with crossOrigin="anonymous" is CORS-blocked
+  // (www.gstatic.com serves no Access-Control-Allow-Origin) and the image
+  // never paints
+  return entries.get(resolveKey(url))?.effectiveUrl ?? sameOriginCoverSrc(url);
 }
 
 export function useCoverSrc(url: string | undefined): string | undefined {

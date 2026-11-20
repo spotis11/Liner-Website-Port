@@ -304,7 +304,11 @@ export function useCoverReady(url: string | undefined): boolean {
 
 function effectiveCoverSrc(url: string | undefined): string | undefined {
   if (!url) return undefined;
-  return entries.get(resolveKey(url))?.effectiveUrl ?? url;
+  // un-preloaded covers must still render through the same-origin proxy —
+  // a raw cross-origin src with crossOrigin="anonymous" is CORS-blocked
+  // (www.gstatic.com serves no Access-Control-Allow-Origin) and the image
+  // never paints
+  return entries.get(resolveKey(url))?.effectiveUrl ?? rewriteForWeb(url);
 }
 
 export function useCoverSrc(url: string | undefined): string | undefined {

@@ -16,7 +16,14 @@ const COVER_HOSTS = [
   "yandex-images.clstorage.net",
 ];
 
-const inFlight = new Map();
+// gstatic covers arrive same-origin through /api/fetch?u=<gstatic-url>
+// (www.gstatic.com sends no CORS headers, so the app proxies them) —
+// unwrap the target so they cache here like direct cover hosts
+const PROXIED_COVER_HOSTS = ["gstatic.com"];
+
+function hostInList(hostname, list) {
+  return list.some((h) => hostname === h || hostname.endsWith("." + h));
+}
 
 function isCoverRequest(url) {
   try {
@@ -28,13 +35,23 @@ function isCoverRequest(url) {
     ) {
       return false;
     }
-    return COVER_HOSTS.some(
-      (h) => parsed.hostname === h || parsed.hostname.endsWith("." + h),
-    );
+    if (parsed.pathname === "/api/fetch") {
+      const target = parsed.searchParams.get("u");
+      if (target) {
+        try {
+          if (hostInList(new URL(target).hostname, PROXIED_COVER_HOSTS)) {
+            return true;
+          }
+        } catch {}
+      }
+    }
+    return hostInList(parsed.hostname, COVER_HOSTS);
   } catch {
     return false;
   }
 }
+
+const inFlight = new Map();
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());

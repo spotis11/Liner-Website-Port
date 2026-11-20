@@ -67,7 +67,14 @@ rm -f "$STG/standalone/.env"
 # resolves its credentials from .z-ai-config (project dir / home / /etc).
 # running.sh has none, so ship the sandbox's config into the standalone root
 # (server cwd) — stays out of git, ships only inside the deploy tarball.
-[ -r /etc/.z-ai-config ] && cp /etc/.z-ai-config "$STG/standalone/.z-ai-config"
+# MISSING CONFIG = /api/ai-translate 502s in production (the 2026-11-20
+# incident: /etc/.z-ai-config mounted after the tarball was cut), so this is
+# a hard guard, and the staged file is verified inside the tarball below.
+if [ ! -r /etc/.z-ai-config ]; then
+  echo "FATAL: /etc/.z-ai-config missing — /api/ai-translate would 502. Deploy aborted." >&2
+  exit 1
+fi
+cp /etc/.z-ai-config "$STG/standalone/.z-ai-config"
 # the migration announcement is only for space-z.ai visitors — never ship it
 # to running.sh (loader tag in index.html + the JS file itself)
 sed -i '/INJECT:liner-migration-announcement-v/d; /liner-announcement\.js/d' \
@@ -77,6 +84,12 @@ cp "$ROOT/db/custom.db" "$STG/db/custom.db"
 cp "$ROOT/deploy/web/Dockerfile" "$STG/Dockerfile"
 tar -czf /tmp/liner-web.tgz -C "$STG" Dockerfile standalone db
 echo "tarball: $(du -h /tmp/liner-web.tgz | cut -f1)"
+# the credential file must actually be inside the tarball — verify, never hope
+if ! tar -tzf /tmp/liner-web.tgz | grep -q "standalone/.z-ai-config"; then
+  echo "FATAL: tarball lacks standalone/.z-ai-config — /api/ai-translate would 502. Deploy aborted." >&2
+  rm -f /tmp/liner-web.tgz
+  exit 1
+fi
 
 # 5) upload deploy
 D=$(curl -sS -H "Authorization: Bearer $TOKEN" -F "source=@/tmp/liner-web.tgz" \

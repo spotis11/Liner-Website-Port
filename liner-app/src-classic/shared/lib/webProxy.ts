@@ -40,6 +40,12 @@ const FETCH_HOSTS = [
   "images.genius.com",
   "api.github.com",
   "github.com",
+  // YTM default playlist artwork (liked-songs / sounds-from-shorts under
+  // www.gstatic.com/youtube/media/ytm/images/pbg/) — www.gstatic.com serves
+  // NO Access-Control-Allow-Origin header, so covers must load through the
+  // same-origin /api/fetch proxy (the server-side FETCH_HOSTS allowlists
+  // gstatic; /api/media does not). NOT a media host: nothing streams from it.
+  "gstatic.com",
 ];
 
 // binary media upstreams (fetched with Range/HEAD by the audio engine)
