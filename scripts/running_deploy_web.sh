@@ -52,6 +52,12 @@ keys = ["DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DB_MIRROR_EXPORT_KEY",
         "ADMIN_GATE_SECRET"]
 out = {k: env[k] for k in keys if env.get(k)}
 out["DATABASE_URL"] = "file:/app/db/custom.db"
+# the sandbox relay: this container's egress resets on the LLM endpoint and
+# MyMemory blocks the datacenter IP, so /api/ai-translate forwards its
+# still-missing lines here (the sandbox reaches both). The route guards the
+# hop (x-liner-relay-hop header), so the relay deployment must NOT set this
+# variable or it would relay to itself.
+out["AI_TRANSLATE_RELAY_URL"] = "https://liner-music.space-z.ai/api/ai-translate"
 print(json.dumps({"set": out}))
 PYEOF
 echo "variables set (names only):"
@@ -74,7 +80,11 @@ if [ ! -r /etc/.z-ai-config ]; then
   echo "FATAL: /etc/.z-ai-config missing — /api/ai-translate would 502. Deploy aborted." >&2
   exit 1
 fi
+# rm first: a previously staged copy carries /etc's read-only 444 mode and
+# cp would refuse to overwrite it
+rm -f "$STG/standalone/.z-ai-config"
 cp /etc/.z-ai-config "$STG/standalone/.z-ai-config"
+chmod 644 "$STG/standalone/.z-ai-config"
 # the migration announcement is only for space-z.ai visitors — never ship it
 # to running.sh (loader tag in index.html + the JS file itself)
 sed -i '/INJECT:liner-migration-announcement-v/d; /liner-announcement\.js/d' \
@@ -85,7 +95,9 @@ cp "$ROOT/deploy/web/Dockerfile" "$STG/Dockerfile"
 tar -czf /tmp/liner-web.tgz -C "$STG" Dockerfile standalone db
 echo "tarball: $(du -h /tmp/liner-web.tgz | cut -f1)"
 # the credential file must actually be inside the tarball — verify, never hope
-if ! tar -tzf /tmp/liner-web.tgz | grep -q "standalone/.z-ai-config"; then
+# (grep -c, NOT -q: with pipefail, -q's early exit SIGPIPEs tar mid-listing
+# and the pipeline reports failure even when the file is present)
+if [ "$(tar -tzf /tmp/liner-web.tgz 2>/dev/null | grep -c '\.z-ai-config')" -lt 1 ]; then
   echo "FATAL: tarball lacks standalone/.z-ai-config — /api/ai-translate would 502. Deploy aborted." >&2
   rm -f /tmp/liner-web.tgz
   exit 1

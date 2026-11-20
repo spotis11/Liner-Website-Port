@@ -78,6 +78,14 @@ const SYSTEM_PROMPT =
 const SDK_COOLDOWN_MS = 10 * 60_000;
 let sdkCooldownUntil = 0;
 
+// Last-resort hop: when this container's egress to every translator is
+// blocked (running.sh resets the LLM endpoint, MyMemory blocks the
+// datacenter IP), forward the still-missing lines to a relay deployment
+// whose network reaches both — the sandbox. Only engaged when
+// AI_TRANSLATE_RELAY_URL is set (the relay deployment itself must NOT set
+// it), and the hop header keeps a relayed request from relaying again.
+const RELAY_TIMEOUT_MS = 75_000;
+
 // Every other provider call in translate.ts wraps its fetch in
 // AbortSignal.timeout(...); this mirrors that for the LLM SDK call, which
 // had no timeout and could hang past the client's own 60s timeout. Chunks
@@ -319,13 +327,58 @@ export async function POST(request: NextRequest) {
     sdkCooldownUntil = Date.now() + SDK_COOLDOWN_MS;
   }
 
+  // Relay hop for whatever is still missing (see RELAY_TIMEOUT_MS above).
+  const relayUrl = process.env.AI_TRANSLATE_RELAY_URL;
+  const hopCount = Number(request.headers.get("x-liner-relay-hop") ?? "0");
+  let relayError: string | null = null;
+  const missing = translated
+    .map((value, index) => (value === null ? index : -1))
+    .filter((index) => index >= 0);
+  if (relayUrl && missing.length > 0 && hopCount < 1) {
+    try {
+      const res = await fetch(relayUrl, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-liner-relay-hop": String(hopCount + 1),
+        },
+        body: JSON.stringify({
+          lines: missing.map((index) => lines[index]),
+          targetLang,
+        }),
+        signal: AbortSignal.timeout(RELAY_TIMEOUT_MS),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { lines?: unknown };
+        if (Array.isArray(data.lines) && data.lines.length === missing.length) {
+          const relayed = data.lines as unknown[];
+          missing.forEach((lineIndex, i) => {
+            const value = relayed[i];
+            if (typeof value === "string" && value.trim()) {
+              translated[lineIndex] = value.trim();
+            }
+          });
+        } else {
+          relayError = "relay returned a misaligned payload";
+        }
+      } else {
+        relayError = `relay HTTP ${res.status}`;
+      }
+    } catch (error) {
+      relayError =
+        error instanceof Error ? error.message : "relay unreachable";
+    }
+  }
+
   const translatedAny = translated.some((value) => value !== null);
   if (!translatedAny) {
     return Response.json(
       {
-        error: firstSdkError
-          ? `Translation failed — ${firstSdkError}`
-          : "Translation failed — translators unavailable",
+        error: `Translation failed — ${
+          relayError ??
+          firstSdkError ??
+          "translators unavailable"
+        }`,
       },
       { status: 502 },
     );
