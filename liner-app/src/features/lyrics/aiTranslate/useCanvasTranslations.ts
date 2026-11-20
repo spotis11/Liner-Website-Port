@@ -21,7 +21,6 @@ import {
   useAiTranslateStore,
   translationCacheKey,
 } from "./aiTranslateStore";
-import { isNoopTranslation } from "./lyricsLanguage";
 
 function normalizeText(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
@@ -35,15 +34,13 @@ export function useCanvasTranslatedLyrics(): Lyric[] {
   const targetLang = useAiTranslateStore((s) => s.targetLang);
   const cache = useAiTranslateStore((s) => s.cache);
 
-  // Lyrics already in the target language are a no-op — the canvas must
-  // not render "English → English" subtitles for that song.
-  const noop = useMemo(
-    () => isNoopTranslation(lyrics, targetLang),
-    [lyrics, targetLang],
-  );
+  // Same-language targets translate like any other now (the explicit user
+  // choice wins) — the canvas renders whatever the cache holds, and the
+  // merge below already skips lines whose "translation" is identical to
+  // the source, so an EN→EN sheet just keeps its original lines.
 
   return useMemo(() => {
-    if (!enabled || noop || !trackId || lyrics.length === 0) return lyrics;
+    if (!enabled || !trackId || lyrics.length === 0) return lyrics;
     const cached = cache[translationCacheKey(trackId, provider, targetLang)];
     // the cached array is aligned against the lyric set that was live when
     // it was fetched — a provider switch with a different line count makes
@@ -62,5 +59,5 @@ export function useCanvasTranslatedLyrics(): Lyric[] {
       return { ...line, translation: { text: translated.trim(), lang: targetLang } };
     });
     return merged > 0 ? next : lyrics;
-  }, [enabled, noop, trackId, provider, targetLang, cache, lyrics]);
+  }, [enabled, trackId, provider, targetLang, cache, lyrics]);
 }

@@ -32,7 +32,6 @@ import {
 } from "./aiTranslateStore";
 import { ensureTranslation } from "./ensureTranslation";
 import { startTranslationGlow } from "./translationGlow";
-import { isNoopTranslation } from "./lyricsLanguage";
 import type { AiProviderId } from "./providers";
 
 export type TranslationStatus =
@@ -118,22 +117,18 @@ export function useLyricsAiTranslation(
   /** which track the injectedKeyRef was recorded for */
   const injectedTrackRef = useRef<string | null>(null);
 
-  // Lyrics already in the TARGET language are a no-op (English → English,
-  // Tagalog → Tagalog, …): stand down for this song (and strip whatever is
-  // on screen) without touching the user's enabled flag — picking another
-  // target brings the feature straight back for the same song. See
-  // lyricsLanguage.ts for the detection.
-  const noopTranslation = useMemo(
-    () => isNoopTranslation(lyrics, targetLang),
-    [lyrics, targetLang],
-  );
+  // Same-language pairs (English → English, Tagalog → Tagalog, …) go through
+  // like any other target: the user's explicit language choice always
+  // translates. The old client-side stand-down ("already in X — choose
+  // another language") refused exactly the request the user had just made
+  // and read as broken, so it is gone — a same-language round-trip costs
+  // one cached fetch and comes back aligned 1:1.
 
   const wantsTranslation =
     enabled &&
     Boolean(trackId) &&
-    !noopTranslation &&
     (autoTranslate || Boolean(trackId && manualTracks[trackId]));
-  const active = Boolean(enabled && trackId && !noopTranslation);
+  const active = Boolean(enabled && trackId);
   const status: TranslationStatus = !enabled
     ? "idle"
     : pendingKey
@@ -185,10 +180,6 @@ export function useLyricsAiTranslation(
     const element = getElement();
     const state = useAiTranslateStore.getState();
     if (!element || !state.enabled) return;
-    // no-op translations (English → English) never inject; the strip effect
-    // owns removing whatever is already on screen
-    if (isNoopTranslation(useLyricsStore.getState().braccatoLyrics, state.targetLang))
-      return;
 
     const currentTrackId = useLyricsStore.getState().currentLyricsTrackId;
     if (!currentTrackId) return;

@@ -21,7 +21,6 @@ import {
   getConfigFromState,
 } from "./aiTranslateStore";
 import { translateLines, providerIsReady, TranslationError } from "./translate";
-import { isNoopTranslation } from "./lyricsLanguage";
 import type { TranslateConfig } from "./translate";
 
 // In-flight translation requests, keyed by cache key (track::provider::lang).
@@ -153,10 +152,11 @@ export function ensureTranslation(
  * Root-level prefetcher: watches the lyrics store and starts the
  * translation for the playing track the second its lyrics land — the
  * fullscreen view does not need to be open. Mounted once from App.tsx.
- * Gated by the exact same switches as the in-view flow (feature enabled,
- * auto-translate or a manual request for this track, lyrics not already in
- * the target language) so prefetch never does work the user asked the
- * feature not to do.
+ * Gated by the same switches as the in-view flow (feature enabled,
+ * auto-translate or a manual request for this track) so prefetch never
+ * does work the user asked the feature not to do. Same-language pairs
+ * (EN→EN) go through like any other target: the user's explicit choice
+ * always translates.
  */
 export function useAiTranslatePrefetch(): void {
   const trackId = useLyricsStore((s) => s.currentLyricsTrackId);
@@ -172,7 +172,6 @@ export function useAiTranslatePrefetch(): void {
   useEffect(() => {
     if (!enabled || !trackId) return;
     if (!autoTranslate && !manualTracks[trackId]) return;
-    if (isNoopTranslation(lyrics, targetLang)) return;
     const sourceLines = lyrics.map((line) => String(line?.words ?? ""));
     if (sourceLines.every((line) => !line.trim())) return;
     ensureTranslation(

@@ -1,16 +1,11 @@
 // Lyrics-pane pill button: turns AI translation on/off for the current song.
 // Sits next to the lyrics provider island in the fullscreen player.
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Translate2AiLine } from "@mingcute/react";
 import { useAiTranslateStore, translationCacheKey } from "../aiTranslateStore";
 import { getProviderDef } from "../providers";
-import {
-  detectLyricsLanguage,
-  isNoopTranslation,
-  languageLabel,
-} from "../lyricsLanguage";
 import { useLyricsStore } from "../../store/lyricsStore";
 
 export function AiTranslateButton() {
@@ -26,17 +21,6 @@ export function AiTranslateButton() {
   const lyrics = useLyricsStore((s) => s.braccatoLyrics);
 
   const [hintOpen, setHintOpen] = useState(false);
-
-  // Lyrics already IN the target language would "translate" Tagalog into
-  // Tagalog, English into English, Japanese into Japanese — the feature
-  // stands down for that song (the hook strips and skips too, so this
-  // visual is not a lie). Any other target translates the same song
-  // normally, so the flag must NOT disable the button there.
-  const detectedLang = useMemo(() => detectLyricsLanguage(lyrics), [lyrics]);
-  const noopForThisSong = useMemo(
-    () => isNoopTranslation(lyrics, targetLang),
-    [lyrics, targetLang],
-  );
 
   // Per-track state, not per-store: "Showing … translation" must only ever
   // appear once THIS song's translation is actually in the cache, and the
@@ -65,15 +49,13 @@ export function AiTranslateButton() {
 
   // tooltip copy mirrors the desktop app's translate status
   let hint = `AI Translate: ${def.label} → ${targetLang.toUpperCase()}`;
-  if (enabled && noopForThisSong)
-    hint = `Lyrics are already in ${languageLabel(detectedLang ?? "")} — choose another language to translate`;
-  else if (enabled && lastError) hint = lastError;
+  if (enabled && lastError) hint = lastError;
   else if (loadingThisTrack) hint = "Loading translation…";
   else if (enabled && hasCurrentTranslation)
     hint = `Showing ${def.label} translation`;
   else if (waitingForThisTrack) hint = "Tap to translate this song";
 
-  const isActive = enabled && !lastError && !noopForThisSong;
+  const isActive = enabled && !lastError;
 
   return (
     <div
@@ -84,10 +66,6 @@ export function AiTranslateButton() {
       <button
         type="button"
         onClick={() => {
-          // Same-language stands down for this song (Tagalog → Tagalog,
-          // English → English, …); a press must not flip the global toggle
-          // while the button says "disabled"
-          if (enabled && noopForThisSong) return;
           const store = useAiTranslateStore.getState();
           // an errored translation must not swallow the press: the obvious
           // user move is "click it again" — retry, don't silently turn off
@@ -108,16 +86,13 @@ export function AiTranslateButton() {
         }}
         aria-pressed={enabled}
         aria-busy={loadingThisTrack || undefined}
-        aria-disabled={enabled && noopForThisSong ? true : undefined}
         title={hint}
         className={`h-[32px] min-h-[32px] max-h-[32px] box-border inline-flex items-center gap-[6px] px-[10px] rounded-lg text-[12px] font-[500] border-none cursor-pointer transition-all active:scale-[0.97] ${
           isActive
             ? "bg-white/90 text-black hover:bg-white"
             : lastError && enabled
               ? "bg-[#e05545]/90 text-white hover:bg-[#e05545]"
-              : enabled && noopForThisSong
-                ? "bg-black/40 text-white/35 cursor-default"
-                : "bg-black/50 backdrop-blur-xl text-white/80 hover:text-white hover:bg-black/70"
+              : "bg-black/50 backdrop-blur-xl text-white/80 hover:text-white hover:bg-black/70"
         }`}
         style={{ fontFamily: "var(--font-inter), sans-serif" }}
       >

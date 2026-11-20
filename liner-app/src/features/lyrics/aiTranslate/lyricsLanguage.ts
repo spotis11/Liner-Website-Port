@@ -1,31 +1,27 @@
-// Detects the language of a lyric sheet — well enough to answer ONE
-// question: "would translating this song into the user's chosen target
-// language change anything?"
-//
-// Tagalog lyrics + Tagalog target = nothing to translate, exactly like
-// English + English. The feature must stand down for ANY song whose
-// language already IS the target language — and must NOT stand down when
-// the target is something else (an English song picked for Tagalog still
-// translates, a Tagalog song picked for Japanese still translates).
-//
-// Why not the provider's metadata: the lyrics SSE contract carries no
-// language field, and the /api/ai-translate route only learns the source
-// language after it has already translated. So this is a client-side
-// heuristic over the lyric text itself, in two tiers:
+// Detects the language of a lyric sheet — a client-side heuristic over the
+// lyric text itself, in two tiers:
 //
 //   1. Script (definitive): Hangul is Korean, kana is Japanese, Thai
 //      script is Thai, Devanagari is Hindi, Arabic script is Arabic,
 //      Cyrillic is Russian or Ukrainian (its і/ї/є/ґ letters give Ukraine
-//      away), Han without kana is Chinese. No target language shares these
-//      scripts, so a couple of characters settle it.
+//      away), Han without kana is Chinese.
 //   2. Function-word competition (Latin script): every candidate language
 //      gets a set of unambiguous grammar words (English "the/and/is",
 //      Tagalog "ang/ng/sa/ko", Spanish "de/la/el/que"…). The language whose
 //      markers clear a share threshold AND clearly outscores every other
-//      candidate wins; anything less decisive answers "unknown", because a
-//      wrong detection silently disables a song that needed translation
-//      while a missed detection only costs one wasted round-trip.
+//      candidate wins; anything less decisive answers "unknown".
 //
+// HISTORY: this detector used to gate the whole AI-translate feature — a
+// sheet whose language matched the target ("already in English") made the
+// button stand down with "choose another language to translate". That
+// refusal fired on the user's own explicit language choice and read as a
+// bug, so v1.33.3 removed the gate: every selected target translates, even
+// a same-language pair. The detector stays for diagnostics and tests —
+// isNoopTranslation / detectLyricsLanguage no longer drive any UI.
+//
+// Why not the provider's metadata: the lyrics SSE contract carries no
+// language field, and the /api/ai-translate route only learns the source
+// language after it has already translated.
 // Ambiguity discipline: words shared across candidate languages ("que" in
 // Spanish AND French, "mas" in Spanish AND Portuguese, "die" in German and
 // English, "ama" in Turkish and Tagalog) are either assigned to both (they
