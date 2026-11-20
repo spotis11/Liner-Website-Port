@@ -188,11 +188,24 @@ const WIN_RATIO = 0.1;
 const DOMINANCE = 1.3;
 /** Script decisions need a couple of characters, not one stray symbol. */
 const MIN_SCRIPT_CHARS = 2;
+/**
+ * Cyrillic is the only script here with single-character Latin lookalikes
+ * (е ≈ e, а ≈ a, о ≈ o, с ≈ c …), so its raw character floor alone lets a
+ * couple of stray homoglyphs inside otherwise-English words call the whole
+ * sheet Russian. On top of the floor, Cyrillic must also carry a share of
+ * scanned tokens: a genuine Russian/Ukrainian sheet clears this easily,
+ * two lookalike words out of dozens do not. Hangul/kana/Han/Thai/
+ * Devanagari/Arabic have no Latin lookalikes — the raw floor stays safe
+ * for them.
+ */
+const CYRILLIC_TOKEN_WIN_RATIO = 0.2;
 
 interface ScanResult {
   tokens: number;
   latinChars: number;
   allChars: number;
+  /** Distinct tokens containing at least one Cyrillic character. */
+  cyrillicTokens: number;
   scripts: {
     kana: number;
     hangul: number;
@@ -216,6 +229,7 @@ function scan(lyrics: Lyric[]): ScanResult {
     tokens: 0,
     latinChars: 0,
     allChars: 0,
+    cyrillicTokens: 0,
     scripts: {
       kana: 0, hangul: 0, han: 0, thai: 0, devanagari: 0, arabic: 0,
       cyrillic: 0, ukrainian: 0, greek: 0,
@@ -223,6 +237,7 @@ function scan(lyrics: Lyric[]): ScanResult {
     markerHits: new Map(),
   };
   const scripts = result.scripts;
+  const cyrillicTokenSet = new Set<string>();
   const hit = (language: string) =>
     result.markerHits.set(language, (result.markerHits.get(language) ?? 0) + 1);
 
@@ -240,6 +255,7 @@ function scan(lyrics: Lyric[]): ScanResult {
       result.tokens += 1;
       if (result.tokens > MAX_TOKENS) break;
 
+      let hasCyrillic = false;
       for (const ch of token) {
         result.allChars += 1;
         if (/\p{Script=Latin}/u.test(ch)) result.latinChars += 1;
@@ -251,10 +267,12 @@ function scan(lyrics: Lyric[]): ScanResult {
         else if (/\p{Script=Devanagari}/u.test(ch)) scripts.devanagari += 1;
         else if (/\p{Script=Arabic}/u.test(ch)) scripts.arabic += 1;
         else if (/\p{Script=Cyrillic}/u.test(ch)) {
+          hasCyrillic = true;
           scripts.cyrillic += 1;
           if (/[іїєґ]/u.test(ch)) scripts.ukrainian += 1;
         } else if (/\p{Script=Greek}/u.test(ch)) scripts.greek += 1;
       }
+      if (hasCyrillic) cyrillicTokenSet.add(token);
 
       // English keeps its original (unstripped) set — it is all ASCII.
       if (ENGLISH_WORDS.has(token)) hit("en");
@@ -277,6 +295,7 @@ function scan(lyrics: Lyric[]): ScanResult {
       if (single) for (const language of single) hit(language);
     }
   }
+  result.cyrillicTokens = cyrillicTokenSet.size;
   return result;
 }
 
@@ -317,7 +336,16 @@ function detectUncached(lyrics: Lyric[]): string | null {
   if (scripts.devanagari >= MIN_SCRIPT_CHARS) return "hi";
   if (scripts.arabic >= MIN_SCRIPT_CHARS) return "ar";
   if (scripts.cyrillic >= MIN_SCRIPT_CHARS) {
-    return scripts.ukrainian >= MIN_SCRIPT_CHARS ? "uk" : "ru";
+    // Cyrillic characters have Latin lookalikes — Polaris TTML has been seen
+    // emitting U+0435 "е" for "e" inside English words ("bеlieve", "mе"), and
+    // a couple of those must not call a 48-line English sheet Russian. So
+    // Cyrillic also has to carry a real share of the sheet's tokens; when it
+    // fails that floor the sheet falls through to the Latin tier below.
+    if (
+      s.cyrillicTokens / Math.max(1, s.tokens) >= CYRILLIC_TOKEN_WIN_RATIO
+    ) {
+      return scripts.ukrainian >= MIN_SCRIPT_CHARS ? "uk" : "ru";
+    }
   }
   // Greek is not a target language — refuse to guess rather than let its
   // letters fall into the Latin word scoring.

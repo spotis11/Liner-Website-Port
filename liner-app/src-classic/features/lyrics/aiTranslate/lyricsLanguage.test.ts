@@ -104,6 +104,27 @@ describe("detectLyricsLanguage", () => {
     expect(detectLyricsLanguage(sheet(UKRAINIAN_SONG))).toBe("uk");
   });
 
+  it("does not call an English sheet Russian over stray Cyrillic homoglyphs", () => {
+    // Polaris word-level TTML sometimes emits U+0435 "е" for Latin "e"
+    // inside English words — the "addiction" sheet had "bеlieve" and "mе"
+    // in two lines of 48. Two characters cleared the old raw Cyrillic
+    // floor and the whole song was labelled Russian (and untranslatable).
+    const withHomoglyphs = sheet([
+      ...ENGLISH_SONG.slice(0, 8),
+      "I still bеlieve in us and everything we had", // bеlieve: Cyrillic е
+      "Look at mе now, I'm stronger than before", // mе: Cyrillic е
+    ]);
+    expect(detectLyricsLanguage(withHomoglyphs)).toBe("en");
+    // the reported symptom: with a Russian target the button said
+    // "Lyrics are already in Russian" and disabled itself
+    expect(isNoopTranslation(withHomoglyphs, "ru")).toBe(false);
+  });
+
+  it("still detects genuine Russian/Ukrainian sheets after the homoglyph guard", () => {
+    expect(detectLyricsLanguage(sheet(RUSSIAN_SONG))).toBe("ru");
+    expect(detectLyricsLanguage(sheet(UKRAINIAN_SONG))).toBe("uk");
+  });
+
   it("answers null for sheets it cannot trust (never disables on a guess)", () => {
     expect(detectLyricsLanguage(sheet(["Hello"]))).toBeNull();
     expect(detectLyricsLanguage([])).toBeNull();
