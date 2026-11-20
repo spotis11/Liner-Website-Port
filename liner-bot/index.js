@@ -30,6 +30,7 @@ import {
 } from "discord.js";
 import {
   GIT_COMMIT_FORMAT,
+  RECORD_SEP,
   parseCommitLine,
   fetchCommitAvatar,
 } from "./commits.js";
@@ -234,9 +235,11 @@ async function commitsBetween(oldSha, newSha) {
   ]);
   if (!r.ok) return [];
   return r.out
-    .split("\n")
+    .split(RECORD_SEP) // records, not lines — the %b body is multi-line
+    .map((record) => record.trim())
     .filter(Boolean)
-    .map(parseCommitLine);
+    .map(parseCommitLine)
+    .filter(Boolean);
 }
 
 function relTime(iso) {
@@ -261,7 +264,7 @@ function relTime(iso) {
 async function commitEmbed(label, commits) {
   const last = commits[commits.length - 1];
   const lines = commits.slice(0, 10).map(
-    (c) => `\`${c.short}\` ${c.subject.replace(/[*`_]/g, "")} *${c.author}*`
+    (c) => `\`${c.short}\` ${(c.subject || "").replace(/[*`_]/g, "")} *${c.author}*`
   );
   if (commits.length > 10) lines.push(`...and ${commits.length - 10} more commit(s)`);
   const embed = new EmbedBuilder()
@@ -550,7 +553,12 @@ client.on(Events.MessageCreate, async (msg) => {
       const n = Math.min(10, Math.max(1, parseInt(args[0], 10) || 5));
       const r = await g(["log", `${REPO_REMOTE}/${REPO_BRANCH}`, "-n", String(n), `--format=${GIT_COMMIT_FORMAT}`]);
       if (!r.ok) return void msg.reply("Git log unavailable right now.");
-      const commits = r.out.split("\n").filter(Boolean).map(parseCommitLine);
+      const commits = r.out
+        .split(RECORD_SEP) // records, not lines — the %b body is multi-line
+        .map((record) => record.trim())
+        .filter(Boolean)
+        .map(parseCommitLine)
+        .filter(Boolean);
       await msg.channel.send(await commitEmbed(await label(), commits));
     } else if (lower === "commitchannel") {
       if (!has(msg, PermissionFlagsBits.ManageChannels)) return;

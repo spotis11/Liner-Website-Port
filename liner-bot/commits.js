@@ -7,7 +7,12 @@ const FIELD = "\x1f";
 // trailer can attribute agent-made commits to Claude. The sandbox signs its
 // commits with the checkout owner's git identity, so without the trailer the
 // embed painted every agent commit with the repo owner's name and avatar.
-const GIT_COMMIT_FORMAT = "%H%x1f%h%x1f%s%x1f%ae%x1f%an%x1f%aI%x1f%b";
+// Each record ends with %x1e (ASCII record separator): %b is multi-line, so
+// splitting the log output on newlines shreds the body into bogus records
+// whose fields are undefined — which crashed commitEmbed with
+// "Cannot read properties of undefined (reading 'replace')".
+const GIT_COMMIT_FORMAT = "%H%x1f%h%x1f%s%x1f%ae%x1f%an%x1f%aI%x1f%b%x1e";
+const RECORD_SEP = "\x1e";
 
 // Verified against api.github.com/orgs/anthropics (200, image/png).
 // Override with CLAUDE_AVATAR_URL if it ever moves.
@@ -30,11 +35,15 @@ function githubAuthorFromNoreply(email) {
   return m ? m[1] : null;
 }
 
-// parseCommitLine splits one `git log --format=$GIT_COMMIT_FORMAT` record.
-// The displayed author is the GitHub login behind the noreply email;
-// Claude-co-authored commits are attributed to Claude.
-function parseCommitLine(line) {
-  const [full, short, subject, email, name, date, body = ""] = line.split(FIELD);
+// parseCommitLine splits one git log record (possibly multi-line, because of
+// the body). Returns null for anything that is not a commit record so stray
+// lines can never crash the embed builder. The displayed author is the GitHub
+// login behind the noreply email; Claude-co-authored commits are attributed
+// to Claude.
+function parseCommitLine(record) {
+  const parts = String(record ?? "").split(FIELD);
+  if (parts.length < 6) return null;
+  const [full, short, subject, email, name, date, body = ""] = parts;
   const claude = isClaudeCommit({ subject, body });
   const gh = githubAuthorFromNoreply(email);
   return {
@@ -89,6 +98,7 @@ async function fetchCommitAvatar(label, commit, { fetchImpl = fetch } = {}) {
 export {
   FIELD,
   GIT_COMMIT_FORMAT,
+  RECORD_SEP,
   CLAUDE_AVATAR_URL,
   isClaudeCommit,
   parseCommitLine,

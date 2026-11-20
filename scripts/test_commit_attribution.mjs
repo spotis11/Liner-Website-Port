@@ -3,6 +3,7 @@
 'use strict';
 import {
   GIT_COMMIT_FORMAT,
+  RECORD_SEP,
   CLAUDE_AVATAR_URL,
   parseCommitLine,
   avatarForAuthor,
@@ -45,6 +46,25 @@ check('footnote: isClaude', claude3.isClaude === true);
 const notClaude = parseCommitLine(mk('claude monet style filter'));
 check('subject-only mention: not claude', notClaude.isClaude === false);
 
+// 5b. REGRESSION (v1.33.5 hotfix): the %b body is multi-line — git output is
+//     record-separated (\x1e), NOT line-separated. Simulate exactly what
+//     `git log --format=$GIT_COMMIT_FORMAT` prints for two commits.
+const gitOut =
+  mk('feat(bot): one', 'body line A\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n')
+  + '\x1e\n'
+  + mk('fix(bot): two', '')
+  + '\x1e\n';
+const records = gitOut.split(RECORD_SEP).map((r) => r.trim()).filter(Boolean);
+check('record split: two records (not body lines)', records.length === 2, String(records.length));
+const parsed = records.map(parseCommitLine).filter(Boolean);
+check('record split: two parsed commits', parsed.length === 2, String(parsed.length));
+check('multi-line body kept in one record', parsed[0].body.includes('body line A'), JSON.stringify(parsed[0].body));
+check('multi-line trailer detected', parsed[0].isClaude === true && parsed[0].author === 'Claude');
+check('second record subject intact', parsed[1].subject === 'fix(bot): two', parsed[1].subject);
+
+// 5c. a stray line (old newline-split body debris) must be dropped, not crash
+check('garbage line → null', parseCommitLine('random body line without separators') === null);
+
 // 6. avatar fallback chain without network
 check('claude avatar = anthropic mark',
   (await fetchCommitAvatar('o/r', claude1)) === CLAUDE_AVATAR_URL);
@@ -68,5 +88,7 @@ const live = await fetchCommitAvatar('spotis11/Liner-Website-Port', liveCommit).
 check('live api avatar resolves', typeof live === 'string' && live.startsWith('https://'), String(live));
 console.log('      live avatar:', live);
 
-console.log(failed ? `\n${failed} check(s) FAILED` : `\nall checks passed (${GIT_COMMIT_FORMAT.includes('%b') ? 'format has %b' : 'FORMAT MISSING %b'})`);
+console.log(failed
+  ? `\n${failed} check(s) FAILED`
+  : `\nall checks passed (format: %b${GIT_COMMIT_FORMAT.endsWith('%b%x1e') ? '+%x1e record sep' : ' — MISSING %x1e!'})`);
 process.exit(failed ? 1 : 0);
