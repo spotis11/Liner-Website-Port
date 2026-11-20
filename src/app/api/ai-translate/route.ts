@@ -53,7 +53,7 @@ const resultCache = new Map<string, string[]>();
 // cached entries wrong (e.g. the system-prompt-role / alignment fixes below).
 // Rotating the namespace retires stale entries instead of trying to
 // selectively invalidate them.
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 
 function resultCacheKey(lines: string[], targetLang: string): string {
   return createHash("sha256")
@@ -115,20 +115,40 @@ async function translateOneLine(
 ): Promise<string> {
   const trimmed = line.trim();
   if (!trimmed) return line;
+  // Source language is Autodetect, NOT a hardcoded "en": lyric sheets arrive
+  // in any language, and an "en|en" pair (English target, English source)
+  // makes MyMemory answer with its error banner — which used to slip into
+  // translatedText and reach users as the "translation" ("PLEASE SELECT TWO
+  // DISTINCT LANGUAGES" showing up in the settings test). If Autodetect is
+  // ever rejected, the line simply fails and falls to the next hop.
   const url =
     `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed.slice(0, 500))}` +
-    `&langpair=en|${target}&de=liner-web-relay@users.noreply.github.com`;
+    `&langpair=Autodetect|${target}&de=liner-web-relay@users.noreply.github.com`;
   const res = await fetch(url, { signal: AbortSignal.timeout(MM_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`mymemory ${res.status}`);
   const data = (await res.json()) as {
+    responseStatus?: number | string;
+    responseDetails?: string;
     responseData?: { translatedText?: string };
   };
+  // MyMemory reports failures in responseStatus (403 same-language pair,
+  // 429 quota) while STILL putting the error banner in translatedText —
+  // so the status check is the real gate, and the banner regex is the
+  // belt-and-braces backstop for statuses we have not seen yet.
+  const status = Number(data.responseStatus);
+  if (Number.isFinite(status) && status !== 200) {
+    throw new Error(`mymemory ${status}`);
+  }
   const translated = data.responseData?.translatedText;
-  if (
-    typeof translated !== "string" ||
-    !translated.trim() ||
-    translated.trim().toUpperCase() === trimmed.toUpperCase()
-  ) {
+  if (typeof translated !== "string" || !translated.trim()) {
+    throw new Error("mymemory empty response");
+  }
+  if (/PLEASE SELECT TWO DISTINCT|MYMEMORY WARNING|QUOTA|INVALID/i.test(translated)) {
+    throw new Error("mymemory error banner");
+  }
+  // a proper noun / short phrase legitimately comes back unchanged — that
+  // is a real answer, not a failure
+  if (translated.trim().toUpperCase() === trimmed.toUpperCase()) {
     return line;
   }
   return decodeMyMemoryEntities(translated.trim());
@@ -296,23 +316,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Fallback for the chunks the LLM could not deliver — only those slices.
-  const failedChunks = chunkIndexes.filter((_, k) => !chunkOk[k]);
-  if (failedChunks.length > 0) {
-    await Promise.all(
-      failedChunks.map(async (indexes) => {
-        const slice = indexes.map((i) => lines[i]);
-        const viaMm = await translateViaMyMemory(slice, targetLang);
-        if (!viaMm) return;
-        indexes.forEach((lineIndex, i) => {
-          if (typeof viaMm[i] === "string" && viaMm[i].trim()) {
-            translated[lineIndex] = viaMm[i].trim();
-          }
-        });
-      }),
-    );
-  }
-
   const contentChunks = chunkIndexes.filter((indexes) =>
     indexes.some((i) => lines[i].trim()),
   );
@@ -327,11 +330,16 @@ export async function POST(request: NextRequest) {
     sdkCooldownUntil = Date.now() + SDK_COOLDOWN_MS;
   }
 
-  // Relay hop for whatever is still missing (see RELAY_TIMEOUT_MS above).
+  // Relay hop for whatever the direct LLM path missed (see RELAY_TIMEOUT_MS
+  // above) — it runs BEFORE MyMemory because it is the better translator:
+  // full-context LLM lines instead of per-line machine translation, and it
+  // does not have MyMemory's tiny daily free quota. MyMemory is now strictly
+  // the last resort below; its quota exhaustion (or a same-language-pair
+  // rejection) used to fill lines with error banners and starve this hop.
   const relayUrl = process.env.AI_TRANSLATE_RELAY_URL;
   const hopCount = Number(request.headers.get("x-liner-relay-hop") ?? "0");
   let relayError: string | null = null;
-  const missing = translated
+  let missing = translated
     .map((value, index) => (value === null ? index : -1))
     .filter((index) => index >= 0);
   if (relayUrl && missing.length > 0 && hopCount < 1) {
@@ -367,6 +375,27 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       relayError =
         error instanceof Error ? error.message : "relay unreachable";
+    }
+    // refresh what the relay could not deliver
+    missing = translated
+      .map((value, index) => (value === null ? index : -1))
+      .filter((index) => index >= 0);
+  }
+
+  // Last-resort MyMemory fallback for whatever is STILL missing — per-line
+  // machine translation, lower quality than the LLM, subject to a daily
+  // free quota, but it keeps the feature alive when every LLM hop failed.
+  // translateOneLine throws on error banners (never returns one as text),
+  // so a dead MyMemory leaves the slice untouched instead of poisoning it.
+  if (missing.length > 0) {
+    const slice = missing.map((index) => lines[index]);
+    const viaMm = await translateViaMyMemory(slice, targetLang);
+    if (viaMm) {
+      missing.forEach((lineIndex, i) => {
+        if (typeof viaMm[i] === "string" && viaMm[i].trim()) {
+          translated[lineIndex] = viaMm[i].trim();
+        }
+      });
     }
   }
 

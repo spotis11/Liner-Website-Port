@@ -137,6 +137,15 @@ export const useAiTranslateStore = create<AiTranslateState>()(
     }),
     {
       name: AI_TRANSLATE_STORAGE_KEY,
+      // v2 (1.33.4): the MyMemory fallback could return its own error banner
+      // ("PLEASE SELECT TWO DISTINCT LANGUAGES") as if it were a translation,
+      // and those poisoned lines were persisted here. Bumping the version
+      // wipes every stored translation once — they re-fetch clean.
+      version: 2,
+      migrate: (persisted) => ({
+        ...(persisted as object),
+        cache: {},
+      }),
       storage: createJSONStorage(() => debouncedStorage),
       partialize: (state) => ({
         enabled: state.enabled,

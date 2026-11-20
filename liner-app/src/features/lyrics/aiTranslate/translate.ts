@@ -251,16 +251,23 @@ async function translateWithMyMemory(
     while (cursor < queue.length) {
       const item = queue[cursor++];
       try {
+        // Source is Autodetect, not a hardcoded "en": lyric sheets arrive in
+        // any language, and "en|en" makes MyMemory answer with its error
+        // banner instead of a translation.
         const url =
           `https://api.mymemory.translated.net/get?q=${encodeURIComponent(item.text)}` +
-          `&langpair=en|${encodeURIComponent(targetLang)}&de=liner@music.app`;
+          `&langpair=Autodetect|${encodeURIComponent(targetLang)}&de=liner@music.app`;
         const res = await proxied(url, { method: "GET" });
         if (!res.ok) throw new TranslationError(`MyMemory HTTP ${res.status}`);
         const payload = await res.json();
+        // failures ride in responseStatus (403 same-language pair, 429
+        // quota) while translatedText still carries the banner — check both
+        const status = Number(payload?.responseStatus);
         const translated: string = payload?.responseData?.translatedText ?? "";
         if (
           translated &&
-          !/MYMEMORY WARNING|QUOTA|INVALID/i.test(translated)
+          !(Number.isFinite(status) && status !== 200) &&
+          !/MYMEMORY WARNING|QUOTA|INVALID|PLEASE SELECT TWO DISTINCT/i.test(translated)
         ) {
           results[item.index] = translated;
         }
