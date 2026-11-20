@@ -10,6 +10,7 @@ import ExplicitBadge from "@/shared/ui/ExplicitBadge";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import { isCoverReady } from "@/features/covers/lib/coverArt";
 import { hoverPreview } from "../engine/hoverPreview";
+import { usePlayerStore } from "../store/playerStore";
 import type { PlayableTrack } from "../engine/playbackStream";
 import type { TrackArtist } from "@/shared/types";
 
@@ -55,6 +56,7 @@ export interface SongCardProps {
 }
 
 function SongCard({
+  id,
   title,
   artists,
   artistId,
@@ -89,6 +91,12 @@ function SongCard({
   const { t } = useTranslation();
   const [imageLoaded, setImageLoaded] = useState(() => isCoverReady(coverUrl));
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // evi-style playing row: this exact track playing right now swaps its
+  // duration for the three animated EQ bars
+  const playingRow = usePlayerStore(
+    (s) => s.status === "playing" && !!id && s.currentTrack?.id === id,
+  );
 
   const previewKey = previewTrack?.id ?? null;
 
@@ -323,15 +331,23 @@ function SongCard({
             {releaseDate}
           </span>
         )}
-        {duration && (
-          <span
-            className="text-[14px] text-text-tertiary"
-            style={{
-              fontWeight: 400,
-            }}
-          >
-            {duration}
+        {playingRow ? (
+          <span className="eq-bars text-text-tertiary" aria-label="Playing">
+            <span />
+            <span />
+            <span />
           </span>
+        ) : (
+          duration && (
+            <span
+              className="text-[14px] text-text-tertiary"
+              style={{
+                fontWeight: 400,
+              }}
+            >
+              {duration}
+            </span>
+          )
         )}
         {menuItems && menuItems.length > 0 && (
           <DropdownMenu

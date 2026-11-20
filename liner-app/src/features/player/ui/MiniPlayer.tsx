@@ -661,26 +661,20 @@ function MiniPlayer({
 
       <div
         data-liquid-ignore={liquidGlass ? "" : undefined}
-        className={`relative h-[64px] w-full overflow-hidden cursor-pointer ${
+        className={`relative overflow-hidden cursor-pointer ${
           usesRoundedStyle
-            ? `rounded-full ${
-                liquidGlass
-                  ? ""
-                  : "border-[0.5px] border-border-tertiary bg-bg-primary"
+            ? `mx-auto my-[4px] h-[56px] w-[calc(100%-24px)] max-w-[620px] rounded-[27px] ${
+                liquidGlass ? "" : "dock-shell"
               }`
-            : embedded
-              ? `rounded-[12px] ${
-                  liquidGlass
-                    ? ""
-                    : hasPageBackdrop
-                      ? "bg-bg-glass dark:bg-black/20 backdrop-blur-[48px] backdrop-saturate-150"
-                      : "bg-bg-primary"
-                }`
-              : `rounded-3xl ${
-                  liquidGlass
-                    ? ""
-                    : "border-[0.5px] border-border-tertiary bg-bg-primary"
-                }`
+            : `h-[64px] w-full ${
+                embedded
+                  ? "dock-shell mx-auto my-[4px] h-[56px] w-[calc(100%-24px)] max-w-[680px] rounded-[27px]"
+                  : `rounded-3xl ${
+                      liquidGlass
+                        ? ""
+                        : "border-[0.5px] border-border-tertiary bg-bg-primary"
+                    }`
+              }`
         }`}
         style={miniplayerCustomStyle}
         onPointerDown={(e) => {

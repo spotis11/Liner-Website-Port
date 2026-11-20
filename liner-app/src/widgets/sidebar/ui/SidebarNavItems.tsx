@@ -120,7 +120,7 @@ export function SidebarNavItems({
                 ROW_CLASS,
                 "no-underline",
                 active
-                  ? "bg-accent-primary/12 text-accent-primary"
+                  ? "bg-fill-strong text-text-primary"
                   : "text-text-secondary hover:bg-fill-subtle hover:text-text-primary",
               )}
             >

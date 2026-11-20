@@ -28,7 +28,9 @@ import EnvironmentWarning from "./EnvironmentWarning";
 import { ConnectionIssueModal } from "@/features/connectivity";
 import { useThemeCustomizationSync, useAppearanceSync } from "@/features/settings";
 import { useLiquidGlassSync } from "@/features/liquid-glass";
-import "./globals.css";
+// globals.css moved to main.tsx (static entry import): from inside this
+// dynamically imported chunk vite emitted it as a preload-only dep whose
+// <link> was never injected, leaving the page without the base theme css.
 
 function AppIconSync() {
   useAppIconSync();

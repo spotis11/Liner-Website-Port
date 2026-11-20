@@ -1,5 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+// static entry import so vite emits the theme css as a real <link> in
+// index.html (as a dynamic-chunk dep it never loaded — see App.tsx note)
+import "./app/globals.css";
 import { initGlobalErrorHandlers } from "@/shared/utils/globalErrorHandlers";
 import { hydrateScreenCache } from "@/shared/cache/screenCache";
 import { applyStoredTheme } from "@/shared/utils/storedTheme";
