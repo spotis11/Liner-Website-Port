@@ -56,7 +56,7 @@ rm -f /tmp/liner_bot_vars.json
 echo "config variables set"
 
 # 6) upload deploy (source only — no .env, no node_modules, no data)
-tar -czf /tmp/liner-bot-src.tgz -C /home/z/my-project/liner-bot Dockerfile index.js package.json package-lock.json
+tar -czf /tmp/liner-bot-src.tgz -C /home/z/my-project/liner-bot Dockerfile index.js commits.js package.json package-lock.json
 D=$(curl -sS -H "Authorization: Bearer $TOKEN" -F "source=@/tmp/liner-bot-src.tgz" \
   "$API/services/$S/deployments/upload?environmentId=$E" | jq -r '.data.id')
 rm -f /tmp/liner-bot-src.tgz

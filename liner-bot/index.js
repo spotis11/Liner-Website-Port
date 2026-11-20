@@ -28,6 +28,11 @@ import {
   ActionRowBuilder,
   EmbedBuilder,
 } from "discord.js";
+import {
+  GIT_COMMIT_FORMAT,
+  parseCommitLine,
+  fetchCommitAvatar,
+} from "./commits.js";
 
 const BOT_DIR = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = path.resolve(BOT_DIR, "..");
@@ -224,18 +229,14 @@ async function commitsBetween(oldSha, newSha) {
   const r = await g([
     "log",
     `${oldSha}..${newSha}`,
-    "--format=%H%x1f%h%x1f%s%x1f%ae%x1f%an%x1f%aI",
+    `--format=${GIT_COMMIT_FORMAT}`,
     "--reverse",
   ]);
   if (!r.ok) return [];
   return r.out
     .split("\n")
     .filter(Boolean)
-    .map((line) => {
-      const [full, short, subject, email, name, date] = line.split("\x1f");
-      const gh = email.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/);
-      return { full, short, subject, author: gh ? gh[1] : name || email, date };
-    });
+    .map(parseCommitLine);
 }
 
 function relTime(iso) {
@@ -254,7 +255,10 @@ function relTime(iso) {
 }
 
 // ---------- embed builder (matches the original Liner System style) ----------
-function commitEmbed(label, commits) {
+// Thumbnail is the avatar of whoever actually made the headline commit —
+// resolved live from GitHub, with the Anthropic mark for Claude-co-authored
+// commits and the static THUMB only as a last-resort fallback.
+async function commitEmbed(label, commits) {
   const last = commits[commits.length - 1];
   const lines = commits.slice(0, 10).map(
     (c) => `\`${c.short}\` ${c.subject.replace(/[*`_]/g, "")} *${c.author}*`
@@ -266,7 +270,8 @@ function commitEmbed(label, commits) {
     .setDescription(lines.join("\n"))
     .setFooter({ text: `GitHub • ${label} • ${relTime(last.date)}`, iconURL: FOOTER_ICON })
     .setTimestamp(new Date(last.date));
-  if (THUMB) embed.setThumbnail(THUMB);
+  const thumb = (await fetchCommitAvatar(label, last)) || THUMB;
+  if (thumb) embed.setThumbnail(thumb);
   const url =
     commits.length === 1
       ? `https://github.com/${label}/commit/${last.full}`
@@ -343,7 +348,7 @@ async function pollOnce(client) {
     writeJsonAtomic(STATE_PATH, state);
     return;
   }
-  const ok = await announce(client, commitEmbed(await label(), commits), `${commits.length} commit(s) ${commits[0].short}..${commits[commits.length - 1].short}`);
+  const ok = await announce(client, await commitEmbed(await label(), commits), `${commits.length} commit(s) ${commits[0].short}..${commits[commits.length - 1].short}`);
   console.log(`[liner-bot] poll: ${commits.length} new commit(s) ${commits[0].short}..${commits[commits.length - 1].short} — ${ok ? "announced" : "NO CHANNEL, dropped"}`);
   if (ok) {
     state.lastAnnouncedSha = cur;
@@ -543,14 +548,10 @@ client.on(Events.MessageCreate, async (msg) => {
       await msg.reply(`Pong! ${Math.max(0, Math.round(client.ws.ping))}ms`);
     } else if (lower === "commits") {
       const n = Math.min(10, Math.max(1, parseInt(args[0], 10) || 5));
-      const r = await g(["log", `${REPO_REMOTE}/${REPO_BRANCH}`, "-n", String(n), "--format=%H%x1f%h%x1f%s%x1f%ae%x1f%an%x1f%aI"]);
+      const r = await g(["log", `${REPO_REMOTE}/${REPO_BRANCH}`, "-n", String(n), `--format=${GIT_COMMIT_FORMAT}`]);
       if (!r.ok) return void msg.reply("Git log unavailable right now.");
-      const commits = r.out.split("\n").filter(Boolean).map((line) => {
-        const [full, short, subject, email, name, date] = line.split("\x1f");
-        const gh = email.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/);
-        return { full, short, subject, author: gh ? gh[1] : name || email, date };
-      });
-      await msg.channel.send(commitEmbed(await label(), commits));
+      const commits = r.out.split("\n").filter(Boolean).map(parseCommitLine);
+      await msg.channel.send(await commitEmbed(await label(), commits));
     } else if (lower === "commitchannel") {
       if (!has(msg, PermissionFlagsBits.ManageChannels)) return;
       const ch = msg.mentions.channels.first() || msg.channel;
