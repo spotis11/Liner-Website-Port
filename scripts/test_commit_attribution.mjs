@@ -20,6 +20,8 @@ const F = '\x1f';
 const mk = (subject, body = '') =>
   ['abc1234def', 'abc1234', subject, '244527415+spotis11@users.noreply.github.com',
    'spotis11', '2026-11-20T06:02:13Z', body].join(F);
+const mkAs = (name, email, subject, body = '') =>
+  ['abc1234def', 'abc1234', subject, email, name, '2026-11-20T06:02:13Z', body].join(F);
 
 // 1. plain commit → author is the GitHub login behind the noreply email
 const plain = parseCommitLine(mk('fix(bot): something'));
@@ -46,6 +48,21 @@ check('footnote: isClaude', claude3.isClaude === true);
 const notClaude = parseCommitLine(mk('claude monet style filter'));
 check('subject-only mention: not claude', notClaude.isClaude === false);
 
+// 5a. commit authored AS Claude outright (git identity Claude <noreply@anthropic.com>)
+//     — the exact shape of the user's 1870c88 test commit
+const asClaude = parseCommitLine(
+  mkAs('Claude', 'noreply@anthropic.com', 'Add second test commit file',
+    'Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_x'));
+check('authored-as-claude: isClaude', asClaude.isClaude === true);
+check('authored-as-claude: author=Claude', asClaude.author === 'Claude', asClaude.author);
+const asClaudeNoTrailer = parseCommitLine(mkAs('claude', 'claude@anthropic.com', 'x', ''));
+check('claude identity without trailer: isClaude', asClaudeNoTrailer.isClaude === true);
+
+// 5a-bis. near-miss human names must stay human (exact-name guard)
+const claudia = parseCommitLine(mkAs('Claudia', 'claudia@example.com', 'x', ''));
+check('Claudia is not Claude', claudia.isClaude === false && claudia.author === 'Claudia',
+  `${claudia.isClaude}/${claudia.author}`);
+
 // 5b. REGRESSION (v1.33.5 hotfix): the %b body is multi-line — git output is
 //     record-separated (\x1e), NOT line-separated. Simulate exactly what
 //     `git log --format=$GIT_COMMIT_FORMAT` prints for two commits.
@@ -66,7 +83,7 @@ check('second record subject intact', parsed[1].subject === 'fix(bot): two', par
 check('garbage line → null', parseCommitLine('random body line without separators') === null);
 
 // 6. avatar fallback chain without network
-check('claude avatar = anthropic mark',
+check('claude avatar = github claude account',
   (await fetchCommitAvatar('o/r', claude1)) === CLAUDE_AVATAR_URL);
 check('human fallback = noreply png',
   (await fetchCommitAvatar('o/r', plain, { fetchImpl: async () => ({ ok: false }) }))

@@ -14,18 +14,25 @@ const FIELD = "\x1f";
 const GIT_COMMIT_FORMAT = "%H%x1f%h%x1f%s%x1f%ae%x1f%an%x1f%aI%x1f%b%x1e";
 const RECORD_SEP = "\x1e";
 
-// Verified against api.github.com/orgs/anthropics (200, image/png).
-// Override with CLAUDE_AVATAR_URL if it ever moves.
+// Claude commits show the avatar of the actual GitHub user "claude"
+// (github.com/claude → u/81847, verified 200 image/png) — that is the
+// picture GitHub itself associates with the "claude committed" identity.
+// The Anthropic org logo read as "the pfp is broken"; a profile picture is
+// what the reference bot shows. Override with CLAUDE_AVATAR_URL.
 const CLAUDE_AVATAR_URL =
-  process.env.CLAUDE_AVATAR_URL || "https://avatars.githubusercontent.com/u/76263028?v=4";
+  process.env.CLAUDE_AVATAR_URL || "https://avatars.githubusercontent.com/u/81847?v=4";
 
-// A commit is Claude's when its message carries the Co-Authored-By trailer
-// (name mentions claude or the anthropic noreply email) or the
-// "Generated with Claude" footnote some agents append.
+// A commit is Claude's when the author IS Claude (git identity "claude" or
+// an @anthropic.com email — Claude Code commits as
+// "Claude <noreply@anthropic.com>" outright), or when its message carries
+// the Co-Authored-By trailer / a "Generated with Claude" footnote.
 const CLAUDE_TRAILER_RE =
   /co-authored-by:[^\n]*(claude|noreply@anthropic\.com)|generated with \[?claude/i;
 
 function isClaudeCommit(commit) {
+  const name = (commit?.name || "").trim().toLowerCase();
+  if (name === "claude") return true;
+  if (/@anthropic\.com$/i.test(commit?.email || "")) return true;
   const text = `${commit?.subject || ""}\n${commit?.body || ""}`;
   return CLAUDE_TRAILER_RE.test(text);
 }
@@ -44,7 +51,7 @@ function parseCommitLine(record) {
   const parts = String(record ?? "").split(FIELD);
   if (parts.length < 6) return null;
   const [full, short, subject, email, name, date, body = ""] = parts;
-  const claude = isClaudeCommit({ subject, body });
+  const claude = isClaudeCommit({ subject, body, name, email });
   const gh = githubAuthorFromNoreply(email);
   return {
     full, short, subject, email, name, date, body,
