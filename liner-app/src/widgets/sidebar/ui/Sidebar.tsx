@@ -23,12 +23,21 @@ function Sidebar({ searchOpen, onSearchToggle }: SidebarProps) {
   return (
     <div className="h-full w-full flex flex-col pt-[4px] pb-[4px] min-h-0">
       {/* brand — the collapse toggle sits at the end of this row in both
-          states, so the rail is never a dead end (reference screenshot) */}
-      <div className="flex items-center gap-[6px] px-[8px] h-[42px] shrink-0">
+          states, so the rail is never a dead end (reference screenshot);
+          collapsed, the logo + toggle pair centers over the icon column */}
+      <div
+        className={cn(
+          "flex items-center px-[8px] h-[42px] shrink-0",
+          collapsed ? "justify-center gap-[4px]" : "gap-[6px]",
+        )}
+      >
         <Link
           to="/"
           title="Liner"
-          className="flex min-w-0 flex-1 items-center gap-[10px] rounded-control cursor-pointer active:scale-[0.98] transition-transform"
+          className={cn(
+            "flex min-w-0 items-center rounded-control cursor-pointer active:scale-[0.98] transition-transform",
+            collapsed || "flex-1 gap-[10px]",
+          )}
         >
           <img
             src={logo}
