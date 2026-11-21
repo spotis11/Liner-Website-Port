@@ -106,7 +106,7 @@ function HomePageHeader({
             </div>
 
             <div className="flex flex-col gap-0.5 min-w-0">
-              <h1 className="text-[26px] font-[700] text-text-primary tracking-[-0.03em] leading-[1.15] m-0 font-sans">
+              <h1 className="text-[34px] font-[700] text-text-primary tracking-[-0.02em] leading-[1.15] m-0 font-sans">
                 {greeting}
                 {displayName ? (
                   <span className="text-text-tertiary font-[500]">

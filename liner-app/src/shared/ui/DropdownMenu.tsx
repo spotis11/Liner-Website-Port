@@ -173,7 +173,7 @@ export default function DropdownMenu({
                   setOpen(false);
                   await item.onClick();
                 }}
-                className={`group flex w-full h-[32px] items-center gap-[8px] rounded-[12px] px-[10px] text-body font-normal transition-colors border-none bg-transparent text-left cursor-pointer select-none outline-none ${
+                className={`group flex w-full h-9 items-center gap-[8px] rounded-[12px] px-[10px] text-body font-normal transition-colors border-none bg-transparent text-left cursor-pointer select-none outline-none ${
                   item.danger
                     ? "text-red-400 hover:bg-red-500/10 hover:text-red-400"
                     : "text-text-primary hover:bg-fill"

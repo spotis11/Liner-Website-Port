@@ -17,7 +17,7 @@ export interface HeroEyebrowProps {
 }
 
 /** small caps label above a hero title ("Playlist", "Album") */
-export function HeroEyebrow({ text }: HeroEyebrowProps) {
+export function HeroEyebrow({ text }: { text: string }) {
   return (
     <p className="m-0 mb-[6px] text-[13px] font-[500] leading-[1.2] text-text-secondary select-none">
       {text}
@@ -84,6 +84,11 @@ export interface EntityHeroProps {
   actionsClassName?: string;
 }
 
+/**
+ * evi.wtf-style hero: one rounded-[16px] banner card whose backdrop is the
+ * cover art itself, blurred and dimmed (charts/profile pages on evi). The
+ * cover, eyebrow, title, meta and actions all live inside the card.
+ */
 export function EntityHero({
   cover,
   coverClassName,
@@ -98,39 +103,53 @@ export function EntityHero({
 }: EntityHeroProps) {
   return (
     <section
-      className="flex w-full min-w-0 items-stretch gap-[22px]"
+      className="relative w-full min-w-0 overflow-hidden rounded-[16px] border border-white/[0.08] dark:border-white/[0.08] bg-fill-subtle"
       data-no-window-drag
     >
-      {/* 180px cover, square with a soft radius */}
+      {/* blurred cover backdrop (evi's charts/profile banner) */}
       <div
-        className={cn(
-          "relative flex h-[180px] w-[180px] shrink-0 items-center justify-center overflow-hidden rounded-[8px]",
-          coverClassName || "bg-fill",
-        )}
+        aria-hidden
+        className="pointer-events-none absolute -inset-[24px] scale-110 opacity-25 blur-2xl saturate-150 dark:opacity-30"
       >
         {cover}
       </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-primary/70 via-bg-primary/20 to-transparent dark:from-bg-primary/80"
+      />
 
-      <div className={cn("flex min-w-0 flex-1 flex-col", contentClassName)}>
-        {eyebrow && <div className="min-w-0">{eyebrow}</div>}
-        <div className="min-w-0">{title}</div>
-        {subtitle && <div className="mt-[8px] min-w-0">{subtitle}</div>}
-        {meta && <div className="mt-[10px]">{meta}</div>}
+      <div className="relative z-10 flex w-full items-stretch gap-[22px] p-[20px]">
+        {/* 180px cover, square with a soft radius */}
+        <div
+          className={cn(
+            "relative flex h-[180px] w-[180px] shrink-0 items-center justify-center overflow-hidden rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.35)]",
+            coverClassName || "bg-fill",
+          )}
+        >
+          {cover}
+        </div>
 
-        {(actions || trailingActions) && (
-          <div
-            className={cn(
-              // pinned to the cover's bottom edge, at least 16px under the meta
-              "mt-auto pt-[16px] flex flex-wrap items-center justify-between gap-[12px]",
-              actionsClassName,
-            )}
-          >
-            <div className="flex items-center gap-[10px]">{actions}</div>
-            <div className="flex items-center gap-[12px]">
-              {trailingActions}
+        <div className={cn("flex min-w-0 flex-1 flex-col", contentClassName)}>
+          {eyebrow && <div className="min-w-0">{eyebrow}</div>}
+          <div className="min-w-0">{title}</div>
+          {subtitle && <div className="mt-[8px] min-w-0">{subtitle}</div>}
+          {meta && <div className="mt-[10px]">{meta}</div>}
+
+          {(actions || trailingActions) && (
+            <div
+              className={cn(
+                // pinned to the cover's bottom edge, at least 16px under the meta
+                "mt-auto pt-[16px] flex flex-wrap items-center justify-between gap-[12px]",
+                actionsClassName,
+              )}
+            >
+              <div className="flex items-center gap-[10px]">{actions}</div>
+              <div className="flex items-center gap-[12px]">
+                {trailingActions}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </section>
   );

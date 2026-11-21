@@ -4,7 +4,7 @@ import { cn } from "@/shared/lib";
 import { useHistoryNavigation } from "../lib/useHistoryNavigation";
 
 const NAV_BUTTON_CLASS =
-  "flex w-[28px] h-[28px] items-center justify-center rounded-control border-0 bg-transparent p-0 cursor-pointer select-none text-text-secondary transition-[background-color,color,opacity] duration-150 hover:bg-fill hover:text-text-primary active:scale-95 disabled:!opacity-25 disabled:hover:bg-transparent disabled:cursor-default disabled:pointer-events-none";
+  "flex w-[36px] h-[36px] items-center justify-center rounded-[10px] border-0 bg-fill p-0 cursor-pointer select-none text-text-secondary transition-[background-color,color,opacity] duration-150 hover:bg-fill-hover hover:text-text-primary active:scale-95 disabled:!opacity-25 disabled:hover:bg-fill disabled:cursor-default disabled:pointer-events-none";
 
 export interface HistoryNavIslandProps {
   className?: string;

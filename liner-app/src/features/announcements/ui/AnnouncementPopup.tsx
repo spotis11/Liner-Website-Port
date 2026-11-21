@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import Dialog from "@/shared/ui/Dialog";
 import { DialogActions, DialogButton, UserAvatar } from "@/shared/ui";
+import { Asterisk } from "@/shared/ui/Doodles";
 import { useTranslation } from "@/languages";
 import { toMaxQualityAvatarUrl } from "@/shared/api";
 import { useAnnouncementStore } from "../store/announcementStore";
@@ -47,31 +48,38 @@ export function AnnouncementPopup() {
       zIndex={150}
     >
       <div className="flex flex-col gap-[14px] px-[20px] pb-[20px] pt-[20px]">
-        <div className="flex min-w-0 items-center gap-[12px]">
-          <UserAvatar user={sender} size={44} className="!rounded-[14px]" />
-          <div className="flex min-w-0 flex-col gap-[1px]">
-            <span className="truncate font-montserrat text-[15px] font-[700] leading-tight text-text-primary">
-              {t("announcement.title_prefix")} {active.senderName}
-            </span>
-            <span
-              className="truncate text-[12px] leading-tight text-text-tertiary"
-              style={font}
-            >
-              @{active.senderUsername}
-            </span>
+        {/* evi-style banner card: rounded-[16px], hairline border, doodle accent */}
+        <div className="relative flex flex-col gap-[12px] overflow-hidden rounded-[16px] border border-black/[0.06] bg-fill-subtle px-[14px] py-[12px] dark:border-white/[0.08]">
+          <Asterisk
+            className="pointer-events-none absolute -right-[6px] -top-[8px] w-[26px] text-doodle-lime"
+            aria-hidden
+          />
+          <div className="flex min-w-0 items-center gap-[12px]">
+            <UserAvatar user={sender} size={44} className="!rounded-[14px]" />
+            <div className="flex min-w-0 flex-col gap-[1px]">
+              <span className="truncate font-montserrat text-[15px] font-[700] leading-tight text-text-primary">
+                {t("announcement.title_prefix")} {active.senderName}
+              </span>
+              <span
+                className="truncate text-[12px] leading-tight text-text-tertiary"
+                style={font}
+              >
+                @{active.senderUsername}
+              </span>
+            </div>
           </div>
+
+          <p
+            className="m-0 whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-text-primary"
+            style={font}
+          >
+            {active.message}
+          </p>
+
+          <p className="m-0 text-[11px] leading-snug text-text-tertiary" style={font}>
+            {t("announcement.expires_note")}
+          </p>
         </div>
-
-        <p
-          className="m-0 whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-text-primary"
-          style={font}
-        >
-          {active.message}
-        </p>
-
-        <p className="m-0 text-[11px] leading-snug text-text-tertiary" style={font}>
-          {t("announcement.expires_note")}
-        </p>
 
         <DialogActions>
           <DialogButton
