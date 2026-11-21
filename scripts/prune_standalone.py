@@ -33,13 +33,15 @@ STANDALONE = os.path.join(ROOT, ".next", "standalone")
 WORKSPACE_DIRS = [
     "skills", "docs", "scripts", "liner-app", "upload", "download",
     "discord-bot", "mini-services", "examples", "agent-ctx", "liner-ref",
-    "liner-bot",
+    "liner-bot", "work", "alfredo-node",
 ]
 
 # Root-level junk NFT sometimes copies into the standalone dir.
 ROOT_JUNK = [
     "bun.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
     "dev.log", "server.log", "next.config.ts.zbak", "nohup.out",
+    "Caddyfile", "worklog.md", "TEST_COMMIT.md", "TEST_COMMIT_2.md",
+    "TEST_COMMIT_3.md",
 ]
 
 KEEP = (".next", "node_modules", "public", "db", ".env", "server.js",
