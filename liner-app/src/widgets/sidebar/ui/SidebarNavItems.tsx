@@ -9,6 +9,8 @@ import { useOfflineModeStore } from "@/features/connectivity";
 export interface SidebarNavItemsProps {
   searchOpen: boolean;
   onSearchToggle: () => void;
+  /** collapsed rail: icons only, labels hidden (title tooltip instead) */
+  collapsed?: boolean;
 }
 
 const ROW_CLASS =
@@ -17,6 +19,7 @@ const ROW_CLASS =
 export function SidebarNavItems({
   searchOpen,
   onSearchToggle,
+  collapsed = false,
 }: SidebarNavItemsProps) {
   const { pathname } = useLocation();
   const { t } = useTranslation();
@@ -53,6 +56,15 @@ export function SidebarNavItems({
           const active = isItemActive(item.id, item.href);
           const Icon = item.Icon;
           const label = t(`common.sidebar.${item.id}`) || item.label;
+          // collapsed rail keeps the rows tappable and accessible but
+          // trades the text for a native tooltip
+          const tooltipProps = collapsed
+            ? ({ title: label, "aria-label": label } as const)
+            : {};
+          const rowShape = cn(
+            ROW_CLASS,
+            collapsed && "justify-center gap-0 px-0",
+          );
 
           if (item.id === "search") {
             return (
@@ -61,8 +73,9 @@ export function SidebarNavItems({
                 type="button"
                 aria-pressed={searchOpen}
                 onClick={onSearchToggle}
+                {...tooltipProps}
                 className={cn(
-                  ROW_CLASS,
+                  rowShape,
                   "border-0 bg-transparent w-full",
                   active
                     ? "bg-fill text-text-primary"
@@ -70,14 +83,18 @@ export function SidebarNavItems({
                 )}
               >
                 <Icon size={20} className="shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-left">
-                  {label}
-                </span>
-                <span
-                  className="shrink-0 rounded-[6px] bg-fill-strong px-[6px] py-[2px] text-[11px] font-[500] leading-none text-text-tertiary"
-                >
-                  Ctrl K
-                </span>
+                {!collapsed && (
+                  <span className="min-w-0 flex-1 truncate text-left">
+                    {label}
+                  </span>
+                )}
+                {!collapsed && (
+                  <span
+                    className="shrink-0 rounded-[6px] bg-fill-strong px-[6px] py-[2px] text-[11px] font-[500] leading-none text-text-tertiary"
+                  >
+                    Ctrl K
+                  </span>
+                )}
               </button>
             );
           }
@@ -90,16 +107,19 @@ export function SidebarNavItems({
                 key={item.id}
                 type="button"
                 onClick={item.id === "changelog" ? toggleChangelog : undefined}
+                {...tooltipProps}
                 className={cn(
-                  ROW_CLASS,
+                  rowShape,
                   "border-0 bg-transparent w-full",
                   "text-text-secondary hover:bg-fill-subtle hover:text-text-primary",
                 )}
               >
                 <Icon size={20} className="shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-left">
-                  {label}
-                </span>
+                {!collapsed && (
+                  <span className="min-w-0 flex-1 truncate text-left">
+                    {label}
+                  </span>
+                )}
               </button>
             );
           }
@@ -116,8 +136,9 @@ export function SidebarNavItems({
                 if (event.buttons & 1) setPendingHref(null);
               }}
               onPointerCancel={() => setPendingHref(null)}
+              {...tooltipProps}
               className={cn(
-                ROW_CLASS,
+                rowShape,
                 "no-underline",
                 active
                   ? "bg-fill-strong text-text-primary"
@@ -125,7 +146,9 @@ export function SidebarNavItems({
               )}
             >
               <Icon size={20} className="shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{label}</span>
+              {!collapsed && (
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+              )}
             </Link>
           );
         })}

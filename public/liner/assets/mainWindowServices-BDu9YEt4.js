@@ -1,1 +1,0 @@
-import{_ as e,y as t}from"./index-CEao5s4N.js";import{A as n,L as r,Pt as i,Rt as a}from"./player-0Clcr5d_.js";function o(){return typeof window>`u`?()=>{}:window.linerElectron?.onBundleStamp?.(e=>t(`gray`,`bundle`,e))??(()=>{})}function s(){e(),r(),a(),o(),i(),n()}export{s as initMainWindowServices};

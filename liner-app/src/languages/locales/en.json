@@ -55,7 +55,9 @@
       "library": "Library",
       "settings": "Settings",
       "changelog": "Changelog",
-      "profile": "Profile"
+      "profile": "Profile",
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar"
     },
     "minimize": "Minimize",
     "exitFullscreen": "Exit fullscreen",

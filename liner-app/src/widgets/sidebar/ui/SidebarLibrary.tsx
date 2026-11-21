@@ -217,12 +217,16 @@ function OfflineSidebarLibrary() {
 }
 
 /** Library shortcuts under the nav group, same set and order as the library page. */
-export function SidebarLibrary() {
+export function SidebarLibrary({ collapsed = false }: { collapsed?: boolean }) {
   const { t } = useTranslation();
   const offline = useOfflineModeStore((state) => state.offline);
   const openCreatePlaylist = useModalStore(
     (state) => state.openCreatePlaylist,
   );
+
+  // collapsed rail: the covers-only strip would lose the names anyway, so
+  // the whole section closes up (the library page itself stays one tap away)
+  if (collapsed) return null;
 
   return (
     <section className="mt-[14px] flex min-h-0 flex-1 flex-col">

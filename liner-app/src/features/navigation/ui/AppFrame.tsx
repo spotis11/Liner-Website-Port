@@ -25,6 +25,7 @@ import {
 } from "@mingcute/react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import { useSidebarCollapseStore } from "@/widgets/sidebar";
 import { cn } from "@/shared/lib";
 import RightDrawer from "./RightDrawer";
 import { FullscreenRouteContext } from "../fullscreenRouteContext";
@@ -132,6 +133,10 @@ export default function AppFrame({ children }: AppFrameProps) {
   const toggleSearch = useModalStore((state) => state.toggleSearch);
   const openSettings = useModalStore((state) => state.openSettings);
   const offline = useOfflineModeStore((state) => state.offline);
+  // sidebar collapse rail (Liner new UI) — the aside width tweens with it
+  const sidebarCollapsed = useSidebarCollapseStore(
+    (state) => state.collapsed,
+  );
 
   // Spotify-style miniplayer: detect tab switches / Chrome media controls and
   // pop the floating mini player window (Chromium only — silently no-ops
@@ -235,7 +240,7 @@ export default function AppFrame({ children }: AppFrameProps) {
   }, [searchOpen, updateSearchMask]);
 
   const miniPlayerContainerRef = useRef<HTMLDivElement>(null);
-  const sidebarRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
   const searchScrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -810,15 +815,18 @@ export default function AppFrame({ children }: AppFrameProps) {
           fullscreenPlayerOpen && fullscreenEffectsReady && "invisible",
         )}
       >
-        <aside
+        <motion.aside
           ref={sidebarRef}
-          className="w-[232px] shrink-0 z-[45] relative flex flex-col"
+          initial={false}
+          animate={{ width: sidebarCollapsed ? 76 : 232 }}
+          transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
+          className="shrink-0 z-[45] relative flex flex-col"
         >
           <Sidebar
             searchOpen={searchOpen}
             onSearchToggle={handleSearchToggle}
           />
-        </aside>
+        </motion.aside>
 
         <div className="flex-1 flex flex-col min-w-0 h-full relative gap-1.5 overflow-hidden">
             <main
