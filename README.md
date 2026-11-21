@@ -205,7 +205,7 @@ This port follows the upstream project. Bug fixes, small features, translations 
 ---
 ## Who is JayJoice?
 
-JayJoice is a 15 year old boy who codes, port things, loves music and etc.
+JayJoice is a 18 year old boy who codes, port things, loves music and etc.
 as he learns haxe, python, lua, typescript, javascript and much all. (coding isnt easy btw)
 He is a FNF Modder and loves porting psych engine mods into v slice (base game)
 
