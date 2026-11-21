@@ -67,6 +67,8 @@ server.log
 
 # secrets & runtime data — never commit (GitHub push protection)
 /upload/
+# workspace scratch (wine prefixes, extracted builds, tool caches)
+/work/
 /db/custom.db
 /discord-bot/alfredo.py
 /discord-bot/__pycache__/
