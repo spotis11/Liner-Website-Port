@@ -57,10 +57,10 @@ export function FullscreenTransportControls() {
         onClick={() => playerEngine.setShuffle(!player.shuffle)}
         className={cn(
           iconButtonClass,
-          player.shuffle ? "!opacity-100" : "!opacity-60",
+          player.shuffle ? "!opacity-100" : "!opacity-50",
         )}
       >
-        <Shuffle size={24} weight="Outline" />
+        <Shuffle size={22} weight="Outline" />
       </button>
 
       <button
@@ -69,14 +69,17 @@ export function FullscreenTransportControls() {
         onClick={() => void playerEngine.skipPrevious()}
         className={iconButtonClass}
       >
-        <SkipPrevious size={22} weight="Bold" />
+        <SkipPrevious size={24} weight="Bold" />
       </button>
 
+      {/* evi-style transport: the play/pause sits in a big solid white circle
+          (black glyph) between skip prev/next — the hero control of the
+          fullscreen player */}
       <button
         type="button"
         aria-label={player.status === "playing" ? "Pause" : "Play"}
         onClick={() => void playerEngine.togglePlayPause()}
-        className={cn(iconButtonClass, "h-[44px] w-[44px] opacity-95")}
+        className="inline-flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-white text-black shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-transform duration-150 ease-out hover:scale-[1.05] active:scale-[0.94]"
       >
         <PlayPauseIcon status={player.status} />
       </button>
@@ -87,7 +90,7 @@ export function FullscreenTransportControls() {
         onClick={() => void playerEngine.skipNext()}
         className={iconButtonClass}
       >
-        <SkipNext size={22} weight="Bold" />
+        <SkipNext size={24} weight="Bold" />
       </button>
 
       <button
@@ -103,13 +106,13 @@ export function FullscreenTransportControls() {
         }
         className={cn(
           iconButtonClass,
-          player.repeat !== "off" ? "!opacity-100" : "!opacity-60",
+          player.repeat !== "off" ? "!opacity-100" : "!opacity-50",
         )}
       >
         {player.repeat === "one" ? (
-          <RepeatOne size={24} />
+          <RepeatOne size={22} />
         ) : (
-          <Repeat size={24} />
+          <Repeat size={22} />
         )}
       </button>
     </div>

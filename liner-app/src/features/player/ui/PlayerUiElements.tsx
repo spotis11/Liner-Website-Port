@@ -4,6 +4,10 @@ import { cn } from "@/shared/lib";
 import { VolumePicker } from "./VolumePicker";
 import { FullscreenCoverArt } from "./FullscreenCoverArt";
 import { FullscreenTrackInfo } from "./FullscreenTrackInfo";
+import {
+  FullscreenLikeButton,
+  FullscreenAddButton,
+} from "./FullscreenTrackActions";
 import { FullscreenTimeline } from "./FullscreenTimeline";
 import { FullscreenTransportControls } from "./FullscreenTransportControls";
 import {
@@ -95,13 +99,15 @@ export function PlayerUiElements({
           <FullscreenTransportControls />
         </div>
 
-        <div className="mt-[22px] flex justify-center">
+        <div className="mt-[22px] flex w-full items-center justify-center gap-[12px]">
+          <FullscreenLikeButton />
           <VolumePicker
-            className="w-[60%]"
+            className="min-w-0 flex-1"
             size="sm"
-            iconSize={22}
+            iconSize={20}
             iconClassName="text-white opacity-80 hover:opacity-100"
           />
+          <FullscreenAddButton />
         </div>
       </motion.div>
     </motion.div>
