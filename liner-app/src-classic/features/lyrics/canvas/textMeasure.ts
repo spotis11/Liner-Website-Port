@@ -4,13 +4,18 @@ export interface TextMeasure {
   descent: (font: string) => number;
 }
 
-export function createTextMeasure(ctx: CanvasRenderingContext2D): TextMeasure {
+export function createTextMeasure(
+  ctx: CanvasRenderingContext2D,
+  letterSpacingPx = 0,
+): TextMeasure {
   const widths = new Map<string, number>();
   const metrics = new Map<string, TextMetrics>();
+  const spacing = `${letterSpacingPx}px`;
 
   const metricsFor = (font: string) => {
     const cached = metrics.get(font);
     if (cached) return cached;
+    ctx.letterSpacing = spacing;
     ctx.font = font;
     const next = ctx.measureText("Hg");
     metrics.set(font, next);
@@ -19,9 +24,10 @@ export function createTextMeasure(ctx: CanvasRenderingContext2D): TextMeasure {
 
   return {
     width: (font, text) => {
-      const key = `${font}\u0000${text}`;
+      const key = `${font}\u0000${spacing}\u0000${text}`;
       const cached = widths.get(key);
       if (cached !== undefined) return cached;
+      ctx.letterSpacing = spacing;
       ctx.font = font;
       const value = ctx.measureText(text).width;
       widths.set(key, value);

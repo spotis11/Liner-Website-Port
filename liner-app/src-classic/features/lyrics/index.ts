@@ -51,3 +51,18 @@ export {
   type LyricsClock,
   type EdgesListener,
 } from "./canvas/lyricsCanvasRenderer";
+// Lyric style themes (Settings → Lyrics)
+export {
+  LYRIC_STYLES,
+  LYRIC_STYLE_CATEGORIES,
+  DEFAULT_LYRIC_STYLE_ID,
+  getLyricStyle,
+  resolveLyricsTypography,
+  type LyricStyleCategory,
+  type LyricStyleTheme,
+  type LyricStylePrefs,
+} from "./styles/lyricStyles";
+export {
+  useLyricsStyleStore,
+  useLyricsStyleTypography,
+} from "./store/lyricsStyleStore";

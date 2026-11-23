@@ -17,7 +17,12 @@ interface BlockRun extends Run {
   tokens: LyricToken[];
 }
 
-function blockRuns(tokens: LyricToken[], font: string, measure: TextMeasure) {
+function blockRuns(
+  tokens: LyricToken[],
+  font: string,
+  measure: TextMeasure,
+  spreadPx = 0,
+) {
   const runs: BlockRun[] = [];
   let pendingSpace = "";
   for (const item of groupTokens(tokens)) {
@@ -26,7 +31,8 @@ function blockRuns(tokens: LyricToken[], font: string, measure: TextMeasure) {
       continue;
     }
     if (runs.length > 0 && pendingSpace) {
-      const width = measure.width(font, " ");
+      // word-group gap: one space plus the style's spread padding
+      const width = measure.width(font, " ") + spreadPx;
       runs.push({ width, inkWidth: 0, breakAfter: true, tokens: [] });
     }
     pendingSpace = "";
@@ -51,8 +57,9 @@ export function layoutBlock(
   measure: TextMeasure,
   frame: BlockFrame,
   baselineAt: (row: number) => number,
+  spreadPx = 0,
 ): PlacedBlock {
-  const runs = blockRuns(tokens, font, measure);
+  const runs = blockRuns(tokens, font, measure, spreadPx);
   const placed = wrapRuns(runs, frame.width);
   const extents = rowExtents(runs, placed);
   const align = line.rtl && line.align === "start" ? "end" : line.align;

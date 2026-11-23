@@ -31,12 +31,17 @@ function canSplit(frame: SceneFrame, lines: VisibleLine[]): boolean {
 
 function paintBase(frame: SceneFrame, lines: VisibleLine[]) {
   const { ctx, scene, dpr, now } = frame;
+  const blurPx = scene.typography.inactiveBlurPx ?? 0;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, scene.width, scene.height);
   ctx.imageSmoothingEnabled = true;
   for (const line of lines) {
     const bitmap = lineBitmap(frame, line);
     if (!bitmap) continue;
+    // lines that are not being sung stay soft (Blur Italic / Echo) — the
+    // blur applies to the finished bitmap, so the active line stays sharp
+    ctx.filter =
+      blurPx > 0 && !line.live ? `blur(${blurPx}px)` : "none";
     ctx.drawImage(
       bitmap,
       0,
@@ -45,6 +50,7 @@ function paintBase(frame: SceneFrame, lines: VisibleLine[]) {
       bitmap.height / dpr,
     );
   }
+  ctx.filter = "none";
   frame.fog.draw(ctx, scene.width, scene.height, now);
 }
 

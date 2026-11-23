@@ -119,6 +119,7 @@ function layoutSung(
     measure,
     frame,
     rowBaseline,
+    type.spread ?? 0,
   );
   const background = layoutBlock(
     line,
@@ -127,6 +128,7 @@ function layoutSung(
     measure,
     frame,
     (row) => rowBaseline(main.rows + row),
+    type.spread ?? 0,
   );
   const rows = main.rows + background.rows;
   const textBottom = type.paddingY + rows * type.lineHeight;

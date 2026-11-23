@@ -3,10 +3,24 @@ import { backgroundFont, mainFont, subtitleFont } from "./fonts";
 import { tokenHighlight } from "./timing";
 import type { LineLayout, LyricsTypography } from "./types";
 
-const INACTIVE_ALPHA = 0.3;
-const BACKGROUND_ALPHA = INACTIVE_ALPHA * 0.78;
+const DEFAULT_INACTIVE_ALPHA = 0.3;
 const SUBTITLE_ALPHA = 0.6;
 const REM_PX = 16;
+
+/** ctx.letterSpacing may be missing in older lib.dom typings */
+function setLetterSpacing(
+  ctx: CanvasRenderingContext2D,
+  px: number | undefined,
+) {
+  const spaced = ctx as CanvasRenderingContext2D & {
+    letterSpacing?: string;
+  };
+  try {
+    spaced.letterSpacing = px ? `${px}px` : "0px";
+  } catch {
+    // engine without letterSpacing support — tracking is simply lost
+  }
+}
 
 export function drawLine(
   ctx: CanvasRenderingContext2D,
@@ -19,6 +33,9 @@ export function drawLine(
 ) {
   const { line } = layout;
   ctx.direction = line.rtl ? "rtl" : "ltr";
+  setLetterSpacing(ctx, type.letterSpacing);
+  const inactiveAlpha = type.inactiveAlpha ?? DEFAULT_INACTIVE_ALPHA;
+  const backgroundAlpha = inactiveAlpha * 0.78;
   let current = "";
   for (const placed of layout.tokens) {
     const background = placed.token.background;
@@ -32,9 +49,15 @@ export function drawLine(
         ctx,
         top,
         rtl: line.rtl,
-        base: background ? BACKGROUND_ALPHA : INACTIVE_ALPHA,
+        base: background ? backgroundAlpha : inactiveAlpha,
         remPx: REM_PX,
         dpr,
+        activeColor: type.activeColor,
+        activeGradient: type.activeGradient,
+        glowColor: type.glowColor,
+        glowScale: type.glowScale,
+        constantGlowRem: type.constantGlowRem,
+        glitch: type.glitch,
       },
       placed,
       tokenHighlight(placed.token, line, timeMs, now),
@@ -53,6 +76,12 @@ export function drawLine(
           base: SUBTITLE_ALPHA,
           remPx: REM_PX,
           dpr,
+          activeColor: type.activeColor,
+          activeGradient: type.activeGradient,
+          glowColor: type.glowColor,
+          glowScale: type.glowScale,
+          constantGlowRem: type.constantGlowRem,
+          glitch: type.glitch,
         },
         placed,
         tokenHighlight(placed.token, line, timeMs, now),

@@ -10,6 +10,7 @@ import {
   AnnouncementLine,
   ForbidCircleLine,
   UserSearchLine,
+  Music2Line,
 } from "@mingcute/react";
 import {
   Play,
@@ -34,6 +35,7 @@ import {
   StorageTab,
   AboutTab,
   OverlayTab,
+  LyricsTab,
   DiscordTab,
   YoutubeTab,
   AccountTab,
@@ -53,6 +55,7 @@ type TabId =
   | "Playback"
   | "Shortcuts"
   | "Overlay"
+  | "Lyrics"
   | "Discord"
   | "Youtube"
   | "AiTranslate"
@@ -73,6 +76,7 @@ const TAB_ICONS: Record<TabId, React.ComponentType<any>> = {
   Playback: Play,
   Shortcuts: KeyboardFill,
   Overlay: Widget5,
+  Lyrics: Music2Line,
   Discord: DiscordFill,
   Youtube: YoutubeFill,
   AiTranslate: Translation,
@@ -96,7 +100,7 @@ type TabGroupKey =
 const TAB_GROUPS: { labelKey: TabGroupKey; ids: TabId[] }[] = [
   { labelKey: "account", ids: ["Account", "Pro"] },
   { labelKey: "player", ids: ["Playback", "Shortcuts"] },
-  { labelKey: "interface", ids: ["Appearance", "Customization", "Overlay"] },
+  { labelKey: "interface", ids: ["Appearance", "Overlay", "Lyrics", "Customization"] },
   { labelKey: "integrations", ids: ["Youtube", "AiTranslate", "Discord"] },
   { labelKey: "application", ids: ["Storage", "About"] },
   // website-port group: only visible to the site owner (see visibleGroups)
@@ -293,6 +297,27 @@ const SETTING_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
     tabId: "Overlay",
     titleKey: "settings.overlay.always_on_top.title",
     descKey: "settings.overlay.always_on_top.description",
+  },
+
+  // Lyrics
+  {
+    tabId: "Lyrics",
+    titleKey: "settings.lyrics.style",
+    descKey: "settings.lyrics.style_desc",
+  },
+  {
+    tabId: "Lyrics",
+    titleKey: "settings.lyrics.custom_color",
+    descKey: "settings.lyrics.custom_color_desc",
+  },
+  {
+    tabId: "Lyrics",
+    titleKey: "settings.lyrics.glow",
+    descKey: "settings.lyrics.glow_desc",
+  },
+  {
+    tabId: "Lyrics",
+    titleKey: "settings.lyrics.size",
   },
 
   // Discord
@@ -538,6 +563,7 @@ export default function SettingsModal() {
     Playback: t("settings.tabs.playback"),
     Shortcuts: t("settings.tabs.shortcuts") || "Shortcuts",
     Overlay: t("settings.tabs.overlay") || "Overlay",
+    Lyrics: t("settings.tabs.lyrics") || "Lyrics",
     Discord: t("settings.tabs.discord") || "Discord RPC",
     Youtube: t("settings.tabs.youtube") || "YouTube",
     AiTranslate: t("settings.tabs.ai_translate") || "AI Translate",
@@ -564,6 +590,9 @@ export default function SettingsModal() {
     Overlay:
       t("settings.overlay.description") ||
       "Desktop overlay behavior, position and lyrics display.",
+    Lyrics:
+      t("settings.lyrics.description") ||
+      "Set lyric style, color and glow across Liner.",
     Discord:
       t("settings.discord.description") ||
       "Show what you're listening to on Discord with artwork, artist badge and progress bar.",
@@ -599,6 +628,7 @@ export default function SettingsModal() {
       Playback: "settings.tabs.playback",
       Shortcuts: "settings.tabs.shortcuts",
       Overlay: "settings.tabs.overlay",
+      Lyrics: "settings.tabs.lyrics",
       Discord: "settings.tabs.discord",
       Youtube: "settings.tabs.youtube",
       AiTranslate: "settings.tabs.ai_translate",
@@ -616,6 +646,7 @@ export default function SettingsModal() {
       Playback: "settings.playback.description",
       Shortcuts: "settings.shortcuts.description",
       Overlay: "settings.overlay.description",
+      Lyrics: "settings.lyrics.description",
       Discord: "settings.discord.description",
       Youtube: "settings.youtube.description",
       AiTranslate: "settings.ai_translate.description",
@@ -752,6 +783,7 @@ export default function SettingsModal() {
               {activeTab === "Overlay" && (
                 <OverlayTab searchQuery={searchQuery} />
               )}
+              {activeTab === "Lyrics" && <LyricsTab searchQuery={searchQuery} />}
               {activeTab === "Discord" && (
                 <DiscordTab searchQuery={searchQuery} />
               )}

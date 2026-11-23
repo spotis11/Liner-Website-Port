@@ -7,6 +7,7 @@ import { FrameLoop, type FrameDemand } from "./frameLoop";
 import { LyricsScene } from "./lyricsScene";
 import { ScrollFollower } from "./scrollFollow";
 import { ScrollMotion } from "./scrollMotion";
+import type { LyricsTypography } from "./types";
 
 export interface LyricsClock {
   timeMs: () => number;
@@ -83,6 +84,13 @@ export class LyricsCanvasRenderer {
   lineStartAt(y: number): number | null {
     const index = this.scene.lineAt(y, this.motion.position);
     return index === null ? null : this.scene.lines[index].startMs;
+  }
+
+  /** apply a lyric style theme (Settings → Lyrics) and repaint */
+  setStyle(typography: LyricsTypography) {
+    this.scene.setTypography(typography);
+    this.signature = "";
+    this.loop.poke();
   }
 
   invalidate() {

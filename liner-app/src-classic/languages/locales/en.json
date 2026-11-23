@@ -1151,6 +1151,29 @@
       "release_title": "New artist release",
       "test_button": "Test notification"
     },
+    "lyrics": {
+      "description": "Set lyric style, color and glow across Liner.",
+      "section": "Lyrics across Liner",
+      "style": "Lyric style",
+      "style_desc": "Pick how the words light up in the full-screen lyrics.",
+      "browse_styles": "Browse styles",
+      "gallery_title": "Lyrics",
+      "styles_count": "{count} styles",
+      "search_placeholder": "Search styles...",
+      "category_all": "All",
+      "category_classic": "Classic",
+      "category_neon": "Neon",
+      "category_nero": "Nero",
+      "category_poster": "Poster",
+      "category_kinetic": "Kinetic",
+      "custom_color": "Use custom lyric color",
+      "custom_color_desc": "Override the style's color with your own.",
+      "lyric_color": "Lyric color",
+      "glow": "Lyric glow",
+      "glow_desc": "Halo behind the words as they light up.",
+      "glow_strength": "Glow strength",
+      "size": "Lyric size"
+    },
     "overlay": {
       "always_on_top": {
         "description": "Keep the overlay floating above other windows.",
@@ -1422,6 +1445,7 @@
       "customization": "Customization",
       "discord": "Discord RPC",
       "general": "General",
+      "lyrics": "Lyrics",
       "moderation": "Moderation",
       "overlay": "Overlay",
       "playback": "Playback",

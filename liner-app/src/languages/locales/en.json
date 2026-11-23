@@ -643,6 +643,7 @@
       "playback": "Playback",
       "shortcuts": "Shortcuts",
       "overlay": "Overlay",
+      "lyrics": "Lyrics",
       "discord": "Discord RPC",
       "youtube": "YouTube",
       "privacy": "Privacy",
@@ -728,6 +729,29 @@
         "title": "Volume step",
         "description": "How much one press of a volume key changes the volume."
       }
+    },
+    "lyrics": {
+      "description": "Set lyric style, color and glow across Liner.",
+      "section": "Lyrics across Liner",
+      "style": "Lyric style",
+      "style_desc": "Pick how the words light up in the full-screen lyrics.",
+      "browse_styles": "Browse styles",
+      "gallery_title": "Lyrics",
+      "styles_count": "{count} styles",
+      "search_placeholder": "Search styles...",
+      "category_all": "All",
+      "category_classic": "Classic",
+      "category_neon": "Neon",
+      "category_nero": "Nero",
+      "category_poster": "Poster",
+      "category_kinetic": "Kinetic",
+      "custom_color": "Use custom lyric color",
+      "custom_color_desc": "Override the style's color with your own.",
+      "lyric_color": "Lyric color",
+      "glow": "Lyric glow",
+      "glow_desc": "Halo behind the words as they light up.",
+      "glow_strength": "Glow strength",
+      "size": "Lyric size"
     },
     "overlay": {
       "description": "Desktop overlay behavior, global shortcut and position settings.",

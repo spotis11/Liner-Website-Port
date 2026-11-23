@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Lyric } from "@braccato/parsers";
 import { LyricsCanvasRenderer } from "@/features/lyrics";
+import {
+  getLyricStyle,
+  resolveLyricsTypography,
+} from "@/features/lyrics/styles/lyricStyles";
+import {
+  useLyricsStyleStore,
+  type LyricsStyleState,
+} from "@/features/lyrics/store/lyricsStyleStore";
 import { usePlayerStore } from "../store/playerStore";
 import { playerEngine } from "../engine/playerEngine";
 import { shouldReleaseTopPin, startsPinnedToTop } from "../ui/lyricsTopPin";
@@ -114,6 +122,18 @@ export function useLyricsCanvas(
   useEffect(() => {
     rendererRef.current?.setFogEnabled(fogEnabled);
   }, [fogEnabled]);
+
+  // Settings → Lyrics: style, color, glow and size live in a persisted
+  // store; each change re-measures and repaints the canvas scene
+  useEffect(() => {
+    const apply = (state: LyricsStyleState) => {
+      rendererRef.current?.setStyle(
+        resolveLyricsTypography(getLyricStyle(state.styleId), state),
+      );
+    };
+    apply(useLyricsStyleStore.getState());
+    return useLyricsStyleStore.subscribe((state) => apply(state));
+  }, []);
 
   return { rendererRef, edges, releasePin };
 }

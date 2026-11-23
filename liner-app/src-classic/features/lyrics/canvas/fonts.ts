@@ -13,16 +13,21 @@ export const BACKGROUND_SCALE = 0.75;
 export const SUBTITLE_SCALE = 0.8;
 export const SUBTITLE_GAP = 8;
 
+/** CSS font shorthand prefix carrying the style's italic flag. */
+function stylePrefix(type: LyricsTypography, weight: number): string {
+  return type.italic ? `italic ${weight}` : `${weight}`;
+}
+
 export function mainFont(type: LyricsTypography): string {
-  return `${type.weight} ${type.size}px ${type.family}`;
+  return `${stylePrefix(type, type.weight)} ${type.size}px ${type.family}`;
 }
 
 export function backgroundFont(type: LyricsTypography): string {
-  return `500 ${type.size * BACKGROUND_SCALE}px ${type.family}`;
+  return `${stylePrefix(type, 500)} ${type.size * BACKGROUND_SCALE}px ${type.family}`;
 }
 
 export function subtitleFont(type: LyricsTypography): string {
-  return `${type.weight} ${type.size * SUBTITLE_SCALE}px ${type.family}`;
+  return `${stylePrefix(type, type.weight)} ${type.size * SUBTITLE_SCALE}px ${type.family}`;
 }
 
 export function resolveFamily(element: Element): string {
