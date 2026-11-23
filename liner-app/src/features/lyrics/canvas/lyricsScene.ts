@@ -40,6 +40,9 @@ export class LyricsScene {
   measure: TextMeasure;
   version = 0;
   private rawLines: LyricLineModel[] = [];
+  /** the host's resolved Montserrat family — styles with no font of their
+   * own fall back to THIS, never to the previously applied style */
+  private hostFamily: string;
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
@@ -47,6 +50,7 @@ export class LyricsScene {
     private readonly onFontsReady: () => void,
   ) {
     this.typography = { ...LYRICS_TYPOGRAPHY, family: resolveFamily(host) };
+    this.hostFamily = this.typography.family;
     this.measure = createTextMeasure(ctx);
     document.fonts?.addEventListener("loadingdone", this.remeasure);
     void loadLyricsFonts(this.typography).then(this.remeasure);
@@ -88,7 +92,7 @@ export class LyricsScene {
   setTypography(next: LyricsTypography) {
     this.typography = {
       ...next,
-      family: next.family || this.typography.family,
+      family: next.family || this.hostFamily,
     };
     this.measure = createTextMeasure(
       this.ctx,
