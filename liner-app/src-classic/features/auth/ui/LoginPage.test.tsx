@@ -6,6 +6,7 @@ import LoginPage from "./LoginPage";
 
 const mockNavigate = vi.fn();
 const mockLogin = vi.fn();
+const mockGuestLogin = vi.fn();
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
@@ -36,6 +37,7 @@ vi.mock("../store/authStore", () => ({
   useAuthStore: (selector: any) =>
     selector({
       login: mockLogin,
+      guestLogin: mockGuestLogin,
       status: "anonymous",
       user: null,
     }),
@@ -66,6 +68,11 @@ vi.mock("@classic/languages", () => {
     "login.btn_sign_in": "Sign in",
     "login.btn_signing_in": "Signing in…",
     "login.btn_create_account": "Create account",
+    "login.or": "or",
+    "login.btn_discord": "Continue with Discord",
+    "login.discord_hint": "One tap with your Discord account.",
+    "login.btn_guest": "Continue as guest",
+    "login.guest_hint": "No email or password needed.",
     "login.label_email": "Email",
     "login.label_password": "Password",
     "login.placeholder_email": "you@example.com",
@@ -260,14 +267,46 @@ describe("LoginPage", () => {
     expect(downloadLiner).toBeDefined();
     expect(createOriginal?.getAttribute("target")).toBe("_blank");
     expect(downloadLiner?.getAttribute("rel")).toContain("noreferrer");
+
+    // Discord/guest are Sign-in-tab conveniences — not offered in the
+    // register notice view
+    expect(container.textContent).not.toMatch(/discord/i);
+    expect(container.textContent).not.toMatch(/guest/i);
   });
 
-  it("has no Discord or guest sign-in anywhere on the login page", async () => {
+  it("Sign in tab still offers Discord and guest for returning users", async () => {
     await act(async () => {
       root.render(<LoginPage />);
     });
 
-    expect(container.textContent).not.toMatch(/discord/i);
-    expect(container.textContent).not.toMatch(/guest/i);
+    const discordBtn = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Continue with Discord"),
+    );
+    const guestBtn = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Continue as guest"),
+    );
+    expect(discordBtn).toBeDefined();
+    expect(guestBtn).toBeDefined();
+    // both are inert buttons inside the sign-in form (never submit it)
+    expect(discordBtn?.getAttribute("type")).toBe("button");
+    expect(guestBtn?.getAttribute("type")).toBe("button");
+  });
+
+  it("guest sign-in mints a session and navigates home", async () => {
+    mockGuestLogin.mockResolvedValueOnce({});
+
+    await act(async () => {
+      root.render(<LoginPage />);
+    });
+
+    const guestBtn = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Continue as guest"),
+    );
+    await act(async () => {
+      guestBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(mockGuestLogin).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith("/", { replace: true });
   });
 });

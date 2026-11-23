@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Button from "@/shared/ui/Button";
 import TextInput from "@/shared/ui/TextInput";
-import { EyeLine, EyeCloseLine } from "@mingcute/react";
+import { EyeLine, EyeCloseLine, DiscordFill } from "@mingcute/react";
 import LoginBrandPanel from "./LoginBrandPanel";
 import LoginBackdrop from "./LoginBackdrop";
 import { useWindowState } from "@/features/navigation/hooks/useWindowState";
@@ -38,6 +38,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { isEdgeToEdge } = useWindowState();
   const login = useAuthStore((state) => state.login);
+  const guestLogin = useAuthStore((state) => state.guestLogin);
   const { t } = useTranslation();
   // Whole-app design picked in Settings → Appearance ("original" default);
   // the classic and redesign trees share this one setting.
@@ -52,6 +53,30 @@ export default function LoginPage() {
     if (submitting || next === mode) return;
     setMode(next);
     setError("");
+  };
+
+  // discord oauth: full-page navigation to the server route (it bounces the
+  // browser to Discord's authorize screen and back into #/auth/discord)
+  const handleDiscord = () => {
+    if (submitting) return;
+    setError("");
+    window.location.assign("/api/auth/discord/start");
+  };
+
+  // guest mode: one tap, no email/password — a real (permanent) account is
+  // minted on this website's own database and signed in immediately
+  const handleGuest = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await guestLogin();
+      navigate("/", { replace: true });
+    } catch (nextError) {
+      setError(resolveErrorMessage(nextError));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const resolveErrorMessage = (nextError: unknown): string => {
@@ -260,6 +285,51 @@ export default function LoginPage() {
                         t("login.btn_sign_in")
                       )}
                     </Button>
+
+                    {/* Website-only sign-in options: Discord-OAuth and guest
+                        accounts mint website sessions (`at_`/`rt_` tokens) —
+                        the /v1 relay serves them from this site's own backend,
+                        while email/password sign-ins continue upstream
+                        (tryliner). New sign-ups are NOT offered here (see the
+                        Create account tab) — these are for returning users. */}
+                    <div className="mt-[16px] flex items-center gap-[12px]">
+                      <span className="h-px flex-1 bg-border-primary" />
+                      <span className="text-[11px] font-[500] uppercase tracking-wide text-text-tertiary">
+                        {t("login.or")}
+                      </span>
+                      <span className="h-px flex-1 bg-border-primary" />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={submitting}
+                      onClick={handleDiscord}
+                      className="mt-[12px] w-full"
+                    >
+                      <span className="inline-flex" style={{ color: "#5865F2" }}>
+                        <DiscordFill className="h-4 w-4" />
+                      </span>
+                      <span>{t("login.btn_discord")}</span>
+                    </Button>
+                    <p className="m-0 mt-[8px] text-center text-[11px] leading-[1.5] text-text-tertiary">
+                      {t("login.discord_hint")}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={submitting}
+                      onClick={handleGuest}
+                      className="mt-[10px] w-full"
+                    >
+                      {submitting ? (
+                        <span className="h-[14px] w-[14px] animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        t("login.btn_guest")
+                      )}
+                    </Button>
+                    <p className="m-0 mt-[8px] text-center text-[11px] leading-[1.5] text-text-tertiary">
+                      {t("login.guest_hint")}
+                    </p>
                   </motion.form>
                 ) : (
                   <motion.div
