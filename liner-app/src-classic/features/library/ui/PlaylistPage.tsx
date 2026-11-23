@@ -31,6 +31,7 @@ import {
 } from "@classic/features/settings/store/customizationStore";
 import { useLikesCover } from "../hooks/useLikesCover";
 import { useSavedTracksStore } from "../saved";
+import { usePlaylistOfflineDownloads } from "../hooks/usePlaylistOfflineDownloads";
 import { isSavedTrack } from "@classic/shared/media/saved";
 import { useAuthStore } from "@classic/features/auth";
 import { userDisplayName } from "@classic/entities/user";
@@ -292,6 +293,9 @@ function LibraryPlaylistContent() {
   const classicSurfaces = useClassicSurfaces();
   const hasCustomBg = useHasCustomBackground();
   const { data: playlistList } = usePlaylistsList();
+  // visiting a playlist queues every track for pinned offline download —
+  // the header chip reports "saving 12/45 … available offline"
+  const offlineProgress = usePlaylistOfflineDownloads(viewData?.tracks);
   const summary = isLikesMode
     ? undefined
     : playlistList?.playlists?.find((playlist) => playlist.id === decodedId);
@@ -868,6 +872,30 @@ function LibraryPlaylistContent() {
                           })()}
                         </span>
                       </div>
+                      {offlineProgress && offlineProgress.phase ? (
+                        <div className={HERO_CHIP_CLASS}>
+                          <DownloadLine
+                            size={13}
+                            className={`shrink-0 ${
+                              offlineProgress.phase === "downloading"
+                                ? "text-text-secondary animate-pulse"
+                                : "text-accent-primary"
+                            }`}
+                          />
+                          <span>
+                            {offlineProgress.phase === "downloading"
+                              ? t("playlist.offline_downloading", {
+                                  done: offlineProgress.cached,
+                                  total: offlineProgress.eligible,
+                                })
+                              : offlineProgress.phase === "partial-error"
+                                ? t("playlist.offline_errors", {
+                                    errors: offlineProgress.error,
+                                  })
+                                : t("playlist.offline_done")}
+                          </span>
+                        </div>
+                      ) : null}
                       {isLikesMode &&
                       saveLikedEnabled &&
                       viewData.tracks.length > 0 ? (

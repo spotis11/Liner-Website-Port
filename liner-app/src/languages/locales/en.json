@@ -602,7 +602,10 @@
     "cover_invalid": "That file is not an image",
     "cover_reset": "Cover reset to auto",
     "cover_updated": "Custom cover updated",
-    "reset_cover": "Reset to auto cover"
+    "reset_cover": "Reset to auto cover",
+    "offline_downloading": "Saving for offline — {done}/{total}",
+    "offline_done": "Available offline",
+    "offline_errors": "Offline download — {errors} failed"
   },
   "search": {
     "placeholder": "Search tracks, artists, albums...",

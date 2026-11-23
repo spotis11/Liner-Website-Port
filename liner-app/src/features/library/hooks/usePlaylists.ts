@@ -8,6 +8,10 @@ import {
   type ApiUserPlaylistItem,
 } from "@/shared/api";
 import { queryCache } from "@/shared/cache/queryCache";
+import {
+  readScreenCache,
+  writeScreenCache,
+} from "@/shared/cache/screenCache";
 import type { Track } from "@/shared/types";
 
 export interface LibraryPlaylistSummary {
@@ -341,10 +345,23 @@ export function usePlaylist(id: string | null) {
         queryCache.set(cacheKey, detail);
         if (response.etag) queryCache.set(etagKey, response.etag);
         else queryCache.delete(etagKey);
+        // durable copy for offline browsing (Settings → offline downloads)
+        writeScreenCache(`playlist:offline:${id}`, detail);
         setData(detail);
         setError(undefined);
       } catch (err) {
-        if (active) setError(err);
+        if (!active) return;
+        // offline / server down: fall back to the last saved copy so the
+        // playlist still opens after a refresh with no network
+        const saved = readScreenCache<LibraryPlaylistDetail>(
+          `playlist:offline:${id}`,
+        );
+        if (saved?.data) {
+          setData(saved.data);
+          setError(undefined);
+        } else {
+          setError(err);
+        }
       } finally {
         if (active) setIsLoading(false);
       }

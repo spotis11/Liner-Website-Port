@@ -148,9 +148,21 @@ function load(force = false): Promise<void> {
     persistLikedCache(tracks);
   })()
     .catch(() => {
-      if (!fetchedFromServer) cache = EMPTY;
-      loaded = fetchedFromServer;
-      loadFailed = true;
+      if (!fetchedFromServer) {
+        // offline / server down: serve the last server-verified snapshot
+        // from localStorage so liked songs still open after a refresh
+        const saved = readLikedCache();
+        if (saved.length > 0) {
+          cache = { tracks: saved, total: saved.length };
+          loaded = true;
+          loadFailed = false;
+        } else {
+          loadFailed = true;
+        }
+      } else {
+        loaded = fetchedFromServer;
+        loadFailed = true;
+      }
     })
     .finally(() => {
       request = null;

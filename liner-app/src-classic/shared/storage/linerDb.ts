@@ -513,6 +513,18 @@ class LinerDb {
     return result ?? [];
   }
 
+  async listAudioIds(): Promise<string[]> {
+    const result = await this.runTransaction("audio", "readonly", (store) => {
+      return new Promise<string[]>((resolve) => {
+        const req = store.getAllKeys();
+        req.onsuccess = () => resolve(req.result.map((key) => String(key)));
+        req.onerror = () => resolve([]);
+      });
+    });
+
+    return result ?? [];
+  }
+
   async hasAudio(trackId: string): Promise<boolean> {
     if (this.memAudio.has(trackId)) return true;
 
