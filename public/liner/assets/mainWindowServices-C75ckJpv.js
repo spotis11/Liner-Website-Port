@@ -1,1 +1,0 @@
-import{_ as e,y as t}from"./index-QUL_4Crv.js";import{A as n,L as r,Pt as i,Rt as a}from"./player-DHeO_Bd2.js";function o(){return typeof window>`u`?()=>{}:window.linerElectron?.onBundleStamp?.(e=>t(`gray`,`bundle`,e))??(()=>{})}function s(){e(),r(),a(),o(),i(),n()}export{s as initMainWindowServices};
