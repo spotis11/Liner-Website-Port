@@ -22,6 +22,7 @@ import { useTranslation } from "@/languages";
 import { useSettledLyricsLayout } from "../hooks/useSettledLyricsLayout";
 import { CanvasLyricsView } from "./CanvasLyricsView";
 import AmbientLayer from "./AmbientLayer";
+import FullscreenVideoLayer from "./FullscreenVideoLayer";
 import { useCoverTone } from "../hooks/useCoverTone";
 import { BetaVisualsWarning } from "./BetaVisualsWarning";
 
@@ -184,6 +185,14 @@ export function FullscreenPlayer({
           />
         ) : null}
         <AmbientLayer trackId={currentTrackId} />
+        {/* evi 0.1.29 "video thing" — official music videos play their clip
+            as the fullscreen backdrop (muted, frame-synced to the audio),
+            without evi's Report sync button or idle badge; rows without a
+            clip keep the blurred cover + ambient untouched */}
+        <FullscreenVideoLayer
+          trackId={currentTrackId}
+          hasVideo={currentTrack?.audioVariant === "music-video"}
+        />
       </div>
 
       <div className="absolute inset-0 z-[1] bg-black/40" />

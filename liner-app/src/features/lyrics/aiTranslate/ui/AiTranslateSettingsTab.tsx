@@ -10,6 +10,8 @@ import {
   useAiTranslateStore,
   resolveModel,
 } from "../aiTranslateStore";
+import { isNoopTranslation, languageLabel } from "../lyricsLanguage";
+import { useLyricsStore } from "../../store/lyricsStore";
 import { translateLines, TranslationError } from "../translate";
 
 const TARGET_LANGUAGES: { code: string; label: string }[] = [
@@ -54,6 +56,12 @@ export function AiTranslateSettingsTab() {
   const models = useAiTranslateStore((s) => s.models);
   const ollamaUrl = useAiTranslateStore((s) => s.ollamaUrl);
   const cacheCount = useAiTranslateStore((s) => Object.keys(s.cache).length);
+  // same-language stand-down (v1.33.6): when the picked target language IS
+  // the current song's language, say so right under the picker — the pill
+  // in the fullscreen player disables for that song and this line explains
+  // why without leaving the settings to find out
+  const lyrics = useLyricsStore((s) => s.braccatoLyrics);
+  const sameLanguage = isNoopTranslation(lyrics, targetLang);
 
   const store = useAiTranslateStore.getState();
   const [showKey, setShowKey] = useState(false);
@@ -353,6 +361,16 @@ export function AiTranslateSettingsTab() {
             );
           })}
         </div>
+        {sameLanguage && (
+          <p className="m-0 text-[11.5px] leading-[1.45] text-text-tertiary">
+            The current song's lyrics are already in{" "}
+            {languageLabel(
+              targetLang.trim().toLowerCase().split("-")[0] || targetLang,
+            )}{" "}
+            — AI translate stands down for this song until you pick another
+            language.
+          </p>
+        )}
       </SettingBlock>
 
       {/* cache */}

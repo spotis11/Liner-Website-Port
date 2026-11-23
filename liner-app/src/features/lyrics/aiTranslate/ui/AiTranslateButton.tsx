@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Translate2AiLine } from "@mingcute/react";
 import { useAiTranslateStore, translationCacheKey } from "../aiTranslateStore";
 import { getProviderDef } from "../providers";
+import { isNoopTranslation, languageLabel } from "../lyricsLanguage";
 import { useLyricsStore } from "../../store/lyricsStore";
 
 export function AiTranslateButton() {
@@ -47,9 +48,17 @@ export function AiTranslateButton() {
   const busy = Boolean(enabled && pendingKey);
   const def = getProviderDef(provider);
 
+  // Same-language stand-down (v1.33.6): lyrics already in the target
+  // language DISABLE the control for this song — dimmed pill that names the
+  // language, no press, no fetch (ensureTranslation gates the same case).
+  // A null detection never blocks (mixed sheets, Taglish, too-short).
+  const blocked = isNoopTranslation(lyrics, targetLang);
+  const blockedHint = `Lyrics are already in ${languageLabel(targetLang.trim().toLowerCase().split("-")[0] || targetLang)} — pick another language to translate`;
+
   // tooltip copy mirrors the desktop app's translate status
   let hint = `AI Translate: ${def.label} → ${targetLang.toUpperCase()}`;
-  if (enabled && lastError) hint = lastError;
+  if (blocked) hint = blockedHint;
+  else if (enabled && lastError) hint = lastError;
   else if (loadingThisTrack) hint = "Loading translation…";
   else if (enabled && hasCurrentTranslation)
     hint = `Showing ${def.label} translation`;
@@ -66,6 +75,8 @@ export function AiTranslateButton() {
       <button
         type="button"
         onClick={() => {
+          // a same-language pair is a disabled control, not a toggle
+          if (blocked) return;
           const store = useAiTranslateStore.getState();
           // an errored translation must not swallow the press: the obvious
           // user move is "click it again" — retry, don't silently turn off
@@ -85,14 +96,19 @@ export function AiTranslateButton() {
           }
         }}
         aria-pressed={enabled}
+        aria-disabled={blocked || undefined}
         aria-busy={loadingThisTrack || undefined}
         title={hint}
-        className={`h-[32px] min-h-[32px] max-h-[32px] box-border inline-flex items-center gap-[6px] px-[10px] rounded-lg text-[12px] font-[500] border-none cursor-pointer transition-all active:scale-[0.97] ${
-          isActive
-            ? "bg-white/90 text-black hover:bg-white"
-            : lastError && enabled
-              ? "bg-[#e05545]/90 text-white hover:bg-[#e05545]"
-              : "bg-black/50 backdrop-blur-xl text-white/80 hover:text-white hover:bg-black/70"
+        className={`h-[32px] min-h-[32px] max-h-[32px] box-border inline-flex items-center gap-[6px] px-[10px] rounded-lg text-[12px] font-[500] border-none transition-all ${
+          blocked
+            ? "bg-black/30 text-white/40 cursor-not-allowed"
+            : `cursor-pointer active:scale-[0.97] ${
+                isActive
+                  ? "bg-white/90 text-black hover:bg-white"
+                  : lastError && enabled
+                    ? "bg-[#e05545]/90 text-white hover:bg-[#e05545]"
+                    : "bg-black/50 backdrop-blur-xl text-white/80 hover:text-white hover:bg-black/70"
+              }`
         }`}
         style={{ fontFamily: "var(--font-inter), sans-serif" }}
       >
@@ -110,7 +126,7 @@ export function AiTranslateButton() {
 
       {/* the error must be VISIBLE, not hidden behind a hover tooltip — the
           "translation didn't work" reports were this error going unseen */}
-      {enabled && lastError && (
+      {enabled && lastError && !blocked && (
         <p
           className="absolute right-0 top-full mt-[6px] m-0 max-w-[260px] rounded-lg border border-[#e05545]/40 bg-black/85 backdrop-blur-xl px-[10px] py-[6px] text-[11.5px] leading-[1.35] text-[#ffb4ab] whitespace-normal z-50 pointer-events-none"
           title={lastError}

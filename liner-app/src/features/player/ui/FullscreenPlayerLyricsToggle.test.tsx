@@ -117,6 +117,12 @@ vi.mock("./AmbientLayer", () => ({
   default: () => <div data-testid="ambient" />,
 }));
 
+// the evi "video thing" layer — mocked like AmbientLayer: this suite asserts
+// the lyrics choreography, not video stream resolution
+vi.mock("./FullscreenVideoLayer", () => ({
+  default: () => <div data-testid="fullscreen-video" />,
+}));
+
 vi.mock("./BetaVisualsWarning", () => ({
   BetaVisualsWarning: () => <div data-testid="beta-warning" />,
 }));
@@ -124,6 +130,9 @@ vi.mock("./BetaVisualsWarning", () => ({
 vi.mock("../store/visualModeStore", () => ({
   useGlassBlur: vi.fn(() => false),
   useKawarpEnabled: vi.fn(() => false),
+  // the video layer shares the ambient gate — off here, a real mount would
+  // otherwise try to resolve an actual YouTube video stream
+  useAmbientEnabled: vi.fn(() => false),
 }));
 
 vi.mock("@/languages", () => ({

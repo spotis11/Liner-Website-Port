@@ -21,7 +21,9 @@ export interface ProfileAudioOptions {
   preferredCodec?: "opus" | "aac";
 }
 
-function playerBody(
+// Shared with innertubeVideo.ts — the music-video backdrop posts the exact
+// same player request and deciphers its video formats with the same key.
+export function playerBody(
   videoId: string,
   player: WebPlayer | null,
 ): Record<string, unknown> {
@@ -41,7 +43,7 @@ function playerBody(
   };
 }
 
-async function streamUrl(
+export async function formatStreamUrl(
   format: AudioFormat,
   player: WebPlayer | null,
 ): Promise<string> {
@@ -76,7 +78,7 @@ export async function resolveWithProfile(
       `${profile.clientName} returned no direct audio formats.`,
       502,
     );
-  const url = await streamUrl(best, player);
+  const url = await formatStreamUrl(best, player);
   if (!url)
     throw new InnertubeError(
       `${profile.clientName} stream url could not be deciphered.`,

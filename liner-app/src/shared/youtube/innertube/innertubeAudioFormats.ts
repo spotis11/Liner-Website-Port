@@ -75,7 +75,7 @@ export function selectBestAudioFormat(
   return [...formats].sort((a, b) => b.bitrate - a.bitrate)[0] ?? null;
 }
 
-function expiryFromUrl(url: string): string | null {
+export function expiryFromUrl(url: string): string | null {
   try {
     const expire = Number(new URL(url).searchParams.get("expire"));
     return Number.isFinite(expire) && expire > 0

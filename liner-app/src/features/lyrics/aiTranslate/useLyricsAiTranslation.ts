@@ -31,6 +31,7 @@ import {
   getConfigFromState,
 } from "./aiTranslateStore";
 import { ensureTranslation } from "./ensureTranslation";
+import { isNoopTranslation } from "./lyricsLanguage";
 import { startTranslationGlow } from "./translationGlow";
 import type { AiProviderId } from "./providers";
 
@@ -117,15 +118,19 @@ export function useLyricsAiTranslation(
   /** which track the injectedKeyRef was recorded for */
   const injectedTrackRef = useRef<string | null>(null);
 
-  // Same-language pairs (English → English, Tagalog → Tagalog, …) go through
-  // like any other target: the user's explicit language choice always
-  // translates. The old client-side stand-down ("already in X — choose
-  // another language") refused exactly the request the user had just made
-  // and read as broken, so it is gone — a same-language round-trip costs
-  // one cached fetch and comes back aligned 1:1.
+  // Same-language pairs (Tagalog → Tagalog, English → English, …) stand down
+  // again since v1.33.6 — the owner asked the gate back ("the ai translation
+  // must be disabled when the language selected is the same thing to the
+  // lyrics"). It is a DISABLED control now (dimmed pill that names the
+  // language — AiTranslateButton) rather than the v1.33.3-era silent refusal.
+  // Detection null never blocks. Folding the gate into wantsTranslation also
+  // strips any injected lines (effect 3), so switching the target back to the
+  // lyric's own language removes the translation from the DOM immediately.
+  const sameLanguage = isNoopTranslation(lyrics, targetLang);
 
   const wantsTranslation =
     enabled &&
+    !sameLanguage &&
     Boolean(trackId) &&
     (autoTranslate || Boolean(trackId && manualTracks[trackId]));
   const active = Boolean(enabled && trackId);

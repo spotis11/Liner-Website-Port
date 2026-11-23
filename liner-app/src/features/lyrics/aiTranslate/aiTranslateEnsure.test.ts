@@ -138,4 +138,41 @@ describe("ensureTranslation pendingKey", () => {
     expect(mockedTranslate).not.toHaveBeenCalled();
     expect(useAiTranslateStore.getState().pendingKey).toBeNull();
   });
+
+  it("stands down on a same-language pair without fetching (v1.33.6 gate)", async () => {
+    // ten clear English lines into targetLang "en" — the detector is
+    // decisive here, so the gate must fire BEFORE any provider work: no
+    // fetch, no pendingKey, no error, no cache write
+    const TRACK = `track-same-${seq + 1}`;
+    const ENGLISH_LINES = [
+      "I've been waiting for the sun to go down",
+      "Thinking 'bout the nights we had together now",
+      "And you know that I can't let you go",
+      "You were the one that I was looking for",
+      "So tell me why we always end up on the floor",
+      "Is it too late to say I want you back again?",
+      "We were running out of time from the start",
+      "But I will never let you break my heart",
+    ];
+    ensureTranslation(TRACK, ENGLISH_LINES, {
+      provider: "liner",
+      targetLang: "en",
+    });
+    expect(mockedTranslate).not.toHaveBeenCalled();
+    expect(useAiTranslateStore.getState().pendingKey).toBeNull();
+    expect(useAiTranslateStore.getState().lastError).toBeNull();
+    // and it must not even enter the retry loop
+    await vi.waitFor(() =>
+      expect(mockedTranslate).not.toHaveBeenCalled(),
+    );
+  });
+
+  it("keeps translating when detection is undecided (null never blocks)", () => {
+    // two short Spanish tokens — under MIN_TOKENS the detector answers null,
+    // and uncertainty must keep the feature working
+    const TRACK = `track-mixed-${seq + 1}`;
+    mockedTranslate.mockResolvedValue(["hola", "mundo"]);
+    ensureTranslation(TRACK, ["hola", "mundo"], CONFIG);
+    expect(mockedTranslate).toHaveBeenCalledTimes(1);
+  });
 });

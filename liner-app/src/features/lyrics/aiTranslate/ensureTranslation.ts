@@ -22,6 +22,7 @@ import {
 } from "./aiTranslateStore";
 import { translateLines, providerIsReady, TranslationError } from "./translate";
 import type { TranslateConfig } from "./translate";
+import { isNoopLinesTranslation } from "./lyricsLanguage";
 
 // In-flight translation requests, keyed by cache key (track::provider::lang).
 // Module scope, NOT component state: the fullscreen lyrics view remounts on
@@ -62,6 +63,15 @@ export function ensureTranslation(
 ): void {
   const reportErrors = options.reportErrors ?? false;
   const store = useAiTranslateStore.getState();
+
+  // Same-language stand-down (v1.33.6, back by owner request): a sheet
+  // already in the target language never translates — the button renders
+  // DISABLED with the reason instead (AiTranslateButton), so this reads as
+  // an intentional state, not the v1.33.3-era silent refusal that got the
+  // gate removed in the first place. Unknown/mixed sheets keep the feature:
+  // a null detection never blocks (see lyricsLanguage.ts).
+  if (isNoopLinesTranslation(sourceLines, config.targetLang)) return;
+
   const cacheKey = translationCacheKey(
     trackId,
     config.provider,
@@ -155,8 +165,8 @@ export function ensureTranslation(
  * Gated by the same switches as the in-view flow (feature enabled,
  * auto-translate or a manual request for this track) so prefetch never
  * does work the user asked the feature not to do. Same-language pairs
- * (EN→EN) go through like any other target: the user's explicit choice
- * always translates.
+ * (EN→EN) stand down here too since v1.33.6 — the owner asked the gate
+ * back as a disabled state on the button (see ensureTranslation).
  */
 export function useAiTranslatePrefetch(): void {
   const trackId = useLyricsStore((s) => s.currentLyricsTrackId);

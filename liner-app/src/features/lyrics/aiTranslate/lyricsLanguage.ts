@@ -16,8 +16,14 @@
 // button stand down with "choose another language to translate". That
 // refusal fired on the user's own explicit language choice and read as a
 // bug, so v1.33.3 removed the gate: every selected target translates, even
-// a same-language pair. The detector stays for diagnostics and tests —
-// isNoopTranslation / detectLyricsLanguage no longer drive any UI.
+// a same-language pair. v1.33.6 brings the gate back at the owner's explicit
+// request — "the ai translation must be disabled when the language selected
+// is the same thing to the lyrics" — but as a DISABLED control that says why
+// (the pill dims and names the language, settings shows the same note), not
+// the old silent refusal: the earlier removal was about the button reading
+// as broken, and a disabled state with a reason does not. Null detection
+// still never disables anything — uncertainty keeps the feature working.
+// The detector stays for the gate and tests.
 //
 // Why not the provider's metadata: the lyrics SSE contract carries no
 // language field, and the /api/ai-translate route only learns the source
@@ -34,8 +40,6 @@
 // The result is cached per lyrics array — the store replaces the array on
 // every track/provider change, so identity is a sound cache key and the
 // token scan runs once per song, not once per frame.
-
-import type { Lyric } from "@braccato/parsers";
 
 // Unambiguous English function words. Words that double as common words in
 // Spanish/Portuguese/Tagalog ("me", "no", "la", "mi", "so"…) are
@@ -220,7 +224,7 @@ function stripDiacritics(token: string): string {
   return token.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function scan(lyrics: Lyric[]): ScanResult {
+function scan(lyrics: readonly { words?: unknown }[]): ScanResult {
   const result: ScanResult = {
     tokens: 0,
     latinChars: 0,
@@ -295,7 +299,11 @@ function scan(lyrics: Lyric[]): ScanResult {
   return result;
 }
 
-const detectCache = new WeakMap<Lyric[], string | null>();
+// The sheet shape is deliberately loose ({ words?: unknown }[]): the gate
+// runs from two callers — components holding real Lyric[] models and
+// ensureTranslation holding a plain string[] (it runs before any Lyric model
+// exists). The scan only ever reads `.words`, so both pass structurally.
+const detectCache = new WeakMap<object, string | null>();
 
 /**
  * The lyric sheet's language as one of the supported target codes
@@ -304,7 +312,7 @@ const detectCache = new WeakMap<Lyric[], string | null>();
  * feature working, exactly the stance the English-only detector took.
  */
 export function detectLyricsLanguage(
-  lyrics: Lyric[] | null | undefined,
+  lyrics: readonly { words?: unknown }[] | null | undefined,
 ): string | null {
   if (!lyrics || lyrics.length === 0) return null;
   const cached = detectCache.get(lyrics);
@@ -315,7 +323,7 @@ export function detectLyricsLanguage(
   return detected;
 }
 
-function detectUncached(lyrics: Lyric[]): string | null {
+function detectUncached(lyrics: readonly { words?: unknown }[]): string | null {
   const s = scan(lyrics);
   const { scripts } = s;
 
@@ -377,14 +385,14 @@ function detectUncached(lyrics: Lyric[]): string | null {
  * detector.
  */
 export function detectLyricsAreEnglish(
-  lyrics: Lyric[] | null | undefined,
+  lyrics: readonly { words?: unknown }[] | null | undefined,
 ): boolean {
   return detectLyricsLanguage(lyrics) === "en";
 }
 
 /** True when translating this sheet into `targetLang` would be a no-op. */
 export function isNoopTranslation(
-  lyrics: Lyric[] | null | undefined,
+  lyrics: readonly { words?: unknown }[] | null | undefined,
   targetLang: string,
 ): boolean {
   const base = targetLang.trim().toLowerCase().split("-")[0];
@@ -394,4 +402,20 @@ export function isNoopTranslation(
   if (detected === base) return true;
   // Filipino ships as "tl" in the picker; "fil" is its alternate code.
   return detected === "tl" && (base === "tl" || base === "fil");
+}
+
+/**
+ * The lines-only view of isNoopTranslation — ensureTranslation sees the
+ * lyric sheet as a plain string[] (the same flow runs from the fullscreen
+ * hook and the root prefetcher, before any Lyric model exists). Same
+ * detector, same rules: null detection never blocks.
+ */
+export function isNoopLinesTranslation(
+  lines: readonly string[],
+  targetLang: string,
+): boolean {
+  return isNoopTranslation(
+    lines.map((words) => ({ words })),
+    targetLang,
+  );
 }

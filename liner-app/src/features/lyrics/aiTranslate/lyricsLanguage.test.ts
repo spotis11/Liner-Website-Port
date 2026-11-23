@@ -13,6 +13,7 @@ import {
   detectLyricsAreEnglish,
   detectLyricsLanguage,
   isNoopTranslation,
+  isNoopLinesTranslation,
   languageLabel,
 } from "./lyricsLanguage";
 import type { Lyric } from "@braccato/parsers";
@@ -214,5 +215,20 @@ describe("isNoopTranslation", () => {
     expect(languageLabel("tl")).toBe("Filipino (Tagalog)");
     expect(languageLabel("en")).toBe("English");
     expect(languageLabel("ja")).toBe("Japanese");
+  });
+});
+
+describe("isNoopLinesTranslation", () => {
+  // ensureTranslation sees the sheet as a plain string[] — same gate, no
+  // Lyric models required
+  it("stands down on the same-language pair from raw lines", () => {
+    expect(isNoopLinesTranslation(ENGLISH_SONG, "en")).toBe(true);
+    expect(isNoopLinesTranslation(TAGALOG_SONG, "tl")).toBe(true);
+  });
+
+  it("keeps other targets and uncertain sheets working", () => {
+    expect(isNoopLinesTranslation(TAGALOG_SONG, "en")).toBe(false);
+    expect(isNoopLinesTranslation(["hola", "mundo"], "es")).toBe(false);
+    expect(isNoopLinesTranslation([], "en")).toBe(false);
   });
 });
