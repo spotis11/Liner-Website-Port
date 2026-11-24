@@ -43,6 +43,11 @@ class OfflineDownloadQueue {
   private running = 0;
   private generation = 0;
   private version = 0;
+  // useSyncExternalStore contract: getSnapshot MUST return the same object
+  // reference until the store actually changes — a fresh object per call
+  // makes React see a "changed" snapshot on every render and loop forever
+  // (minified React error #185, maximum update depth exceeded).
+  private snapshot: OfflineQueueSnapshot | null = null;
   private listeners = new Set<() => void>();
   private online = typeof navigator === "undefined" ? true : navigator.onLine;
   private notifyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -69,6 +74,8 @@ class OfflineDownloadQueue {
   };
 
   getSnapshot = (): OfflineQueueSnapshot => {
+    const cached = this.snapshot;
+    if (cached && cached.version === this.version) return cached;
     let downloading = 0;
     let queued = 0;
     let done = 0;
@@ -85,7 +92,16 @@ class OfflineDownloadQueue {
       } else if (state === "done") done += 1;
       else if (state === "error") error += 1;
     }
-    return { version: this.version, downloading, queued, done, error, activeIds };
+    const fresh: OfflineQueueSnapshot = {
+      version: this.version,
+      downloading,
+      queued,
+      done,
+      error,
+      activeIds,
+    };
+    this.snapshot = fresh;
+    return fresh;
   };
 
   private notify() {

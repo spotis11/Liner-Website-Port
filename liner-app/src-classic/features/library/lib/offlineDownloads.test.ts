@@ -7,29 +7,29 @@ const isCached = vi.fn((id: string) => false);
 const putTrack = vi.fn();
 const setAudioPinned = vi.fn();
 
-vi.mock("@/features/player/engine/streamResolver", () => ({
+vi.mock("@classic/features/player/engine/streamResolver", () => ({
   resolvePlaybackStream,
 }));
-vi.mock("@/shared/youtube/innertube/chunkedAudioDownload", () => ({
+vi.mock("@classic/shared/youtube/innertube/chunkedAudioDownload", () => ({
   downloadAudioBytes,
 }));
-vi.mock("@/shared/storage/audioFormat", () => ({
+vi.mock("@classic/shared/storage/audioFormat", () => ({
   isStandaloneAudioFile: vi.fn(() => true),
 }));
-vi.mock("@/shared/media/liner/linerPlayback", () => ({
+vi.mock("@classic/shared/media/liner/linerPlayback", () => ({
   markLinerStreamFailed: vi.fn(),
 }));
-vi.mock("@/shared/media/saved", () => ({
+vi.mock("@classic/shared/media/saved", () => ({
   isSavedTrack: vi.fn((id: string) => id.startsWith("sv_")),
 }));
-vi.mock("@/shared/storage/audioCache", () => ({
+vi.mock("@classic/shared/storage/audioCache", () => ({
   audioCache: {
     currentGeneration: vi.fn(() => 1),
     saveAudioBlob,
     isCached,
   },
 }));
-vi.mock("@/shared/storage/linerDb", () => ({
+vi.mock("@classic/shared/storage/linerDb", () => ({
   linerDb: {
     putTrack,
     setAudioPinned,
@@ -162,5 +162,23 @@ describe("offline download queue", () => {
     });
     offlineDownloadQueue.resetFinished();
     expect(offlineDownloadQueue.stateOf("t-fail")).toBe(null);
+  });
+
+  it("getSnapshot returns a stable reference until the version changes (React #185)", async () => {
+    const { offlineDownloadQueue } = await freshQueue();
+    // a hung download freezes the queue in "downloading" so nothing else mutates
+    resolvePlaybackStream.mockImplementation(() => new Promise(() => {}));
+    offlineDownloadQueue.enqueuePlaylist([track("t-stable")]);
+    const first = offlineDownloadQueue.getSnapshot();
+    // useSyncExternalStore compares snapshots with Object.is — a fresh object
+    // per call made React loop re-rendering forever on every playlist page
+    // (minified React error #185, maximum update depth exceeded)
+    expect(offlineDownloadQueue.getSnapshot()).toBe(first);
+    expect(first.downloading + first.queued).toBe(1);
+    offlineDownloadQueue.enqueuePlaylist([track("t-stable-2")]);
+    const second = offlineDownloadQueue.getSnapshot();
+    expect(second).not.toBe(first);
+    expect(second.version).toBeGreaterThan(first.version);
+    expect(offlineDownloadQueue.getSnapshot()).toBe(second);
   });
 });

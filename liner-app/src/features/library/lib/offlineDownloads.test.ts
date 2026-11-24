@@ -163,4 +163,22 @@ describe("offline download queue", () => {
     offlineDownloadQueue.resetFinished();
     expect(offlineDownloadQueue.stateOf("t-fail")).toBe(null);
   });
+
+  it("getSnapshot returns a stable reference until the version changes (React #185)", async () => {
+    const { offlineDownloadQueue } = await freshQueue();
+    // a hung download freezes the queue in "downloading" so nothing else mutates
+    resolvePlaybackStream.mockImplementation(() => new Promise(() => {}));
+    offlineDownloadQueue.enqueuePlaylist([track("t-stable")]);
+    const first = offlineDownloadQueue.getSnapshot();
+    // useSyncExternalStore compares snapshots with Object.is — a fresh object
+    // per call made React loop re-rendering forever on every playlist page
+    // (minified React error #185, maximum update depth exceeded)
+    expect(offlineDownloadQueue.getSnapshot()).toBe(first);
+    expect(first.downloading + first.queued).toBe(1);
+    offlineDownloadQueue.enqueuePlaylist([track("t-stable-2")]);
+    const second = offlineDownloadQueue.getSnapshot();
+    expect(second).not.toBe(first);
+    expect(second.version).toBeGreaterThan(first.version);
+    expect(offlineDownloadQueue.getSnapshot()).toBe(second);
+  });
 });
