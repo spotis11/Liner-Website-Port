@@ -62,17 +62,50 @@ async function main() {
   const t0 = Date.now();
 
   // 1. challenge
-  const attRes = await fetch("https://music.youtube.com/youtubei/v1/att/get?prettyPrint=false", {
-    method: "POST",
-    headers: { "content-type": "application/json", "user-agent": UA, "origin": "https://music.youtube.com", "referer": "https://music.youtube.com/" },
-    body: JSON.stringify({
-      context: { client: { clientName: "WEB", clientVersion: CLIENT_VERSION, hl: "en", gl: "US" } },
-      engagementType: "ENGAGEMENT_TYPE_UNBOUND",
-    }),
-  });
-  if (!attRes.ok) throw new Error(`att/get ${attRes.status}`);
-  const { bgChallenge } = (await attRes.json());
-  if (!bgChallenge) throw new Error("no bgChallenge");
+  // the provider's patched flow: the VM needs the homepage's (ytcfg, ytAtN)
+  // pair — /att/get tokens are rejected nowadays
+  const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36";
+  const pageRes = await fetch("https://www.youtube.com/", { headers: { "user-agent": UA, "accept-language": "en-US,en;q=0.9" } });
+  if (!pageRes.ok) throw new Error(`homepage ${pageRes.status}`);
+  const pageHtml = await pageRes.text();
+  const ytcfgMatch = pageHtml.match(/ytcfg\.set\(({.+?})\);/s);
+  if (!ytcfgMatch) throw new Error("no ytcfg on homepage");
+  const ytObj = { config_: JSON.parse(ytcfgMatch[1]) };
+  globalThis.yt = ytObj;
+  if (globalThis.window) globalThis.window.yt = ytObj;
+  // the challenge may ride the ytAtN payloads directly OR arrive hex-escaped
+  // (\x22bgChallenge\x22) inside another payload — un-escape the page and
+  // brace-match the bgChallenge object out
+  const unescaped = pageHtml.replace(/\\x([0-9a-fA-F]{2})/g, (_, h) =>
+    String.fromCharCode(parseInt(h, 16)),
+  );
+  let bgChallenge = null;
+  const keyIdx = unescaped.indexOf('"bgChallenge":');
+  if (keyIdx >= 0) {
+    const objStart = unescaped.indexOf("{", keyIdx);
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    for (let i = objStart; i < unescaped.length; i += 1) {
+      const ch = unescaped[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (ch === "\\") esc = true;
+        else if (ch === '"') inStr = false;
+        continue;
+      }
+      if (ch === '"') inStr = true;
+      else if (ch === "{") depth += 1;
+      else if (ch === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          bgChallenge = JSON.parse(unescaped.slice(objStart, i + 1));
+          break;
+        }
+      }
+    }
+  }
+  if (!bgChallenge?.program) throw new Error("bgChallenge extraction failed");
   const script =
     bgChallenge.interpreterJavascript?.privateDoNotAccessOrElseSafeScriptWrappedValue;
   let url = bgChallenge.interpreterUrl?.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue;
@@ -95,6 +128,8 @@ async function main() {
   // 4. snapshot
   const webPoSignalOutput = [];
   const botguardToken = await botguard.snapshot({ webPoSignalOutput });
+  console.log("challenge keys:", Object.keys(bgChallenge));
+  console.log("interpreter source:", script ? "inline" : "url-fetched");
   console.log("snapshot token len:", String(botguardToken).length, "| signalOutput:", webPoSignalOutput.map((f) => typeof f));
 
   // 5. GenerateIT

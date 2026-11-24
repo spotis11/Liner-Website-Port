@@ -905,6 +905,53 @@ async function websiteDispatch(
   if (route === "me/recommendations/daily-mixes" && method === "GET") {
     return dailyMixes(req);
   }
+  // ---- 0.2.20 beta home charts -------------------------------------------
+  // The beta home feed reads /v1/charts/* (staging-only routes). Same policy
+  // as explore/popular: upstream first (the relay's service identity or the
+  // caller's real bearer), graceful local fallback when the upstream is
+  // unreachable from this egress (running.sh gets Cloudflare-challenged).
+  const betaChartMatch = route.match(/^charts\/([a-z]+)$/);
+  if (betaChartMatch && method === "GET") {
+    const kind = betaChartMatch[1];
+    const localFallback = () => {
+      if (kind === "tracks") {
+        const raw = url.searchParams.get("window") ?? "12h";
+        const window = ["12h", "24h", "7d", "30d", "all"].includes(raw)
+          ? raw
+          : "12h";
+        return NextResponse.json({ window, items: [] });
+      }
+      return NextResponse.json({ type: url.searchParams.get("type") ?? "all", items: [] });
+    };
+    // the staging edge challenges forwarded browser header sets (x-client-
+    // version etc.) even with the desktop UA — a minimal clean fetch (pinned
+    // desktop UA only) passes. Website tokens mean nothing upstream, so the
+    // bearer is dropped regardless.
+    try {
+      const clean = await fetch(`${UPSTREAM}/v1/${route}${url.search}`, {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          "user-agent": UPSTREAM_CLIENT_UA,
+        },
+        // cold-container staging handshakes can outrun the 8s catalog
+        // deadline — the beta home feed runs this hop FIRST after login, so
+        // give it 15s (the running.sh edge cuts the request at ~20s)
+        signal: AbortSignal.timeout(15_000),
+        redirect: "manual",
+      });
+      const contentType = clean.headers.get("content-type") ?? "";
+      if (clean.ok && contentType.includes("application/json")) {
+        const body = await clean.arrayBuffer();
+        const res = new NextResponse(body, { status: clean.status });
+        res.headers.set("content-type", contentType);
+        return res;
+      }
+    } catch {
+      /* fall through to the local answer */
+    }
+    return localFallback();
+  }
   if (route === "explore/popular" && method === "GET") {
     // REAL Liner trending: the upstream exposes explore/popular anonymously
     // (verified live 2026-11-14) and its data IS what the real Liner home

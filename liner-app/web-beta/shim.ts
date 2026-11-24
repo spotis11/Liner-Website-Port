@@ -59,7 +59,9 @@ function concatBytes(...parts: Uint8Array[]): Uint8Array {
 }
 
 async function sha256Bytes(bytes: Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return new Uint8Array(
+    await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>),
+  );
 }
 
 function bytesToBase64Url(bytes: Uint8Array): string {
@@ -250,6 +252,7 @@ function rewriteForWeb(rawUrl: string, method?: string): string {
 function installWebFetchProxy(): void {
   if (typeof window === "undefined" || typeof window.fetch === "undefined") return;
   const originalFetch = window.fetch.bind(window);
+
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     if (typeof input === "string" || input instanceof URL) {
       const raw = input.toString();
@@ -260,26 +263,23 @@ function installWebFetchProxy(): void {
     }
     const rewritten = rewriteForWeb(input.url, input.method);
     if (rewritten === input.url) return originalFetch(input, init);
-    const request = new Request(rewritten, input);
-    return originalFetch(request, init);
+    return originalFetch(new Request(rewritten, input), init);
   };
 }
 
 // ---------------------------------------------------------------------------
-// YouTube PoToken minting (BotGuard via bgutils-js)
-//
-// The 0.2.20 renderer moved PoToken minting to the electron main process
-// (window.linerElectron.mintPoToken) and REFUSES anonymous playback without
-// it ("PO tokens need a newer Liner app version", 501). The web bridge
-// mints with bgutils-js in the page: challenge from jnn-pa, VM snapshot,
-// GenerateIT integrity token, WebPoMinter — content-bound to the video id.
+// website-port logging (boot epoch disambiguates reloads in the console)
 // ---------------------------------------------------------------------------
 
-import { BotGuardClient, parseChallengeData } from "bgutils-js/botguard";
-import { WebPoMinter, createColdStartToken } from "bgutils-js/webpo";
-import { GOOG_API_KEY, GOOG_BASE_URL } from "bgutils-js/utils";
+const BOOT_EPOCH = Math.random().toString(36).slice(2, 8);
 
-const BOTGUARD_REQUEST_KEY = "O43z0dpjhgX20SCx4KAo"; // WEB request key
+const LOG_BUFFER: string[] = [];
+function webLog(...parts: unknown[]): void {
+  const line = `[${BOOT_EPOCH}] ${parts.map((p) => String(p)).join(" ")}`;
+  LOG_BUFFER.push(line);
+  if (LOG_BUFFER.length > 120) LOG_BUFFER.shift();
+  console.info(line);
+}
 
 // the app's own innertube visitor data, tapped from proxied /api/yt bodies
 // (the minter binds to it when present so tokens match the request context)
@@ -293,201 +293,61 @@ function tapVisitorData(init?: RequestInit): void {
   }
 }
 
-interface IntegrityTokenResponse {
-  integrityToken?: string;
-  estimatedTtlSecs: number;
-  mintRefreshThreshold: number;
-  websafeFallbackToken?: string;
+// PoToken minting delegates to the fan server's /api/po-token (JSDOM +
+// bgutils in Node — the same flow the 0.2.12 port has used in production
+// for months). The in-page BotGuard approach was retired: the VM refuses to
+// hand out its minter under headless/automation environments.
+const POT_TOKEN_TTL_MS = 5.5 * 3600 * 1000;
+
+function potCacheKey(binding: string): string {
+  return `liner-web-pot-${binding}`;
 }
 
-let minterCache: { minter: WebPoMinter; expiresAt: number } | null = null;
-let minterInFlight: Promise<WebPoMinter> | null = null;
-
-// mirrors the desktop preload's mintPoToken flow exactly:
-//   1. challenge from innertube /youtubei/v1/att/get (WEB, UNBOUND)
-//   2. interpreter = challenge script, or fetched from its gstatic url
-//   3. Function(interpreter)() defines globalThis[globalName]
-//   4. BotGuardClient snapshot -> webPoSignalOutput + botguard token
-//   5. GenerateIT [requestKey, token] -> integrity token (base64url)
-//   6. WebPoMinter.mintAsWebsafeString(videoId), cached for the ttl
-const BOTGUARD_CLIENT_VERSION = "2.20250925.01.00";
-
-interface ParsedChallenge {
-  program: string;
-  globalName: string;
-  interpreterScript?: string;
-  interpreterUrl?: string;
-}
-
-function parseLooseJson(raw: string): Record<string, unknown> {
+function readCachedPot(binding: string): string | null {
   try {
-    return JSON.parse(raw) as Record<string, unknown>;
+    const raw = localStorage.getItem(potCacheKey(binding));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { token: string; exp: number };
+    if (parsed.token && Date.now() < parsed.exp) return parsed.token;
+    localStorage.removeItem(potCacheKey(binding));
   } catch {
-    // the ytAtN payload may use loose JSON — fall back to evaluating it
-    return new Function(`return (${raw})`)() as Record<string, unknown>;
+    /* fall through */
   }
+  return null;
 }
 
-interface ParsedChallenge {
-  program: string;
-  globalName: string;
-  interpreterScript?: string;
-  interpreterUrl?: string;
-}
-
-// mirrors bgutil-ytdlp-pot-provider's patched flow: /att/get tokens are
-// rejected nowadays — the VM must be fed the YouTube homepage's
-// (ytcfg, ytAtN) pair, because BotGuard reads yt.config_.EVENT_ID while
-// snapshotting. Without it the VM degrades to a "$"-token and never hands
-// out the WebPo minter function.
-async function fetchBotguardChallenge(): Promise<ParsedChallenge> {
-  const pageRes = await fetch("https://www.youtube.com/", {
-    headers: { "accept-language": "en-US,en;q=0.9" },
-  });
-  if (!pageRes.ok) throw new Error(`homepage fetch ${pageRes.status}`);
-  const pageHtml = await pageRes.text();
-
-  const ytcfgMatch = pageHtml.match(/ytcfg\.set\(({.+?})\);/s);
-  if (ytcfgMatch) {
-    const ytObj = { config_: JSON.parse(ytcfgMatch[1] as string) };
-    (globalThis as unknown as Record<string, unknown>).yt = ytObj;
-    (globalThis as unknown as { window?: Record<string, unknown> }).window!.yt =
-      ytObj;
-  } else {
-    console.warn("[liner-web] homepage-challenge: no ytcfg found");
-  }
-
-  const attMatch = pageHtml.match(/window\.ytAtN\(\s*({[\s\S]*?})\s*\)/);
-  if (!attMatch) {
-    throw new Error("homepage-challenge: no ytAtN challenge in page");
-  }
-  const attData = parseLooseJson(attMatch[1] as string) as {
-    R?: { bgChallenge?: Record<string, unknown> };
-  };
-  const bgChallenge = attData?.R?.bgChallenge as {
-    program?: string;
-    globalName?: string;
-    interpreterUrl?: {
-      privateDoNotAccessOrElseTrustedResourceUrlWrappedValue?: string;
-    };
-    interpreterJavascript?: {
-      privateDoNotAccessOrElseSafeScriptWrappedValue?: string;
-    };
-  } | undefined;
-  if (!bgChallenge?.program || !bgChallenge.interpreterUrl) {
-    throw new Error("homepage-challenge: ytAtN payload missing bgChallenge");
-  }
-  const script =
-    bgChallenge.interpreterJavascript?.privateDoNotAccessOrElseSafeScriptWrappedValue;
-  let url =
-    bgChallenge.interpreterUrl?.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue;
-  if (url?.startsWith("//")) url = `https:${url}`;
-  if (!bgChallenge.globalName) {
-    throw new Error("homepage-challenge: bgChallenge missing globalName");
-  }
-  return {
-    program: bgChallenge.program,
-    globalName: bgChallenge.globalName,
-    ...(script ? { interpreterScript: script } : {}),
-    ...(url ? { interpreterUrl: url } : {}),
-  };
-}
-
-async function resolveInterpreterScript(challenge: ParsedChallenge): Promise<string> {
-  if (challenge.interpreterScript) return challenge.interpreterScript;
-  // the desktop main fetches this for the renderer (no CORS on gstatic) —
-  // the web shell rides the same-origin generic proxy
-  const text = await (
-    await fetch(challenge.interpreterUrl as string)
-  ).text();
-  if (!text || text.length < 64) {
-    throw new Error("BotGuard interpreter download failed");
-  }
-  return text;
-}
-
-async function getWebPoMinter(): Promise<WebPoMinter> {
-  if (minterCache && Date.now() < minterCache.expiresAt) return minterCache.minter;
-  if (minterInFlight) return minterInFlight;
-  minterInFlight = (async () => {
-    const challenge = await fetchBotguardChallenge();
-    const interpreterJs = await resolveInterpreterScript(challenge);
-    // evaluate the VM bootstrap: defines globalThis[challenge.globalName]
-    Function(interpreterJs)();
-    const botguard = await BotGuardClient.create({
-      globalName: challenge.globalName,
-      globalObject: globalThis,
-      program: challenge.program,
-    });
-    const webPoSignalOutput: unknown[] = [];
-    const botguardToken = await botguard.snapshot({ webPoSignalOutput });
-    console.info(
-      "[liner-web] webPoSignalOutput:",
-      JSON.stringify(
-        webPoSignalOutput.map((fn) => (typeof fn === "function" ? "fn" : typeof fn)),
-      ),
-      "| tokenHead:",
-      String(botguardToken).slice(0, 96),
-      "| tokenType:",
-      typeof botguardToken,
-    );
-    const res = await fetch(`${GOOG_BASE_URL}/$rpc/google.internal.waa.v1.Waa/GenerateIT`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json+protobuf",
-        "x-goog-api-key": GOOG_API_KEY,
-        "x-user-agent": "grpc-web-javascript/0.1",
-      },
-      body: JSON.stringify([BOTGUARD_REQUEST_KEY, botguardToken]),
-    });
-    if (!res.ok) throw new Error(`GenerateIT returned ${res.status}`);
-    const rawIt = (await res.json()) as unknown;
-    console.info(
-      "[liner-web] GenerateIT raw:",
-      JSON.stringify(rawIt)?.slice(0, 260),
-      "| botguardTokenLen:",
-      String(botguardToken).length,
-    );
-    const arr = Array.isArray(rawIt) ? (rawIt as [string | null, number, unknown, string | null]) : undefined;
-    // [integrityToken, ttlSecs, mintRefreshThreshold, websafeFallbackToken] —
-    // YouTube serves the fallback slot when the primary stays empty; both are
-    // the same integrity token (the fallback is already base64url)
-    const picked = arr?.[0] || arr?.[3];
-    const ttlSeconds = arr?.[1];
-    if (!picked) throw new Error("GenerateIT returned no integrity token");
-    const minter = await WebPoMinter.create(
-      {
-        integrityToken: picked.replace(/\+/g, "-").replace(/\//g, "_"),
-      },
-      webPoSignalOutput as never,
-    );
-    const ttlSecs = ttlSeconds && ttlSeconds > 0 ? Math.min(ttlSeconds, 21600) : 3600;
-    minterCache = { minter, expiresAt: Date.now() + Math.max(ttlSecs * 1000 - 600_000, 60_000) };
-    return minter;
-  })();
+function writeCachedPot(binding: string, token: string): void {
   try {
-    return await minterInFlight;
-  } finally {
-    minterInFlight = null;
+    localStorage.setItem(
+      potCacheKey(binding),
+      JSON.stringify({ token, exp: Date.now() + POT_TOKEN_TTL_MS }),
+    );
+  } catch {
+    /* storage full — tokens just won't be shared */
   }
 }
 
+/**
+ * mints (or reuses) a PoToken. `videoId` is the binding the caller wants:
+ * the app asks per video; the cache key is the binding actually used so
+ * visitor-bound and video-bound tokens never collide.
+ */
 async function mintPoToken(videoId: string): Promise<string> {
-  try {
-    const minter = await getWebPoMinter();
-    // the player-request po token must be bound to the VISITOR the app's
-    // innertube session uses (yt-dlp/bgutil semantics); fall back to the
-    // video id when no visitor has been tapped yet
-    const binding = tappedVisitorData || videoId;
-    console.info("[liner-web] minting po token: binding=", binding ? `${binding.slice(0, 12)}…(${binding.length})` : "EMPTY", "| requested-for:", videoId);
-    return await minter.mintAsWebsafeString(binding);
-  } catch (error) {
-    // full BotGuard minting unavailable (the VM did not hand out a minter) —
-    // degrade to a cold-start token, which streams while the content's
-    // stream-protection status is still 2
-    console.warn("[liner-web] botguard mint failed, using cold-start token:", String(error).slice(0, 120));
-    return createColdStartToken(videoId);
-  }
+  // cache key = the actual binding (video or visitor) so the two never
+  // collide; the mint itself is content-bound to the 11-char videoId, with
+  // the tapped visitorData forwarded as the separate param the route knows
+  const binding = tappedVisitorData || videoId;
+  const cached = readCachedPot(binding);
+  if (cached) return cached;
+  const id = /^[a-zA-Z0-9_-]{11}$/.test(videoId) ? videoId : "BI9HQCzpDgQ";
+  const params = new URLSearchParams({ videoId: id });
+  if (tappedVisitorData) params.set("visitorData", tappedVisitorData);
+  const res = await fetch(`/api/po-token?${params.toString()}`);
+  if (!res.ok) throw new Error(`po-token mint failed (${res.status})`);
+  const data = (await res.json()) as { poToken?: string };
+  if (!data.poToken) throw new Error("po-token mint returned no token");
+  writeCachedPot(binding, data.poToken);
+  return data.poToken;
 }
 
 // ---------------------------------------------------------------------------
@@ -582,8 +442,18 @@ const webBridge: Record<string, unknown> = {
   diagnoseNetwork: undefined,
   probeNetwork: undefined,
 
-  // YouTube PoToken minting (BotGuard, in-page via bgutils-js)
-  mintPoToken: (videoId: string) => mintPoToken(videoId),
+  // YouTube PoToken minting (delegated to the fan server's /api/po-token)
+  mintPoToken: async (videoId: string) => {
+    webLog("bridge mintPoToken called, arg:", JSON.stringify(videoId).slice(0, 60));
+    try {
+      const token = await mintPoToken(videoId);
+      webLog("bridge mint ok, len", String(token.length));
+      return token;
+    } catch (error) {
+      webLog("bridge mint failed:", String(error).slice(0, 100));
+      throw error;
+    }
+  },
 
   // edge signing key: nothing to store in web
   setEdgeKey: noopAsync,
@@ -782,13 +652,107 @@ function watchLoginScreen(): void {
 }
 
 // ---------------------------------------------------------------------------
+// ban wall (fan feature)
+//
+// The 0.2.12 web port enforced website bans in the SPA (BanGate); the beta
+// renderer is upstream's and has no such client, so the shim owns the wall
+// now: it probes /api/moderation/check on boot (and whenever the stored
+// session changes) and replaces the whole app with the branded banned
+// screen when the server says this account or network is blocked.
+// ---------------------------------------------------------------------------
+
+interface BanCheckResult {
+  banned: boolean;
+  username?: string | null;
+  type?: string | null;
+  reason?: string | null;
+  expiresAt?: string | null;
+}
+
+let banWallArmed = false;
+
+function renderBannedScreen(result: BanCheckResult): void {
+  if (document.getElementById("liner-banned-wall")) return;
+  document.title = "Account suspended — Liner";
+  const wall = document.createElement("div");
+  wall.id = "liner-banned-wall";
+  wall.style.cssText =
+    "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0a0a0b;color:#e8e8ea;font-family:Inter,system-ui,sans-serif;overflow:auto;";
+  const until = result.expiresAt
+    ? new Date(result.expiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+    : null;
+  wall.innerHTML = `
+    <div style="max-width:420px;padding:40px 28px;text-align:center;">
+      <div style="font-size:44px;font-weight:800;letter-spacing:-0.03em;color:#fff;">Liner</div>
+      <div style="margin-top:18px;font-size:15px;color:#ff6b6b;font-weight:700;letter-spacing:0.02em;">
+        THIS ACCOUNT IS ${result.type === "ip" ? "IP " : ""}BANNED
+      </div>
+      <div style="margin-top:12px;font-size:13.5px;line-height:1.6;color:#a1a1aa;">
+        ${result.reason ? `Reason: ${result.reason}<br/>` : ""}
+        ${until ? `Until ${until}.` : "This ban is permanent."}
+      </div>
+      <div style="margin-top:26px;font-size:12px;color:#52525b;">
+        If you believe this is a mistake, contact the website owner.
+      </div>
+    </div>`;
+  document.body.innerHTML = "";
+  document.body.style.cssText = "margin:0;background:#0a0a0b;";
+  document.body.appendChild(wall);
+}
+
+async function probeBanWall(): Promise<void> {
+  try {
+    let username: string | undefined;
+    let accessToken: string | undefined;
+    try {
+      const session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null") as
+        | { accessToken?: string; user?: { username?: string } }
+        | null;
+      username = session?.user?.username || undefined;
+      accessToken = session?.accessToken || undefined;
+    } catch {
+      /* no session — the network check still applies */
+    }
+    const res = await fetch("/api/moderation/check", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username, accessToken }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as BanCheckResult;
+    if (data?.banned) {
+      webLog("ban wall: blocked", data.type ?? "");
+      renderBannedScreen(data);
+      return;
+    }
+    // re-probe when the session changes (sign-in as a different account)
+    if (!banWallArmed) {
+      banWallArmed = true;
+      window.addEventListener("storage", (event) => {
+        if (event.key === SESSION_KEY) void probeBanWall();
+      });
+      window.addEventListener("auth:changed", () => void probeBanWall());
+    }
+  } catch {
+    /* moderation probe is best-effort — never block the app on it */
+  }
+}
+
+function installBanWall(): void {
+  void probeBanWall();
+}
+
+// ---------------------------------------------------------------------------
 // boot
 // ---------------------------------------------------------------------------
 
 if (typeof window !== "undefined") {
-  // BotGuard's VM degrades to a useless "$"-prefixed response when it sees
-  // automation flags — hide them (on the prototype, where the VM looks)
-  // before anything else runs
+  // BotGuard-era fingerprint patches (harmless, and the interpreter eval the
+  // shim no longer performs leaves nothing that reads them — kept because the
+  // navigator.userAgent override also normalizes headless quirks for misc
+  // upstreams)
   try {
     const navProto = Object.getPrototypeOf(navigator) as Record<string, unknown>;
     Object.defineProperty(navProto, "webdriver", { get: () => false, configurable: true });
@@ -808,8 +772,10 @@ if (typeof window !== "undefined") {
   } catch {
     /* ignore */
   }
+  console.info(`[liner-web@${BOOT_EPOCH}] boot build=${document.querySelector('script[src*=shim]')?.getAttribute("src") ?? "?"}`);
   installWebFetchProxy();
   installBridge();
+  installBanWall();
   if (!consumeDiscordFragment()) {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", watchLoginScreen);
@@ -821,70 +787,6 @@ if (typeof window !== "undefined") {
   (window as unknown as Record<string, unknown>).__linerWebDebug = {
     inject: injectFanLoginButtons,
     rewrite: rewriteForWeb,
-    mintProbe: async () => {
-      try {
-        const challenge = await getChallenge({
-          requestKey: BOTGUARD_REQUEST_KEY,
-          fetchFunction: (input, init) => fetch(input, init),
-        });
-        return {
-          keys: Object.keys(challenge),
-          scriptShape: JSON.stringify(challenge.interpreterJavascript)?.slice(0, 220),
-          hasScript: Boolean(challenge.interpreterJavaScript),
-          hasUrl: Boolean(challenge.interpreterUrl),
-          globalName: challenge.globalName,
-          programLen: challenge.program?.length ?? 0,
-        };
-      } catch (e) {
-        return { error: String(e) };
-      }
-    },
-    mintTest: async (videoId: string) => {
-      try {
-        const token = await mintPoToken(videoId || "BI9HQCzpDgQ");
-        return { ok: true, len: token.length, head: token.slice(0, 24) };
-      } catch (e) {
-        return { ok: false, error: String(e), stack: (e as Error)?.stack?.slice(0, 400) };
-      }
-    },
-    rawChallenge: async () => {
-      const res = await fetch(
-        "https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/Create",
-        {
-          method: "POST",
-          headers: { "content-type": "application/json+protobuf", "x-goog-api-key": GOOG_API_KEY },
-          body: JSON.stringify([BOTGUARD_REQUEST_KEY]),
-        },
-      );
-      const data = (await res.json()) as unknown[];
-      const parsed: unknown[] = [];
-      if (data.length > 1 && typeof data[1] === "string") {
-        const descrambled = descrambleChallenge(data[1] as string);
-        try {
-          parsed.push(...(JSON.parse(descrambled || "[]") as unknown[]));
-        } catch {
-          /* unparsable */
-        }
-      } else if (data.length > 0 && typeof data[0] === "object") {
-        parsed.push(...((data[0] as unknown[]) || []));
-      }
-      const wrappedScript = parsed[2];
-      const wrappedUrl = parsed[3];
-      const scriptVal = Array.isArray(wrappedScript)
-        ? wrappedScript.find((v) => v && typeof v === "string")
-        : undefined;
-      const urlVal = Array.isArray(wrappedUrl)
-        ? wrappedUrl.find((v) => v && typeof v === "string")
-        : undefined;
-      return {
-        status: res.status,
-        topShapes: data.map((v) => (typeof v === "string" ? `str(${(v as string).length})` : typeof v)),
-        globalName: parsed[5],
-        hasProgram: Boolean(parsed[4]),
-        hasScriptVal: Boolean(scriptVal),
-        hasUrlVal: Boolean(urlVal),
-        urlHead: typeof urlVal === "string" ? urlVal.slice(0, 80) : null,
-      };
-    },
+    logs: () => [...LOG_BUFFER],
   };
 }
