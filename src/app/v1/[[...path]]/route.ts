@@ -83,7 +83,12 @@ export const dynamic = "force-dynamic";
  * Revert: git revert of the v1.25/v1.26 commits restores the single-mode relay.
  */
 
-const UPSTREAM = "https://api.tryliner.fun";
+// the 0.2.20 beta renderer ships with its API base baked to the staging
+// backend and calls beta-only endpoints (/v1/charts/*, /v1/me/mixes, ...)
+// that the stable api does not serve — the relay follows it there.
+// Overridable for rollbacks; the fan service flows (avatars, announcements,
+// user finder) keep their own stable-backend target.
+const UPSTREAM = process.env.LINER_UPSTREAM_BASE || "https://staging.tryliner.fun";
 const FORWARD_TIMEOUT_MS = 20_000;
 // Home-surface catalog forwards must answer BEFORE the running.sh edge's
 // ~20s cut: the upstream's 30d/all popular-albums windows routinely take
@@ -748,6 +753,97 @@ async function websiteDispatch(
       );
     }
   }
+
+  // ---- 0.2.20 beta aliases -------------------------------------------------
+  // The beta renderer renamed/moved several surfaces. The website backend
+  // answers the old shapes, so the beta's routes are mapped onto them:
+  //   likes:             me/library/tracks[/:trackId] -> me/likes[/:trackId]
+  //   daily mixes:       me/recommendations/daily-mixes -> me/mixes
+  //   history events:    me/playback/events -> me/history (POST)
+  //   profile:           users/me (PATCH) -> me/profile (GET/PATCH) + /layout
+  //   playlist edits:    me/playlists/:id/... -> playlists/:id/...
+  //   saved collections: me/library/:kind -> me/saved/:kind
+  if (route === "me/likes" && method === "GET") {
+    return websiteLikedGET(q(`/api/library/tracks${search}`));
+  }
+  const betaLikeMatch = route.match(/^me\/likes\/([^/]+)$/);
+  if (betaLikeMatch) {
+    if (method === "PUT") return websiteLikedPUT(q("/api/library/tracks"));
+    if (method === "DELETE") {
+      return websiteLikedDELETE(
+        q(`/api/library/tracks?trackId=${encodeURIComponent(betaLikeMatch[1])}`),
+      );
+    }
+  }
+  if (route === "me/mixes" && method === "GET") {
+    return dailyMixes(req);
+  }
+  if (route === "me/history" && method === "POST") {
+    return new NextResponse(null, { status: 204 });
+  }
+  if (route === "me/profile" && method === "GET") {
+    return websiteMeGET(q("/api/auth/me"));
+  }
+  if (route === "me/profile" && method === "PATCH") {
+    return websiteProfilePATCH(q("/api/auth/profile"));
+  }
+  if (route === "me/profile/layout" && method === "PUT") {
+    // the website backend has no module layout store — accept and ack so the
+    // beta's profile editor does not hard-fail for website sessions
+    return new NextResponse(null, { status: 204 });
+  }
+  const betaPlaylistMatch = route.match(
+    /^playlists\/([^/]+)(\/(items)(\/([^/]+))?(\/move)?)?$/,
+  );
+  if (betaPlaylistMatch) {
+    const id = betaPlaylistMatch[1];
+    const kind = betaPlaylistMatch[3];
+    const sub = betaPlaylistMatch[5];
+    const isMove = Boolean(betaPlaylistMatch[6]);
+    const dynId = { params: Promise.resolve({ id }) } as never;
+    if (!kind) {
+      if (method === "GET") {
+        // the beta reads BOTH own website playlists and upstream public
+        // playlists through this route: answer website rows first, fall
+        // through to the upstream (anonymous) for ids this site doesn't know
+        const local = await websitePlaylistGET(
+          q(`/api/library/playlists/${id}${search}`),
+          dynId,
+        );
+        if (local.status !== 404) return local;
+        return forwardAnonymous(req, `/v1/playlists/${id}${search}`, bodyBytes);
+      }
+      if (method === "PATCH") {
+        return websitePlaylistPATCH(q("/api/library/playlists"), dynId);
+      }
+      if (method === "DELETE") {
+        return websitePlaylistDELETE(q("/api/library/playlists"), dynId);
+      }
+    }
+    if (kind === "items" && !sub && method === "POST") {
+      return websitePlaylistTracksPOST(q("/api/library/playlists"), dynId);
+    }
+    if (kind === "items" && sub && !isMove && method === "DELETE") {
+      const dynItem = {
+        params: Promise.resolve({ id, itemId: sub }),
+      } as never;
+      return websitePlaylistItemDELETE(q("/api/library/playlists"), dynItem);
+    }
+    if (kind === "items" && sub && isMove && method === "POST") {
+      const dynMove = {
+        params: Promise.resolve({ id, itemId: sub }),
+      } as never;
+      return websitePlaylistItemMovePOST(q("/api/library/playlists"), dynMove);
+    }
+  }
+  if (route.startsWith("me/saved/")) {
+    // saved albums/artists/playlists collections — accepted, stored empty
+    if (method === "GET") return NextResponse.json({ items: [] });
+    if (method === "PUT" || method === "DELETE") {
+      return new NextResponse(null, { status: 204 });
+    }
+  }
+  // ---- end 0.2.20 beta aliases --------------------------------------------
 
   // playlists
   if (route === "me/playlists" && method === "GET") {

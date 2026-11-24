@@ -9,6 +9,13 @@ export const SC_UPSTREAM = "https://api-v2.soundcloud.com";
 
 // generic JSON/text upstreams (oauth, imports, clientId discovery, ...)
 export const FETCH_HOSTS = [
+  // the 0.2.20 beta probes staging/api /health and misc non-/v1 paths —
+  // let the generic proxy reach both Liner backends
+  "staging.tryliner.fun",
+  "api.tryliner.fun",
+  // BotGuard challenge + integrity token endpoints (0.2.20 web PoToken minting)
+  "jnn-pa.googleapis.com",
+  "google.com", // BotGuard interpreter script (www.google.com/js/th/...)
   "soundcloud.com",
   "a-v2.sndcdn.com",
   "www.youtube.com",

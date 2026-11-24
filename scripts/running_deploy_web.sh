@@ -45,6 +45,7 @@ for line in open("/home/z/my-project/.env"):
     if m:
         env[m.group(1)] = m.group(2).strip().strip('"')
 keys = ["DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DB_MIRROR_EXPORT_KEY",
+        "LINER_UPSTREAM_BASE",
         "LINER_SERVICE_EMAIL", "SMTP_USER", "SMTP_PASS",
         # admin-gate bootstrap secret (announcements/moderation on this host
         # cannot verify Liner tokens — the upstream WAF blocks datacenter
