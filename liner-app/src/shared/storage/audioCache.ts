@@ -11,6 +11,7 @@ class AudioCache {
   private cachedIdsState: "idle" | "loading" | "ready" = "idle";
   private cachedIdsEpoch = 0;
   private cachedIdsListeners = new Set<() => void>();
+  private cachedIdsLoad: Promise<void> | null = null;
 
   // bumped by a clear: downloads started before it must not write back
   currentGeneration(): number {
@@ -32,10 +33,31 @@ class AudioCache {
 
   subscribeCachedIds(listener: () => void): () => void {
     this.cachedIdsListeners.add(listener);
-    if (this.cachedIdsState === "idle") void this.loadCachedIds();
+    if (this.cachedIdsState === "idle") void this.enqueueCachedIdsLoad();
     return () => {
       this.cachedIdsListeners.delete(listener);
     };
+  }
+
+  /**
+   * Resolves once the cached-id set reflects what is actually on disk.
+   * Everything that decides "is this track already downloaded?" (offline
+   * queue skip rules) must await this — the set loads async from IndexedDB,
+   * and enqueueing before it is ready re-downloads saved tracks on every
+   * visit.
+   */
+  whenCachedIdsReady(): Promise<void> {
+    if (this.cachedIdsState === "ready") return Promise.resolve();
+    return this.enqueueCachedIdsLoad();
+  }
+
+  private enqueueCachedIdsLoad(): Promise<void> {
+    if (!this.cachedIdsLoad) {
+      this.cachedIdsLoad = this.loadCachedIds().finally(() => {
+        this.cachedIdsLoad = null;
+      });
+    }
+    return this.cachedIdsLoad;
   }
 
   private async loadCachedIds(): Promise<void> {
@@ -44,7 +66,9 @@ class AudioCache {
     const ids = await linerDb.listAudioIds().catch(() => [] as string[]);
     if (this.cachedIdsState !== "loading") return;
     if (epoch !== this.cachedIdsEpoch) {
-      void this.loadCachedIds();
+      // a save/clear raced the read — re-read; await so callers of
+      // whenCachedIdsReady only proceed once the set is final
+      await this.loadCachedIds();
       return;
     }
     this.cachedIds = new Set(ids);

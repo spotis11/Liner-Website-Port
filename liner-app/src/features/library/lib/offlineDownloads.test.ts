@@ -181,4 +181,31 @@ describe("offline download queue", () => {
     expect(second.version).toBeGreaterThan(first.version);
     expect(offlineDownloadQueue.getSnapshot()).toBe(second);
   });
+
+  it("aborts a hung download at the deadline and marks it failed", async () => {
+    const { offlineDownloadQueue, DOWNLOAD_TIMEOUT_MS } = await freshQueue();
+    resolvePlaybackStream.mockImplementation(
+      (_t: unknown, signal?: AbortSignal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        }),
+    );
+    vi.useFakeTimers();
+    offlineDownloadQueue.enqueuePlaylist([track("t-hang")]);
+    await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS + 500);
+    expect(offlineDownloadQueue.stateOf("t-hang")).toBe("error");
+    vi.useRealTimers();
+  });
+
+  it("drops the queue state when the save is rejected (no dangling downloading)", async () => {
+    const { offlineDownloadQueue } = await freshQueue();
+    resolvePlaybackStream.mockImplementation(okStream);
+    downloadAudioBytes.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    saveAudioBlob.mockResolvedValue(false);
+    offlineDownloadQueue.enqueuePlaylist([track("t-reject")]);
+    await vi.waitFor(() => {
+      expect(offlineDownloadQueue.getSnapshot().downloading).toBe(0);
+    });
+    expect(offlineDownloadQueue.stateOf("t-reject")).toBe(null);
+  });
 });

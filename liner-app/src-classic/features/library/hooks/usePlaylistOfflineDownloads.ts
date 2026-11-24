@@ -43,15 +43,24 @@ export function usePlaylistOfflineDownloads(
   useEffect(() => {
     if (!ids) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    offlineDownloadQueue.resetFinished();
-    const byId = new Map(tracksRef.current.map((track) => [track.id, track]));
-    offlineDownloadQueue.enqueuePlaylist(
-      ids
-        .split(",")
-        .filter(Boolean)
-        .map((id) => byId.get(id))
-        .filter((track): track is Track => Boolean(track)),
-    );
+    let cancelled = false;
+    // the cached-id set loads async from IndexedDB — enqueueing before it is
+    // ready makes every visit re-download tracks that are already on disk
+    void audioCache.whenCachedIdsReady().then(() => {
+      if (cancelled) return;
+      offlineDownloadQueue.resetFinished();
+      const byId = new Map(tracksRef.current.map((track) => [track.id, track]));
+      offlineDownloadQueue.enqueuePlaylist(
+        ids
+          .split(",")
+          .filter(Boolean)
+          .map((id) => byId.get(id))
+          .filter((track): track is Track => Boolean(track)),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [ids]);
 
   const snapshot = useSyncExternalStore(

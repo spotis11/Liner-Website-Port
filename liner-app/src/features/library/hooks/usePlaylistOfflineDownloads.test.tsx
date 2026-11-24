@@ -8,6 +8,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react";
 import { usePlaylistOfflineDownloads } from "./usePlaylistOfflineDownloads";
+import { offlineDownloadQueue } from "../lib/offlineDownloads";
 import type { Track } from "@/shared/types";
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -22,6 +23,7 @@ vi.mock("@/shared/storage/audioCache", () => ({
     currentGeneration: vi.fn(() => 1),
     isCached: vi.fn(() => false),
     subscribeCachedIds: vi.fn(() => () => {}),
+    whenCachedIdsReady: vi.fn(() => Promise.resolve()),
   },
 }));
 vi.mock("@/features/player/engine/streamResolver", () => ({
@@ -44,13 +46,13 @@ vi.mock("@/shared/storage/linerDb", () => ({
   },
 }));
 
-const track = (id: string): Track =>
+const track = (id: string, durationMs = 200_000): Track =>
   ({
     id,
     title: `Track ${id}`,
     artists: "Artist",
     coverUrl: "",
-    durationMs: 200_000,
+    durationMs,
     playCount: 0,
   }) as unknown as Track;
 
@@ -65,7 +67,9 @@ describe("usePlaylistOfflineDownloads", () => {
       renderCount += 1;
       return <div>{progress ? String(progress.phase) : "none"}</div>;
     };
-    const tracks = [track("t-1"), track("t-2")];
+    // over the 20-minute cap: enqueue skips them, so the shared queue
+    // singleton stays empty for the readiness test below
+    const tracks = [track("t-long-1", 21 * 60 * 1000), track("t-long-2", 21 * 60 * 1000)];
     act(() => {
       root.render(<Probe tracks={tracks} />);
     });
@@ -76,6 +80,45 @@ describe("usePlaylistOfflineDownloads", () => {
       root.render(<Probe tracks={tracks} />);
     });
     expect(renderCount).toBeLessThanOrEqual(afterMount + 3);
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("waits for the cached-id set before enqueueing — no re-downloads on revisit", async () => {
+    const audioCacheMock = (await vi.importMock(
+      "@/shared/storage/audioCache",
+    )) as { audioCache: Record<string, ReturnType<typeof vi.fn>> };
+    let release: (() => void) | undefined;
+    audioCacheMock.audioCache.whenCachedIdsReady.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    // the liked tracks are already saved on disk from an earlier visit
+    audioCacheMock.audioCache.isCached.mockReturnValue(true);
+    const spy = vi.spyOn(offlineDownloadQueue, "enqueuePlaylist");
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root: Root = createRoot(container);
+    const Probe = ({ tracks }: { tracks: Track[] }) => {
+      usePlaylistOfflineDownloads(tracks);
+      return null;
+    };
+    const tracks = [track("t-1"), track("t-2")];
+    act(() => {
+      root.render(<Probe tracks={tracks} />);
+    });
+    // the cached-id set has not "loaded" yet — nothing may be enqueued,
+    // otherwise already-saved tracks would be re-downloaded on every visit
+    expect(spy).not.toHaveBeenCalled();
+    await act(async () => {
+      release?.();
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+    const snap = offlineDownloadQueue.getSnapshot();
+    expect(snap.downloading + snap.queued).toBe(0);
     act(() => {
       root.unmount();
     });

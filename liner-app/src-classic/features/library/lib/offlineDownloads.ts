@@ -35,6 +35,9 @@ export interface OfflineQueueSnapshot {
 
 const CONCURRENCY = 2;
 const MAX_TRACK_MS = 20 * 60 * 1000;
+// a stalled socket must not hold one of the two concurrency slots forever —
+// the abort marks the track failed so the next visit retries it
+export const DOWNLOAD_TIMEOUT_MS = 10 * 60 * 1000;
 
 class OfflineDownloadQueue {
   private states = new Map<string, OfflineDownloadState>();
@@ -161,9 +164,20 @@ class OfflineDownloadQueue {
     this.running += 1;
     this.states.set(trackId, "downloading");
     this.notify();
-    void this.download(track)
+    const controller = new AbortController();
+    const deadline = setTimeout(
+      () =>
+        controller.abort(
+          new Error(
+            `offline download timed out after ${DOWNLOAD_TIMEOUT_MS / 60000} min`,
+          ),
+        ),
+      DOWNLOAD_TIMEOUT_MS,
+    );
+    void this.download(track, controller)
       .catch(() => this.states.set(trackId, "error"))
       .finally(() => {
+        clearTimeout(deadline);
         this.running -= 1;
         this.tracks.delete(trackId);
         this.notify();
@@ -171,17 +185,29 @@ class OfflineDownloadQueue {
       });
   }
 
-  private async download(track: Track): Promise<void> {
+  private async download(
+    track: Track,
+    controller: AbortController,
+  ): Promise<void> {
     const generation = audioCache.currentGeneration();
-    const controller = new AbortController();
     const stream = await resolvePlaybackStream(track, controller.signal, {
       progressive: true,
     });
     const blob = await this.fetchBlob(stream, controller.signal);
     if (!blob) throw new Error("no audio bytes");
     if (generation !== audioCache.currentGeneration()) return;
-    const saved = await audioCache.saveAudioBlob(track.id, blob, blob.type, generation);
-    if (!saved) return;
+    const saved = await audioCache.saveAudioBlob(
+      track.id,
+      blob,
+      blob.type,
+      generation,
+    );
+    if (!saved) {
+      // the cache was cleared/re-armed mid-download — drop the state instead
+      // of leaving a dangling "downloading" that blocks the badge forever
+      this.states.delete(track.id);
+      return;
+    }
     await linerDb.putTrack(track);
     // pinned downloads survive the LRU cache limit — this is what makes the
     // playlist "downloaded" rather than just cached

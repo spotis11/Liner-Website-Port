@@ -1,1 +1,0 @@
-import{i as e,o as t}from"./RootErrorBoundary-4aH1Miwd.js";import{B as n,Gt as r,N as i,Yt as a}from"./player-CLeK442U.js";function o(){return typeof window>`u`?()=>{}:window.linerElectron?.onBundleStamp?.(e=>t(`gray`,`bundle`,e))??(()=>{})}function s(){e(),n(),a(),o(),r(),i()}export{s as initMainWindowServices};
