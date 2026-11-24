@@ -17,6 +17,9 @@ interface LocalImportRecord {
 
 type JobListener = (job: ImportJob) => void;
 
+export const NOTHING_MATCHED_MESSAGE =
+  "None of the tracks could be matched to the music catalog, so the playlist was not created. Check your connection and try importing again.";
+
 const records = new Map<string, LocalImportRecord>();
 const listeners = new Set<JobListener>();
 
@@ -73,6 +76,17 @@ export async function finalizeLocalImport(
   const record = records.get(jobId);
   if (!record) throw new Error("Import was not found.");
   if (record.job.status === "completed") return { finalized: true };
+  if (tracks.length === 0) {
+    // nothing was auto-matched and nothing was approved in review (or every
+    // track's catalog lookup failed) — creating the playlist anyway would
+    // silently hand the user an empty "0 tracks" card
+    updateLocalImportJob(jobId, {
+      status: "failed",
+      error: { code: "NOTHING_MATCHED", message: NOTHING_MATCHED_MESSAGE },
+      finishedAt: new Date().toISOString(),
+    });
+    throw new Error(NOTHING_MATCHED_MESSAGE);
+  }
   const total = record.job.result?.total ?? tracks.length;
   updateLocalImportJob(jobId, { status: "finalizing" });
   try {

@@ -17,6 +17,10 @@ vi.mock("@/shared/youtube", async (importOriginal) => {
 import { api, ApiError } from "@/shared/api";
 import { runClientImport } from "./clientImportManager";
 import { finalizeImportedPlaylist } from "./finalizeImport";
+import {
+  createLocalImportJob,
+  finalizeLocalImport,
+} from "./localImportJobs";
 
 function searchTrack(
   id: string,
@@ -173,5 +177,42 @@ describe("finalizeImportedPlaylist", () => {
       finalizeImportedPlaylist("Mine", undefined, [track]),
     ).resolves.toEqual({ playlistId: "pl_1", saved: 1 });
     expect(single).toHaveBeenCalledWith("pl_1", track.id, track);
+  });
+
+  it("deletes the playlist and throws when every track add fails", async () => {
+    vi.spyOn(api, "createPlaylist").mockResolvedValue(playlist);
+    vi.spyOn(api, "addPlaylistTrackSnapshots").mockRejectedValue(
+      new ApiError(404, "Not Found"),
+    );
+    vi.spyOn(api, "addPlaylistTrack").mockRejectedValue(
+      new ApiError(500, "Server error"),
+    );
+    const remove = vi
+      .spyOn(api, "deletePlaylist")
+      .mockResolvedValue(undefined);
+
+    await expect(
+      finalizeImportedPlaylist("Mine", undefined, [track]),
+    ).rejects.toThrow(/none of the tracks could be saved/i);
+    expect(remove).toHaveBeenCalledWith("pl_1");
+  });
+});
+
+describe("finalizeLocalImport", () => {
+  it("refuses to create an empty playlist when nothing was matched", async () => {
+    const createSpy = vi
+      .spyOn(api, "createPlaylist")
+      .mockResolvedValue({
+        id: "pl_empty",
+        title: "Mine",
+        isPublic: false,
+      } as Awaited<ReturnType<typeof api.createPlaylist>>);
+    const { getLocalImportHandler } = await import("@/shared/api/localImports");
+    const job = createLocalImportJob("spotify", spotifyPlaylist.sourceUrl);
+    await expect(finalizeLocalImport(job.id, [])).rejects.toThrow(
+      /playlist was not created/,
+    );
+    expect(createSpy).not.toHaveBeenCalled();
+    expect(getLocalImportHandler().getJob(job.id)?.status).toBe("failed");
   });
 });

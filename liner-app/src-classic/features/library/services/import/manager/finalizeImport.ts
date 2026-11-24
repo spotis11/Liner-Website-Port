@@ -72,5 +72,14 @@ export async function finalizeImportedPlaylist(
   });
   const unique = uniqueTracks(tracks);
   const saved = unique.length > 0 ? await addTracks(playlist.id, unique) : 0;
+  if (saved === 0 && unique.length > 0) {
+    // every track add failed — don't leave an empty "0 tracks" card behind
+    await api
+      .deletePlaylist(playlist.id)
+      .catch(() => undefined);
+    throw new Error(
+      "The playlist was created but none of the tracks could be saved. Please try importing again.",
+    );
+  }
   return { playlistId: playlist.id, saved };
 }
