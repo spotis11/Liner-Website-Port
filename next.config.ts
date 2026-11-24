@@ -69,6 +69,12 @@ const nextConfig: NextConfig = {
       // serve the genuine Liner SPA (built from tryliner/desktop sources)
       // at the root; everything under /api/* stays in Next.js
       beforeFiles: [
+        // direct beta-shell path too — /liner was a bare 404 and /liner/
+        // 308'd into it; both must serve the SPA like the entries below.
+        // 2026-11-24 (later): /liner is the restored v1.34.3 fan build;
+        // the 0.2.20 beta renderer moved to /liner-beta.
+        { source: "/liner", destination: "/liner/index.html" },
+        { source: "/liner-beta", destination: "/liner-beta/index.html" },
         { source: "/", destination: "/liner/index.html" },
         { source: "/login", destination: "/liner/index.html" },
         { source: "/library", destination: "/liner/index.html" },

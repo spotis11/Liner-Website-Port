@@ -1019,6 +1019,28 @@ async function websiteDispatch(
     }
   }
 
+  // 2026-11-24: the 0.2.20 beta renderer (now at /liner-beta) expects these
+  // upstream social surfaces; with the staging edge gating us they 503'd and
+  // broke panels — sane empty shapes keep the UI alive
+  if (route === "me/hidden" && method === "GET") {
+    return NextResponse.json({ items: [] });
+  }
+  if (route === "me/connections" && method === "GET") {
+    return NextResponse.json({ items: [] });
+  }
+  if (route === "me/sessions" && method === "GET") {
+    return NextResponse.json({ items: [] });
+  }
+  if (route === "me/friends" && method === "GET") {
+    return NextResponse.json({ items: [] });
+  }
+  if (route === "me/friend-requests" && method === "GET") {
+    return NextResponse.json({ items: [] });
+  }
+  if (route === "me/presence" && method === "GET") {
+    return new NextResponse(null, { status: 204 });
+  }
+
   // anonymous catalog/social fallbacks (website tokens stay local)
   return forwardAnonymous(req, `/v1/${route}${search}`, bodyBytes);
 }

@@ -268,6 +268,70 @@ function installWebFetchProxy(): void {
 }
 
 // ---------------------------------------------------------------------------
+// audio element proxy (fetch() doesn't cover <audio>)
+//
+// The resolver validates stream URLs via /api/media probes (same-origin), but
+// then attaches the RAW googlevideo URL to the <audio> element — those URLs
+// are IP-locked to the server that minted them and send no CORS headers, so
+// in a browser the audio element 403s / CORS-fails (Electron doesn't care).
+// Hook the src setter + setAttribute and route media-element loads through
+// the same /api/media proxy the probes and downloads already use.
+// ---------------------------------------------------------------------------
+
+const MEDIA_PROXY_PREFIX = "/api/media?u=";
+
+function mediaHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
+function isMediaElementUrl(raw: unknown): raw is string {
+  if (typeof raw !== "string" || !/^https?:\/\//.test(raw)) return false;
+  const host = mediaHostname(raw);
+  return hostMatches(host, "googlevideo.com") || hostMatches(host, "sndcdn.com");
+}
+
+function rewriteMediaSrc(value: unknown): unknown {
+  if (isMediaElementUrl(value)) return MEDIA_PROXY_PREFIX + encodeURIComponent(value);
+  return value;
+}
+
+function installMediaProxy(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const srcDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "src");
+    if (srcDesc?.set) {
+      Object.defineProperty(HTMLMediaElement.prototype, "src", {
+        get: srcDesc.get,
+        set(value) {
+          srcDesc.set.call(this, rewriteMediaSrc(value) as string);
+        },
+        configurable: true,
+      });
+    }
+    const origSetAttribute = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function (
+      this: Element,
+      name: string,
+      value: string,
+    ) {
+      if (name.toLowerCase() === "src" && this instanceof HTMLMediaElement) {
+        const rewritten = rewriteMediaSrc(value);
+        if (rewritten !== value) {
+          return origSetAttribute.call(this, name, rewritten as string);
+        }
+      }
+      return origSetAttribute.call(this, name, value);
+    };
+  } catch {
+    /* prototype hooks are best-effort */
+  }
+}
+
+// ---------------------------------------------------------------------------
 // website-port logging (boot epoch disambiguates reloads in the console)
 // ---------------------------------------------------------------------------
 
@@ -633,7 +697,8 @@ function injectWebChromeOverrides(): void {
   const style = document.createElement("style");
   style.id = "liner-web-shell-css";
   // a browser has no window to minimize/maximize/close: hide the capsule
-  style.textContent = '[data-window-controls="true"] { display: none !important; }';
+  style.textContent =
+    '[data-window-controls], .window-controls-pill { display: none !important; }';
   document.head.appendChild(style);
 }
 
@@ -774,6 +839,7 @@ if (typeof window !== "undefined") {
   }
   console.info(`[liner-web@${BOOT_EPOCH}] boot build=${document.querySelector('script[src*=shim]')?.getAttribute("src") ?? "?"}`);
   installWebFetchProxy();
+  installMediaProxy();
   installBridge();
   installBanWall();
   if (!consumeDiscordFragment()) {
