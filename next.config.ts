@@ -29,9 +29,6 @@ const nextConfig: NextConfig = {
       "./docs/**/*",
       "./download/**/*",
       "./upload/**/*",
-      "./mini-services/**/*",
-      "./discord-bot/**/*",
-      "./liner-bot/**/*",
       "./liner-ref/**/*",
       // wine scratch tree (1.5GB) — NFT swept it in and filled the disk
       "./work/**/*",

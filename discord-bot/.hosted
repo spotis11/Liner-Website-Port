@@ -1,8 +1,0 @@
-Alfredo runs as a hosted container on running.sh (project "liner-bot",
-service svc_3euskcktn5cb64lhb3wx, https://alfredo-bot-liner-bot-pwdq.running.sh/health).
-
-This marker retires every local runner path on this host — run_forever.sh,
-service.sh, and the next-server watchdog in instrumentation.ts — so the
-hosted instance never double-holds the Discord gateway.
-
-Remove this file only to return the bot to this host.

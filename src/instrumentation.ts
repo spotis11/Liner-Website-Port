@@ -18,112 +18,6 @@
 // 500 "Internal Server Error" while static files kept serving. Bun's own
 // fetch implementation has no 16 KB undici header cap, so skipping the
 // dispatcher there is safe — the raised cap is a Node-only concern.
-//
-// ---------------------------------------------------------------------------
-// Discord bot watchdog (24/7 self-healing)
-//
-// Two bots run alongside this server in the workspace, each guarded the same
-// way: a fresh heartbeat file every 15s; when it goes stale and the runner
-// process is gone, this watchdog — running inside the long-lived next-server
-// process — respawns the bot's supervisor detached via setsid.
-//
-//   - liner-bot (Liner System, discord.js): liner-bot/run.sh
-//   - discord-bot (Alfredo headless runner, python): discord-bot/run_forever.sh
-//     (inert until alfredo.py is restored on this host)
-//
-// On hosts without the bot directories (production FC) both are inert.
-// ---------------------------------------------------------------------------
-const STALE_MS = 90_000;
-const WATCHDOG_INTERVAL_MS = 30_000;
-const SPAWN_COOLDOWN_MS = 60_000;
-
-const WATCHED_BOTS = [
-  {
-    name: "liner-system",
-    dir: "/home/z/my-project/liner-bot",
-    script: "run.sh",
-  },
-  {
-    name: "alfredo",
-    dir: "/home/z/my-project/discord-bot",
-    script: "run_forever.sh",
-  },
-] as const;
-
-const botWatchdogStarted = new Set<string>();
-const lastSpawnAt = new Map<string, number>();
-
-function startBotWatchdog(bot: (typeof WATCHED_BOTS)[number], scriptExists: boolean): void {
-  if (botWatchdogStarted.has(bot.name) || !scriptExists) return;
-  botWatchdogStarted.add(bot.name);
-
-  const timer = setInterval(() => {
-    void checkAndRespawnBot(bot);
-  }, WATCHDOG_INTERVAL_MS);
-  // never keep the event loop alive just for the watchdog
-  if (typeof timer.unref === "function") timer.unref();
-
-  async function checkAndRespawnBot(bot: (typeof WATCHED_BOTS)[number]): Promise<void> {
-    try {
-      const [{ readFileSync }, nodeProcess, { spawn }] = await Promise.all([
-        import("fs"),
-        import("node:process"),
-        import("child_process"),
-      ]);
-
-      let stale = true;
-      let runnerPid: number | null = null;
-      try {
-        const raw = readFileSync(`${bot.dir}/bot_status.json`, "utf8");
-        const s = JSON.parse(raw) as { heartbeat?: string; pid?: number };
-        if (typeof s.pid === "number") runnerPid = s.pid;
-        if (s.heartbeat) {
-          const age = Date.now() - new Date(s.heartbeat).getTime();
-          stale = !(age >= 0 && age < STALE_MS);
-        }
-      } catch {
-        stale = true; // no status file yet
-      }
-
-      if (!stale) return;
-
-      // runner process still alive (e.g. during long startup)? leave it alone
-      if (runnerPid) {
-        try {
-          nodeProcess.kill(runnerPid, 0);
-          return;
-        } catch {
-          // pid gone — fall through to respawn
-        }
-      }
-
-      const now = Date.now();
-      if (now - (lastSpawnAt.get(bot.name) ?? 0) < SPAWN_COOLDOWN_MS) return;
-      lastSpawnAt.set(bot.name, now);
-
-      const child = spawn("setsid", ["bash", `${bot.dir}/${bot.script}`], {
-        cwd: bot.dir,
-        detached: true,
-        stdio: "ignore",
-      });
-      child.unref();
-      console.warn(
-        "[liner] bot watchdog:",
-        bot.name,
-        "heartbeat stale — respawned",
-        bot.script,
-        "(pid",
-        child.pid ?? "?",
-        ")",
-      );
-    } catch (error) {
-      console.warn(
-        "[liner] bot watchdog check failed:",
-        error instanceof Error ? error.message : error,
-      );
-    }
-  }
-}
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
@@ -136,19 +30,6 @@ export async function register() {
         "[liner] undici dispatcher unavailable in this runtime; using the built-in fetch as-is:",
         error instanceof Error ? error.message : error,
       );
-    }
-    // watchdog is inert unless the bot script exists on this host
-    try {
-      const { existsSync } = await import("fs");
-      for (const bot of WATCHED_BOTS) {
-        // hosted migration: both bots run on running.sh — a <bot>/.hosted
-        // marker retires the local runner so the hosted instances never
-        // double-announce or double-hold the gateway.
-        const retired = existsSync(`${bot.dir}/.hosted`);
-        startBotWatchdog(bot, existsSync(`${bot.dir}/${bot.script}`) && !retired);
-      }
-    } catch {
-      // never let the watchdog break server bootstrap
     }
     // self-healing mail queue: once the SMTP credentials in .env work, every
     // welcome/ban mail that previously failed goes out on the next boot.
