@@ -858,3 +858,14 @@ html[data-hover-reset] [data-window-controls] button:hover {
   animation-name: eq-c;
   animation-duration: 1.2s;
 }
+
+/* Brand logos (AI Translate provider cards + the button pill): the wrapper
+   span carries the intended size, so the injected SVG must fill it — not
+   render at its own native pixel size. The vendored Liner mark ships hard
+   width/height attributes (45×35) and overflowed its 18-28px slot as a big
+   white blob (owner screenshot, v1.35.2). preserveAspectRatio keeps the
+   mark's wide shape centered inside the square slot. */
+.liner-brand-logo svg {
+  width: 100%;
+  height: 100%;
+}

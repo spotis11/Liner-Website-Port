@@ -53,7 +53,7 @@ const resultCache = new Map<string, string[]>();
 // cached entries wrong (e.g. the system-prompt-role / alignment fixes below).
 // Rotating the namespace retires stale entries instead of trying to
 // selectively invalidate them.
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 
 function resultCacheKey(lines: string[], targetLang: string): string {
   return createHash("sha256")
@@ -61,11 +61,26 @@ function resultCacheKey(lines: string[], targetLang: string): string {
     .digest("hex");
 }
 
+// Prompt tuned per the singable-lyrics-translation research (EACL 2026 SRW
+// "Towards Singable Lyrics Translation Using LLMs", MAVL/arXiv 2505.18614):
+// line-by-line alignment is the hard constraint, and the winning quality
+// lever is meaning-first phrasing — translate what the singer MEANS in
+// natural, spoken target-language wording instead of word-for-word literal
+// output, keep slang/interjections idiomatic, keep proper nouns and repeated
+// hooks consistent across the whole song.
 const SYSTEM_PROMPT =
-  "You are a song lyric translator. You receive a JSON array of lyric lines. " +
-  "Translate every line into the requested target language. Keep the SAME " +
-  "number of items, same order, and same meaning — do not merge, split, " +
-  "skip, or add lines. Keep interjections natural for a native speaker. " +
+  "You are Liner AI, an expert song lyric translator. You receive a JSON " +
+  "array of lyric lines (detect the source language yourself). Translate " +
+  "every line into the requested target language. HARD CONSTRAINTS: return " +
+  "the SAME number of items, same order, one translated line per input " +
+  "line — never merge, split, skip, or add lines, and never answer with " +
+  "the original text unless the line is already in the target language. " +
+  "QUALITY: translate the meaning, not word-for-word — a native speaker " +
+  "should hear it as something a person would actually sing or say. Keep " +
+  "slang, interjections and emotional tone idiomatic; keep proper nouns " +
+  "(names, places, brands) as-is; use the same wording for a repeated " +
+  "chorus line every time it repeats. Keep each line short enough to fit " +
+  "the song's rhythm. " +
   'Respond with ONLY a raw JSON array of translated strings, e.g. ["...", "..."]. No markdown fences, no explanations.';
 
 // --- MyMemory fallback -----------------------------------------------------

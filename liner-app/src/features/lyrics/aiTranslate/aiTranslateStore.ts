@@ -76,7 +76,13 @@ export function resolveModel(
 export const useAiTranslateStore = create<AiTranslateState>()(
   persist(
     (set) => ({
-      enabled: false,
+      // ON by default (v1.35.3, owner report: "the song lyrics isnt english
+      // but its not translating"): Liner AI is free and built-in, so the
+      // feature must just work — the old enabled:false default silently
+      // blocked every translation even with "Translate songs automatically"
+      // ON, because wantsTranslation gates on BOTH flags. Users can still
+      // switch it off; that choice persists.
+      enabled: true,
       autoTranslate: true,
       provider: "liner",
       targetLang: "en",
@@ -141,9 +147,14 @@ export const useAiTranslateStore = create<AiTranslateState>()(
       // ("PLEASE SELECT TWO DISTINCT LANGUAGES") as if it were a translation,
       // and those poisoned lines were persisted here. Bumping the version
       // wipes every stored translation once — they re-fetch clean.
-      version: 2,
+      // v3 (1.35.3): flip the feature master switch ON for everyone —
+      // persisted v1/v2 states carry enabled:false (the old default), which
+      // kept the feature dead even with auto-translate on. After this one
+      // migration an explicit user off-switch persists normally.
+      version: 3,
       migrate: (persisted) => ({
         ...(persisted as object),
+        enabled: true,
         cache: {},
       }),
       storage: createJSONStorage(() => debouncedStorage),

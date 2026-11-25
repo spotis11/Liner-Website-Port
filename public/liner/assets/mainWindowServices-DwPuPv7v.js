@@ -1,0 +1,1 @@
+import{d as e,p as t}from"./index-Ddr_7Zsn.js";import{P as n,Rt as r,Ut as i,V as a}from"./player-D5zQmIsT.js";function o(){return typeof window>`u`?()=>{}:window.linerElectron?.onBundleStamp?.(e=>t(`gray`,`bundle`,e))??(()=>{})}function s(){e(),a(),i(),o(),r(),n()}export{s as initMainWindowServices};
