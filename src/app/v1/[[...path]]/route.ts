@@ -83,12 +83,17 @@ export const dynamic = "force-dynamic";
  * Revert: git revert of the v1.25/v1.26 commits restores the single-mode relay.
  */
 
-// the 0.2.20 beta renderer ships with its API base baked to the staging
-// backend and calls beta-only endpoints (/v1/charts/*, /v1/me/mixes, ...)
-// that the stable api does not serve — the relay follows it there.
-// Overridable for rollbacks; the fan service flows (avatars, announcements,
-// user finder) keep their own stable-backend target.
-const UPSTREAM = process.env.LINER_UPSTREAM_BASE || "https://staging.tryliner.fun";
+// The upstream for ALL forwarded /v1 calls: the STABLE api (api.tryliner.fun)
+// — real Liner accounts and their tokens live there, and the relay's own
+// service identity logs in there (linerUpstreamService). The 2026-11-24 beta
+// era pointed this at staging.tryliner.fun because the beta renderer had it
+// baked as its API base; that broke upstream login/refresh for every real
+// account (401 / 403 BETA_REQUIRED — staging only knows beta-gated accounts).
+// The beta renderer is retired from the site now, the fan app rides the
+// stable host again. The beta-only surfaces the relay serves locally
+// (charts/*, me/mixes) keep their own hops and local fallbacks.
+// Overridable via LINER_UPSTREAM_BASE for rollbacks.
+const UPSTREAM = process.env.LINER_UPSTREAM_BASE || "https://api.tryliner.fun";
 const FORWARD_TIMEOUT_MS = 20_000;
 // Home-surface catalog forwards must answer BEFORE the running.sh edge's
 // ~20s cut: the upstream's 30d/all popular-albums windows routinely take
