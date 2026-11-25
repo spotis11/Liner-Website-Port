@@ -65,14 +65,18 @@ export function drawLine(
   }
   if (layout.subtitleTokens.length > 0) {
     // Karaoke sweep on the AI translation — same per-token highlight the
-    // main words get, in the windows copied from the original line.
+    // main words get, in the windows copied from the original line. The
+    // base direction (and the sweep's start/end orientation) follows the
+    // SUBTITLE's own script, not the line's — a Latin translation under an
+    // Arabic line draws LTR with an LTR sweep.
+    ctx.direction = line.subtitleRtl ? "rtl" : "ltr";
     ctx.font = subtitleFont(type);
     for (const placed of layout.subtitleTokens) {
       drawToken(
         {
           ctx,
           top,
-          rtl: line.rtl,
+          rtl: line.subtitleRtl,
           base: SUBTITLE_ALPHA,
           remPx: REM_PX,
           dpr,
@@ -90,6 +94,7 @@ export function drawLine(
     return;
   }
   if (layout.subtitle.length === 0) return;
+  ctx.direction = line.subtitleRtl ? "rtl" : "ltr";
   ctx.font = subtitleFont(type);
   ctx.fillStyle = white(SUBTITLE_ALPHA);
   for (const text of layout.subtitle) {

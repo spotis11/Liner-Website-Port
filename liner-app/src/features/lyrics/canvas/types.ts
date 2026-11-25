@@ -21,6 +21,13 @@ export interface LyricLineModel {
   /** Timed tokens for the AI translation — copied from the original line's
    * windows (empty when the line has no translation or no timing). */
   subtitleTokens: LyricToken[];
+  /** Direction of the SUBTITLE text itself (translation/romanization),
+   * derived from its own script — never the line's. An Arabic song with an
+   * English/Tagalog translation lays the subtitle LTR; an English song with
+   * an Arabic translation lays it RTL. The canvas previously reused the
+   * line's `rtl` here and mirrored Latin subtitles word-by-word (owner
+   * report v1.35.4: Arabic songs "read backwards"). */
+  subtitleRtl: boolean;
 }
 
 export interface LyricsModel {

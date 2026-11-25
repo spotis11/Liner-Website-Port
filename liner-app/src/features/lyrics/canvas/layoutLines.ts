@@ -46,12 +46,12 @@ function layoutSubtitleTimed(
   }));
   const placed = wrapRuns(runs, frame.width);
   const extents = rowExtents(runs, placed);
-  const align = line.rtl && line.align === "start" ? "end" : line.align;
+  const align = line.subtitleRtl && line.align === "start" ? "end" : line.align;
   const rowHeight = type.size * SUBTITLE_SCALE * 1.3;
   const items = placed.map((item): PlacedToken => {
     const ink = runs[item.index].inkWidth;
     const rowWidth = extents[item.row];
-    const logical = line.rtl ? rowWidth - item.x - ink : item.x;
+    const logical = line.subtitleRtl ? rowWidth - item.x - ink : item.x;
     return {
       token: wordRuns[item.index].token,
       x: frame.left + alignOffset(align, rowWidth, frame.width) + logical,
@@ -83,12 +83,12 @@ function layoutSubtitle(
   }));
   const placed = wrapRuns(runs, frame.width);
   const extents = rowExtents(runs, placed);
-  const align = line.rtl && line.align === "start" ? "end" : line.align;
+  const align = line.subtitleRtl && line.align === "start" ? "end" : line.align;
   const rowHeight = type.size * SUBTITLE_SCALE * 1.3;
   const items = placed.map((item): PlacedText => {
     const ink = runs[item.index].inkWidth;
     const rowWidth = extents[item.row];
-    const logical = line.rtl ? rowWidth - item.x - ink : item.x;
+    const logical = line.subtitleRtl ? rowWidth - item.x - ink : item.x;
     return {
       text: chunks[item.index].trimEnd(),
       x: frame.left + alignOffset(align, rowWidth, frame.width) + logical,

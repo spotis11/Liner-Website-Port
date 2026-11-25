@@ -57,6 +57,12 @@ export function buildLines(lyrics: Lyric[]): LyricsModel {
       line.parts && line.parts.length > 0
         ? line.parts
         : lineSyncedParts(words, line.startTimeMs, endMs);
+    // The subtitle's direction comes from the SUBTITLE's own script: an
+    // Arabic song translated into Tagalog/English must lay the Latin
+    // subtitle LTR (reusing the line's `rtl` mirrored every word — the
+    // "Arabic songs read backwards" report), and the reverse case (English
+    // song → Arabic translation) must lay it RTL.
+    const subtitleText = subtitleOf(line);
     return {
       startMs: line.startTimeMs,
       durationMs: line.durationMs,
@@ -66,7 +72,8 @@ export function buildLines(lyrics: Lyric[]): LyricsModel {
       rtl: isRtl(words),
       instrumental: Boolean(line.isInstrumental),
       tokens: line.isInstrumental ? [] : tokenize(parts),
-      subtitle: subtitleOf(line),
+      subtitle: subtitleText,
+      subtitleRtl: isRtl(subtitleText ?? ""),
       // The AI translation sings with the original line's windows — word
       // sweeps copied from richsync parts, or the line-synced proportional
       // split. Static string fallback stays for untimed lines.
