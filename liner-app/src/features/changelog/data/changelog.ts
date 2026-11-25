@@ -19,6 +19,29 @@ export interface ChangelogRelease {
 
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: "1.35.0",
+    date: "2026-11-25",
+    title: "The New UI is the whole site — every feature stays",
+    entries: [
+      {
+        type: "changed",
+        text: "The New UI (the redesigned fan build) is now the ONLY design of the site. The 0.2.20 beta renderer was retired from the website, and the old default design and the Material 3 design were removed along with the Appearance switcher — Settings → Appearance no longer offers a design choice because there is nothing to switch to.",
+      },
+      {
+        type: "added",
+        text: "Everything the site had is here: the changelog (this modal, from the sidebar clock icon), AI Translate for lyrics, Discord Rich Presence (Settings → Discord), the 12 lyric style themes (Settings → Lyrics), offline downloads, the fan relay, guest mode and the PWA.",
+      },
+      {
+        type: "fixed",
+        text: "Playback hardening carried over: every YouTube/SoundCloud media request (fetch, XHR and web workers included) rides the site's same-origin proxy, so tracks that 403'd in the browser play.",
+      },
+      {
+        type: "changed",
+        text: "Sessions and storage keys are unchanged — you stay signed in with the same account, likes and playlists as before.",
+      },
+    ],
+  },
+  {
     version: "1.21.0",
     date: "2026-11-18",
     title: "New login screen design (optional)",

@@ -71,10 +71,11 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         // direct beta-shell path too — /liner was a bare 404 and /liner/
         // 308'd into it; both must serve the SPA like the entries below.
-        // 2026-11-24 (later): /liner is the restored v1.34.3 fan build;
-        // the 0.2.20 beta renderer moved to /liner-beta.
+        // 2026-11-25 (later): the 0.2.20 beta renderer is RETIRED from the
+        // site (owner decision) — the fan New UI is the only UI; /liner-beta
+        // stays as an alias of the same shell so old bookmarks keep working.
         { source: "/liner", destination: "/liner/index.html" },
-        { source: "/liner-beta", destination: "/liner-beta/index.html" },
+        { source: "/liner-beta", destination: "/liner/index.html" },
         { source: "/", destination: "/liner/index.html" },
         { source: "/login", destination: "/liner/index.html" },
         { source: "/library", destination: "/liner/index.html" },
@@ -90,6 +91,15 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/cover-sw.js",
+        headers: [
+          { key: "Service-Worker-Allowed", value: "/" },
+          { key: "Cache-Control", value: "no-cache" },
+        ],
+      },
+      {
+        // the 0.2.20 beta renderer registers /liner/cover-sw.js at scope "/"
+        // — the wider scope is only legal with this header
+        source: "/liner/cover-sw.js",
         headers: [
           { key: "Service-Worker-Allowed", value: "/" },
           { key: "Cache-Control", value: "no-cache" },

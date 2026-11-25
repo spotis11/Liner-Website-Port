@@ -17,19 +17,19 @@ import {
 
 export const APPEARANCE_STORAGE_KEY = "liner_web_appearance_v1";
 
-/** Which whole-app design renders. "original" is the classic Liner look
- * (website default, the frozen src-classic tree); "new" is the upstream
- * 0.2.12 redesign merged into src/. One setting drives the app shell and
- * the sign-in page; switching pops the Liner refresh prompt. */
-export type UiStyle = "original" | "new" | "material3";
-export const UI_STYLES: UiStyle[] = ["original", "new", "material3"];
+/** Which whole-app design renders. The New UI (the merged 0.2.12 redesign
+ * in src/) IS the app since v1.35.1 — the "original" (@classic frozen tree)
+ * and "material3" designs were removed; the type stays a single-value union
+ * so persisted records and the store shape remain compatible. */
+export type UiStyle = "new";
+export const UI_STYLES: UiStyle[] = ["new"];
 
 export interface AppearanceState {
   /** Active accent color theme id; null = default Liner look. */
   colorThemeId: string | null;
   /** Follow the device light/dark setting (next-themes "system"). */
   sameAsDevice: boolean;
-  /** Whole-app design ("original" default). */
+  /** Whole-app design — always the New UI. */
   uiStyle: UiStyle;
   setColorTheme: (id: string | null) => void;
   setSameAsDevice: (value: boolean) => void;
@@ -84,7 +84,7 @@ const VALID_IDS = new Set(SELECTABLE_COLOR_THEMES.map((t) => t.id));
 function readPersistedUiStyle(value: unknown): UiStyle {
   return typeof value === "string" && (UI_STYLES as string[]).includes(value)
     ? (value as UiStyle)
-    : "original";
+    : "new";
 }
 
 /** Synchronous read used by the entry point (main.tsx) so the right design
@@ -101,7 +101,7 @@ function readPersistedAppearance(storage: Storage | null): PersistedAppearance {
   const fallback: PersistedAppearance = {
     colorThemeId: null,
     sameAsDevice: true,
-    uiStyle: "original",
+    uiStyle: "new",
   };
   if (!storage) return fallback;
   try {
@@ -195,7 +195,7 @@ export function createAppearanceStore(
     setUiStyle: (value) => {
       const next = (UI_STYLES as string[]).includes(value)
         ? value
-        : "original";
+        : "new";
       set({ uiStyle: next });
       persist({ uiStyle: next });
     },

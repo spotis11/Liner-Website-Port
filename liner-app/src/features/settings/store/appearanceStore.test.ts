@@ -66,7 +66,7 @@ describe("appearanceStore", () => {
     expect(JSON.parse(storage.getItem(APPEARANCE_STORAGE_KEY)!)).toEqual({
       colorThemeId: null,
       sameAsDevice: true,
-      uiStyle: "original",
+      uiStyle: "new",
     });
   });
 
@@ -131,14 +131,14 @@ describe("appearanceStore", () => {
     expect(JSON.parse(storage.getItem(APPEARANCE_STORAGE_KEY)!)).toEqual({
       colorThemeId: "lavender",
       sameAsDevice: false,
-      uiStyle: "original",
+      uiStyle: "new",
     });
   });
 
-  it("persists the app design and ignores invalid variants", () => {
+  it("always hydrates the New UI — legacy designs migrate and invalid values fall back", () => {
     const storage = memoryStorage();
     const store = createAppearanceStore(storage);
-    expect(store.getState().uiStyle).toBe("original");
+    expect(store.getState().uiStyle).toBe("new");
 
     store.getState().setUiStyle("new");
     expect(store.getState().uiStyle).toBe("new");
@@ -147,9 +147,9 @@ describe("appearanceStore", () => {
     ).toBe("new");
 
     store.getState().setUiStyle("garbage" as never);
-    expect(store.getState().uiStyle).toBe("original");
+    expect(store.getState().uiStyle).toBe("new");
 
-    // records from before the field existed hydrate as "original"
+    // records from before the field existed hydrate as the New UI too
     const legacy = createAppearanceStore(
       memoryStorage({
         [APPEARANCE_STORAGE_KEY]: JSON.stringify({
@@ -158,7 +158,19 @@ describe("appearanceStore", () => {
         }),
       }),
     );
-    expect(legacy.getState().uiStyle).toBe("original");
+    expect(legacy.getState().uiStyle).toBe("new");
+
+    // pre-removal records pinned to the removed designs migrate to "new"
+    const migrated = createAppearanceStore(
+      memoryStorage({
+        [APPEARANCE_STORAGE_KEY]: JSON.stringify({
+          colorThemeId: null,
+          sameAsDevice: true,
+          uiStyle: "original",
+        }),
+      }),
+    );
+    expect(migrated.getState().uiStyle).toBe("new");
   });
 
   it("drops the removed Liquid Glass fields from legacy persisted records", () => {

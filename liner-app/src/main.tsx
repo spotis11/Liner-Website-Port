@@ -7,7 +7,6 @@ import { initGlobalErrorHandlers } from "@/shared/utils/globalErrorHandlers";
 import { hydrateScreenCache } from "@/shared/cache/screenCache";
 import { applyStoredTheme } from "@/shared/utils/storedTheme";
 import { installWebFetchProxy } from "@/shared/lib/webProxy";
-import { readPersistedUiStyleFromStorage } from "@/features/settings/store/appearanceStore";
 
 // web port: reroute cross-origin fetches through the same-origin proxy
 // before any app module gets a chance to hit the network
@@ -24,33 +23,19 @@ async function loadRoot(): Promise<React.ReactElement> {
     const { default: OverlayApp } = await import("./app/OverlayApp");
     return <OverlayApp />;
   }
-  // Design switch (Settings → Appearance → App design): "original" renders
-  // the frozen classic tree at @classic, "new" renders the merged upstream
-  // 0.2.12 redesign in src/, "material3" renders the same src/ tree wrapped
-  // in the Material 3 design layer (riff-derived tokens, M3 switch/slider,
-  // ripples). Both branches are dynamic imports so the unused design never
-  // lands in the initial chunk; the session and every storage key are shared,
-  // so switching (with the Liner refresh prompt) keeps the user signed in.
-  const uiStyle = readPersistedUiStyleFromStorage();
-  const wantsNewUi = uiStyle !== "original";
-  if (wantsNewUi) {
-    document.documentElement.dataset.uiStyle = uiStyle;
-  }
+  // Design: the New UI (the merged 0.2.12 redesign in src/) IS the app —
+  // the "original" (@classic frozen tree) and "material3" designs were
+  // removed by owner decision (2026-11-25): the switcher is gone, every
+  // boot renders the New UI, sessions and storage keys unchanged.
+  document.documentElement.dataset.uiStyle = "new";
   const [
     { initMainWindowServices },
     { default: App },
     { default: RootErrorBoundary },
   ] = await Promise.all([
-    wantsNewUi
-      ? import("./app/mainWindowServices")
-      : import("@classic/app/mainWindowServices"),
-    wantsNewUi ? import("./app/App") : import("@classic/app/App"),
-    wantsNewUi
-      ? import("@/shared/ui/RootErrorBoundary")
-      : import("@classic/shared/ui/RootErrorBoundary"),
-    uiStyle === "material3"
-      ? import("./material3/material3").then((m) => m.activateMaterial3())
-      : Promise.resolve(),
+    import("./app/mainWindowServices"),
+    import("./app/App"),
+    import("@/shared/ui/RootErrorBoundary"),
     hydrateScreenCache(),
   ]);
   initMainWindowServices();
