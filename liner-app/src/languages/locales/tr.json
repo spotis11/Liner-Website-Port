@@ -513,8 +513,7 @@
       "overlay": "Katman",
       "privacy": "Gizlilik",
       "customization": "Özelleştirme",
-      "announcement": "Duyuru",
-      "pro": "Liner Pro"
+      "announcement": "Duyuru"
     },
     "playback": {
       "description": "Sıra davranışı, tıklama eylemleri ve ses çıkışı."
@@ -809,7 +808,6 @@
       "avatar_invalid": "Lütfen PNG, JPEG, WebP veya GIF bir görsel seç.",
       "avatar_too_large": "Görsel çok büyük. Lütfen 10 MB altında bir dosya seç.",
       "avatar_failed": "Bu görsel işlenemedi. Lütfen başka bir tane dene.",
-      "avatar_gif_too_large": "Bu animasyonlu GIF çok büyük. Liner Pro, 30 MB'a kadar animasyonlu avatarları açar.",
       "security_section": "Güvenlik",
       "change_password": "Şifre değiştir",
       "password_note": "Liner hesapları Liner hizmeti tarafından yönetilir ve hizmet henüz uygulama içi şifre değişikliği sunmuyor. Şifreni değiştirmen gerekiyorsa desteğe ulaş.",
@@ -960,52 +958,11 @@
       "title": "Mini oynatıcı",
       "description": "Başka bir sekmeye geçtiğinizde mini oynatıcıyı açar ve geri döner dönmez kapatır."
     },
-    "pro": {
-      "description": "Premium Liner deneyimi — daha büyük kütüphane, animasyonlu profil ve daha fazlası.",
-      "title": "Liner Pro",
-      "tagline": "Liner'da sevdiğin her şeyin kilidi açık.",
-      "cta": "Liner Pro'yu al",
-      "benefits_title": "Pro'ya dahil",
-      "b1_title": "İkiye katlanan kütüphane limitleri",
-      "b1_desc": "Kütüphanende 5.000'e kadar beğenilen parça sakla.",
-      "b2_title": "Animasyonlu avatar ve profil kapak görseli",
-      "b2_desc": "Profilini animasyonla canlandır.",
-      "b3_title": "Avatar çerçeveleri ve Web rozeti",
-      "b3_desc": "Avatarını süsle ve öne çık.",
-      "b4_title": "Eksiksiz profil düzenleyici (yenilendi)",
-      "b4_desc": "İsim, avatar, bio ve gizlilik tek bir yerde.",
-      "b5_title": "Dinleme odaları aç",
-      "b5_desc": "50 arkadaşınla birlikte dinle.",
-      "b6_title": "Animasyonlu Pro sticker paketi",
-      "b6_desc": "Animasyonlu stickerlar, Pro'ya özel.",
-      "support_title": "Pro hakkında soruların mı var?",
-      "support_desc": "Liner ekibiyle iletişime geç.",
-      "active_title": "Liner Pro etkin",
-      "active_desc": "Tüm Pro avantajları bu hesapta açıldı — sonsuza dek. Liner'i bizimle inşa ettiğin için teşekkürler.",
-      "approval_title": "Liner Pro nasıl alınır",
-      "approval_desc": "Onay almak için Discord'da thearchyexpunged'a yaz — ödeme yok, sadece onay. Liner kullanıcı adını ona söyle.",
-      "approval_button": "thearchyexpunged'a yaz"
-    },
     "appearance": {
       "liquid_glass_title": "Sıvı cam",
       "liquid_glass_description": "Oynatıcı çubuğunda ve kuyruk panelinde gerçek kırıcı cam — arkasındaki sayfa camın içinden bükülür. Eski cihazlarda buzlu cam bulanıklığı kullanılır."
     },
-    "moderation": {
-      "pro_section_title": "Liner Pro atamaları",
-      "pro_section_subtitle": "Liner Pro'yu ücretsiz dağıt — yalnızca onaylı kademe, ödeme yok. Sahibin kendi Pro'su kalıcıdır ve asla geri alınamaz.",
-      "pro_list_title": "Liner Pro'lu hesaplar",
-      "pro_list_empty": "Henüz Pro hesabı yok.",
-      "pro_owner_pill": "Sahip",
-      "pro_owner_hint": "Kalıcı — sonsuza dek etkin.",
-      "pro_granted_by": "{by} tarafından atandı",
-      "pro_revoke": "Geri al",
-      "pro_grant_title": "Liner Pro ata",
-      "pro_grant_button": "Ata",
-      "pro_grant_hint": "Hesabın Liner kullanıcı adını yaz. Pro, bir sonraki oturum yenilemesinde etkinleşir.",
-      "pro_toast_granted": "Liner Pro @{username} hesabına atandı.",
-      "pro_toast_revoked": "Liner Pro @{username} hesabından geri alındı.",
-      "pro_error_owner": "Sahibin Liner Pro'su kalıcıdır — geri alınamaz."
-    }
+    "moderation": {}
   },
   "toast": {
     "playlist_created": "Çalma listesi oluşturuldu",

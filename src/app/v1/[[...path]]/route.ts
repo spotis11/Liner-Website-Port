@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { maintenanceGate } from "@/lib/maintenance";
 import { verifyAccessToken } from "@/lib/websiteAuth";
 import { db } from "@/lib/db";
-import { overlayWebsitePro } from "@/lib/linerProOverlay";
 import { collectLyricsCandidates, type LyricsHint } from "@/lib/lyricsProviders";
 import {
   applyUpstreamProfilePatch,
@@ -62,9 +61,7 @@ export const dynamic = "force-dynamic";
  *    Cloudflare WAF; the server-side relay passes). The browser signs
  *    METHOD\npath\nts\nnonce\nsha256(body) over the UPSTREAM path; this relay
  *    forwards path + x-liner-* headers byte-for-byte, so the signature stays
- *    valid end to end. GET /v1/me (and auth responses that embed a user) get
- *    this website's Liner Pro flag overlaid by username — the site owner
- *    (jayzeyluna) is Pro forever and owner-granted accounts keep their tier.
+ *    valid end to end.
  *
  * 2. WEBSITE sessions (Discord-OAuth and guest accounts — tokens minted by
  *    this port's own backend, always `at_`/`rt_`-prefixed): those tokens mean
@@ -166,19 +163,6 @@ async function bufferBody(req: NextRequest): Promise<ArrayBuffer | null> {
   return req.arrayBuffer().catch(() => null);
 }
 
-/** Routes whose relayed response may embed a Liner user worth Pro-upgrading. */
-function shouldOverlayPro(route: string, method: string): boolean {
-  if (method === "GET" && route === "me") return true;
-  if (
-    method === "POST" &&
-    (route === "auth/login" || route === "auth/register" || route === "auth/refresh")
-  ) {
-    return true;
-  }
-  if (method === "PATCH" && route === "users/me") return true;
-  return false;
-}
-
 /**
  * PATCH /v1/users/me for UPSTREAM sessions — stored locally, answered
  * locally. The upstream API has NO profile-edit route at all (every shape
@@ -265,7 +249,6 @@ async function upstreamProfilePATCH(
 async function forward(
   req: NextRequest,
   path: string,
-  overlay: boolean = false,
   bodyBytes?: ArrayBuffer | null,
 ): Promise<Response> {
   const url = `${UPSTREAM}${path}`;
@@ -294,9 +277,6 @@ async function forward(
         { error: "Upstream unavailable.", code: "UPSTREAM_BLOCKED" },
         { status: upstream.status === 403 ? 503 : upstream.status },
       );
-    }
-    if (overlay && upstream.status === 200) {
-      body = await overlayWebsitePro(body, contentType);
     }
     const res = new NextResponse(body, {
       status: upstream.status,
@@ -1306,7 +1286,7 @@ async function handle(
     return upstreamProfilePATCH(req, bodyBytes);
   }
   if (route === "me" && req.method === "GET") {
-    const res = await forward(req, `/v1/me${url.search}`, true, bodyBytes);
+    const res = await forward(req, `/v1/me${url.search}`, bodyBytes);
     if (res.status !== 200) return res;
     const bytes = await res.arrayBuffer();
     const merged = await overlayUpstreamProfile(bytes, res.headers.get("content-type"));
@@ -1320,7 +1300,7 @@ async function handle(
     // is domain-authorized on Liner's own origin. The token flows back over
     // postMessage (the desktop uses the same channel). Pass the challenge
     // through untouched so the SPA prompts exactly when upstream demands it.
-    const res = await forward(req, `/v1/${route}${url.search}`, false, bodyBytes);
+    const res = await forward(req, `/v1/${route}${url.search}`, bodyBytes);
     const buf = await res.arrayBuffer();
     return new NextResponse(buf, {
       status: res.status,
@@ -1335,7 +1315,6 @@ async function handle(
   const forwarded = await forward(
     req,
     `/v1/${route}${url.search}`,
-    shouldOverlayPro(route, req.method),
     bodyBytes,
   );
   if (route.startsWith("auth/") && forwarded.status >= 400) {

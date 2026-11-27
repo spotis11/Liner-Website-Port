@@ -7,10 +7,10 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/avatar/[id] — serves an account's avatar bytes.
  *
- * Oversized avatars (Liner Pro animated GIFs up to 30 MB — ~42 MB as a base64
- * data URL) are NOT inlined into JSON payloads: toPublicUser() rewrites them
- * to this endpoint URL so /me, user finder, announcements and moderation
- * payloads stay light. The browser caches the bytes here instead.
+ * Oversized avatars are NOT inlined into JSON payloads: toPublicUser()
+ * rewrites them to this endpoint URL so /me, user finder, announcements and
+ * moderation payloads stay light. The browser caches the bytes here instead.
+ * Existing rows uploaded before the cap was tightened keep serving from here.
  *
  * Small data-URL avatars (<= 400k chars) stay inline as before; http(s)
  * avatars (e.g. Discord CDN) 302-redirect so the client hits the origin

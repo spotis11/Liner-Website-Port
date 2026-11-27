@@ -1,5 +1,4 @@
 export { AccountTab } from "./AccountTab";
-export { ProTab } from "./ProTab";
 export { PlaybackTab } from "./PlaybackTab";
 export { ShortcutsTab } from "./ShortcutsTab";
 export { AppearanceTab } from "./AppearanceTab";

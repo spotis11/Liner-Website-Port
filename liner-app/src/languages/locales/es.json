@@ -635,8 +635,7 @@
       "youtube": "YouTube",
       "privacy": "Privacidad",
       "announcement": "Anuncio",
-      "customization": "Personalización",
-      "pro": "Liner Pro"
+      "customization": "Personalización"
     },
     "playback": {
       "description": "Comportamiento de la cola, acciones de clic y salida de audio."
@@ -1046,7 +1045,6 @@
       "badge_private": "Privado",
       "avatar_change": "Subir foto",
       "avatar_failed": "No se pudo procesar esta imagen. Prueba con otra.",
-      "avatar_gif_too_large": "Este GIF animado es demasiado grande. Liner Pro permite avatares animados de hasta 30 MB.",
       "avatar_invalid": "Elige una imagen PNG, JPEG, WebP o GIF.",
       "avatar_remove": "Eliminar foto",
       "avatar_removed": "Foto de perfil eliminada",
@@ -1203,52 +1201,11 @@
       "source_live": "En vivo desde Liner",
       "source_cache": "De la caché del sitio"
     },
-    "pro": {
-      "description": "La experiencia premium de Liner: biblioteca más grande, perfil animado y más.",
-      "title": "Liner Pro",
-      "tagline": "Todo lo que amas de Liner, desbloqueado.",
-      "cta": "Conseguir Liner Pro",
-      "benefits_title": "Incluido con Pro",
-      "b1_title": "Límites de biblioteca duplicados",
-      "b1_desc": "Guarda hasta 5 000 canciones favoritas en tu biblioteca.",
-      "b2_title": "Avatar y banner de perfil animados",
-      "b2_desc": "Da vida a tu perfil con animación.",
-      "b3_title": "Marcos de avatar e insignia Web",
-      "b3_desc": "Decora tu avatar y destaca.",
-      "b4_title": "Editor de perfil completo (renovado)",
-      "b4_desc": "Nombre, avatar, biografía y privacidad en un solo lugar.",
-      "b5_title": "Crea salas de escucha",
-      "b5_desc": "Escucha junto con hasta 50 amigos.",
-      "b6_title": "Paquete de stickers animados de Pro",
-      "b6_desc": "Stickers animados exclusivos de Pro.",
-      "support_title": "¿Preguntas sobre Pro?",
-      "support_desc": "Contacta con el equipo de Liner.",
-      "active_title": "Liner Pro está activo",
-      "active_desc": "Todos los beneficios Pro están desbloqueados en esta cuenta — para siempre. Gracias por construir Liner con nosotros.",
-      "approval_title": "Cómo obtener Liner Pro",
-      "approval_desc": "Escribe a thearchyexpunged por Discord para obtener la aprobación — sin pagos, solo aprobación. Dile tu nombre de usuario de Liner.",
-      "approval_button": "Escribir a thearchyexpunged"
-    },
     "appearance": {
       "liquid_glass_title": "Cristal líquido",
       "liquid_glass_description": "Cristal real con refracción en la barra del reproductor y la cola: la página detrás se curva a través del panel. En dispositivos antiguos se usa un desenfoque esmerilado."
     },
-    "moderation": {
-      "pro_section_title": "Concesiones de Liner Pro",
-      "pro_section_subtitle": "Regala Liner Pro gratis — nivel solo por aprobación, sin pago. El Pro del propietario es permanente y no puede revocarse.",
-      "pro_list_title": "Cuentas con Liner Pro",
-      "pro_list_empty": "Aún no hay cuentas Pro.",
-      "pro_owner_pill": "Propietario",
-      "pro_owner_hint": "Permanente — activado para siempre.",
-      "pro_granted_by": "Concedido por {by}",
-      "pro_revoke": "Revocar",
-      "pro_grant_title": "Conceder Liner Pro",
-      "pro_grant_button": "Conceder",
-      "pro_grant_hint": "Escribe el nombre de usuario de Liner de la cuenta. Pro se activa en su próximo refresco de sesión.",
-      "pro_toast_granted": "Liner Pro concedido a @{username}.",
-      "pro_toast_revoked": "Liner Pro revocado a @{username}.",
-      "pro_error_owner": "El Liner Pro del propietario es permanente — no puede revocarse."
-    }
+    "moderation": {}
   },
   "toast": {
     "playlist_created": "Lista de reproducción creada",

@@ -210,36 +210,3 @@ describe("fileToAvatarDataUrl — animated GIFs", () => {
     expect(stub.drawImage).toHaveBeenCalledTimes(1);
   });
 });
-
-describe("Liner Pro GIF avatars (30 MB)", () => {
-  afterEach(() => vi.restoreAllMocks());
-
-  it("isAcceptableAvatarFile admits up to 30 MB GIFs only for Pro", () => {
-    const twentyMb = gifFile(2, 20 * 1024 * 1024);
-    expect(isAcceptableAvatarFile(twentyMb)).toBe(false);
-    expect(isAcceptableAvatarFile(twentyMb, { isPro: true })).toBe(true);
-    // 31 MB is over even the Pro cap
-    const thirtyOneMb = gifFile(2, 31 * 1024 * 1024);
-    expect(isAcceptableAvatarFile(thirtyOneMb, { isPro: true })).toBe(false);
-  });
-
-  it("stores oversized-for-non-Pro animated GIFs byte-for-byte when Pro", async () => {
-    // 320 KB GIF -> ~427k chars of data URL: rejected at the compact cap,
-    // accepted through the Pro cap (41.95M chars)
-    const file = gifFile(2, 320 * 1024);
-    const dataUrl = await fileToAvatarDataUrl(file, { isPro: true });
-    expect(dataUrl.startsWith("data:image/gif;base64,")).toBe(true);
-    const decoded = atob(dataUrl.slice("data:image/gif;base64,".length));
-    const original = new Uint8Array(await file.arrayBuffer());
-    expect(decoded.length).toBe(original.length);
-    for (let i = 0; i < original.length; i++) {
-      expect(decoded.charCodeAt(i)).toBe(original[i]);
-    }
-  });
-
-  it("rejects Pro GIFs over 30 MB before any base64 conversion", async () => {
-    await expect(
-      fileToAvatarDataUrl(gifFile(2, 31 * 1024 * 1024), { isPro: true }),
-    ).rejects.toMatchObject({ reason: "too_large" });
-  });
-});

@@ -145,22 +145,20 @@ export function AccountTab({ searchQuery }: { searchQuery?: string }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || avatarBusy) return;
-    if (!isAcceptableAvatarFile(file, { isPro: user.isPro === true })) {
+    if (!isAcceptableAvatarFile(file)) {
       toast(t("settings.profile.avatar_invalid"), "error");
       return;
     }
     setAvatarBusy(true);
     try {
-      const dataUrl = await fileToAvatarDataUrl(file, {
-        isPro: user.isPro === true,
-      });
+      const dataUrl = await fileToAvatarDataUrl(file);
       await updateProfile({ avatarUrl: dataUrl });
       toast(t("settings.profile.avatar_updated"), "success");
     } catch (error) {
       if (error instanceof AvatarProcessException) {
         const key =
           error.reason === "gif_too_large"
-            ? "settings.profile.avatar_gif_too_large"
+            ? "settings.profile.avatar_too_large"
             : error.reason === "too_large"
               ? "settings.profile.avatar_too_large"
               : error.reason === "invalid_type"
@@ -335,15 +333,7 @@ export function AccountTab({ searchQuery }: { searchQuery?: string }) {
           <div className="flex-1 min-w-[160px] flex flex-col gap-[2px]">
             <span className="flex items-center gap-[8px] text-text-primary text-[16px] font-[600] leading-tight">
               {name}
-              {user.isPro && (
-                <span
-                  data-testid="account-pro-badge"
-                  title={t("settings.pro.active_title")}
-                  className="inline-flex h-[18px] shrink-0 items-center rounded-full bg-gradient-to-r from-amber-300 to-amber-500 px-[8px] text-[10px] font-[700] tracking-[0.08em] text-[#201700] select-none"
-                >
-                  PRO
-                </span>
-              )}
+              
             </span>
             <span className="text-text-tertiary text-[13px] truncate">
               {handle}

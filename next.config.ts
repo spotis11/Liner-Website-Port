@@ -49,18 +49,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Liner Pro animated GIF avatars are uploaded as a base64 data URL inside the
-  // PATCH /v1/users/me body (the Liner API has no image-upload endpoint). A
-  // 30 MB GIF inflates to ~42 MB of base64, but the Next.js standalone server
-  // caps client request bodies at proxyClientMaxBodySize (default 10 MB /
-  // 10485760) — so an 8 MB GIF (~11 MB body) made req.arrayBuffer() reject and
-  // upstreamProfilePATCH answer 400 "Invalid body." (verified: 7 MB raw → 401,
-  // 7.5 MB raw → 400). Raise the cap to 45 MB so the full Pro GIF feature
-  // works; the server-side avatar cap (AVATAR_PRO_CAP_CHARS = 41.95M) still
-  // rejects anything truly oversized with 413.
-  experimental: {
-    proxyClientMaxBodySize: 45 * 1024 * 1024,
-  },
   async rewrites() {
     return {
       // serve the genuine Liner SPA (built from tryliner/desktop sources)

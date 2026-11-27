@@ -155,8 +155,6 @@ async function adminRequestOnce<T>(
  * then the only credential, which is exactly the "Liner session died but
  * the owner is still the owner" state this exists to rescue.
  *
- * Shared with the Liner Pro grants API (proApi.ts) so both moderation
- * surfaces heal identically.
  */
 export async function adminRequest<T>(
   init: { method: "GET" | "POST" | "DELETE"; body?: unknown },

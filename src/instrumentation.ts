@@ -66,14 +66,6 @@ export async function register() {
         setInterval(tick, 5 * 60 * 1000).unref();
       }
     }
-    // Liner Pro boot sweep: the owner's account (jayzeyluna) is Pro forever —
-    // re-flag the row on every boot so wipes / mirror restores can never
-    // leave the owner without the badge. Deferred like the mail queue.
-    setTimeout(() => {
-      void import("@/lib/pro")
-        .then(({ ensureOwnerPro }) => ensureOwnerPro())
-        .catch(() => undefined);
-    }, 12_000).unref();
     // dev-only: keep the deploy-time production mirror cache armed (see
     // src/lib/prodMirrorWatch.ts — prevents the empty-seed wipe deploys)
     try {

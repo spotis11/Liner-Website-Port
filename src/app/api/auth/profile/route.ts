@@ -4,14 +4,13 @@ import {
   toPublicUser,
   normalizeUsername,
 } from "@/lib/websiteAuth";
-import { isOwnerPro } from "@/lib/pro";
 import { db, scheduleDbMirror } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Upstream Liner username rules — matches the client editor's pattern and
-// normalizeProUsername in lib/pro. The old 3-24 cap rejected usernames the
+// Upstream Liner username rules — matches the client editor's pattern. The
+// old 3-24 cap rejected usernames the
 // settings UI happily accepted (e.g. 25-30 character handles) and surfaced
 // as a "profile save failed" toast with no way to tell why.
 const USERNAME_RE = /^[a-z0-9_]{3,30}$/;
@@ -93,21 +92,13 @@ export async function PATCH(req: NextRequest) {
       // the "Remove avatar" button — actually clear it instead of no-op'ing
       data.avatarUrl = null;
     } else {
-      // Liner Pro unlocks animated GIF avatars up to 30 MB (~41.95M chars of
-      // base64 + prefix headroom); everyone else keeps the compact cap. Reject
+      // Data-URL avatar cap (~400k chars of base64 + prefix headroom). Reject
       // rather than slice — slicing a data URL corrupts it into a broken image.
-      const proAccount = await db.account.findUnique({
-        where: { id: identity.accountId },
-        select: { isPro: true },
-      });
-      const isPro = Boolean(proAccount?.isPro) || isOwnerPro(identity.username);
-      const cap = isPro ? 41_950_000 : 400_000;
+      const cap = 400_000;
       if (body.avatarUrl.length > cap) {
         return NextResponse.json(
           {
-            error: isPro
-              ? "Avatar too large. Liner Pro allows animated avatars up to 30 MB."
-              : "Avatar too large. Animated avatars up to 30 MB are a Liner Pro feature.",
+            error: "Avatar too large.",
             code: "AVATAR_TOO_LARGE",
           },
           { status: 413 },

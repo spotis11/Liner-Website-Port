@@ -13,21 +13,16 @@
 // like the website route) and merged into the relayed responses:
 //  - GET /v1/me          -> upstream user + overlay fields
 //  - PATCH /v1/users/me  -> stored locally, answered locally (200 + merged user)
-// The Liner Pro overlay (linerProOverlay.ts) runs on the upstream username
-// BEFORE this merge, so Pro stays tied to the real upstream account even if
-// the display username is overridden here.
 //
 // Field semantics (UpstreamProfile): nullable = "not overridden, pass the
 // upstream value through"; bio/avatarUrl use "" as an explicit "cleared"
 // marker (the client sends null to clear, which upstream would never echo).
-import { isOwnerPro } from "@/lib/pro";
 import { db, ensureDbReady, scheduleDbMirror } from "@/lib/db";
 
 const USERNAME_RE = /^[a-z0-9_]{3,30}$/;
 const BIO_MAX = 500;
 const DISPLAY_NAME_MAX = 60;
 const AVATAR_INLINE_MAX_CHARS = 400_000;
-const AVATAR_PRO_CAP_CHARS = 41_950_000;
 
 export class UpstreamProfileError extends Error {
   status: number;
@@ -36,20 +31,6 @@ export class UpstreamProfileError extends Error {
     super(message);
     this.status = status;
     this.code = code;
-  }
-}
-
-/** Pro on this website port: the owner by username, or an Account grant. */
-async function websitePro(username: string): Promise<boolean> {
-  if (isOwnerPro(username)) return true;
-  try {
-    const row = await db.account.findUnique({
-      where: { username },
-      select: { isPro: true },
-    });
-    return Boolean(row?.isPro);
-  } catch {
-    return false;
   }
 }
 
@@ -205,15 +186,11 @@ export async function applyUpstreamProfilePatch(
     if (patchBody.avatarUrl === null) {
       data.avatarUrl = "";
     } else {
-      const isPro = await websitePro(nextUsername);
-      const cap = isPro ? AVATAR_PRO_CAP_CHARS : AVATAR_INLINE_MAX_CHARS;
-      if (patchBody.avatarUrl.length > cap) {
+      if (patchBody.avatarUrl.length > AVATAR_INLINE_MAX_CHARS) {
         throw new UpstreamProfileError(
           413,
           "AVATAR_TOO_LARGE",
-          isPro
-            ? "Avatar too large. Liner Pro allows animated avatars up to 30 MB."
-            : "Avatar too large. Animated avatars up to 30 MB are a Liner Pro feature.",
+          "Avatar too large.",
         );
       }
       data.avatarUrl = patchBody.avatarUrl;
@@ -252,7 +229,6 @@ export async function applyUpstreamProfilePatch(
           ? null
           : rewriteAvatar(row.avatarUrl, row.id),
     email: upstreamUser.email ?? undefined,
-    isPro: Boolean(upstreamUser.isPro) || (await websitePro(row.username ?? upstreamUsername)),
   };
   return merged;
 }
