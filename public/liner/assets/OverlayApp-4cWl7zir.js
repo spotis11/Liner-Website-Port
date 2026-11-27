@@ -1,1 +1,0 @@
-import{n as e}from"./index-r9kgbE3I.js";import{H as t,P as n,en as r,t as i}from"./OverlayPlayer-CdCA94Np.js";var a=e();function o(){return t()?(0,a.jsxs)(r,{attribute:`data-theme`,defaultTheme:`dark`,enableSystem:!1,forcedTheme:`dark`,children:[(0,a.jsx)(n,{}),(0,a.jsx)(i,{})]}):(window.linerElectron?.closeOverlay?.(),null)}export{o as default};
