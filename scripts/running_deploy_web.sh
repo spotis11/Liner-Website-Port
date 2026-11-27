@@ -91,6 +91,12 @@ chmod 644 "$STG/standalone/.z-ai-config"
 sed -i '/INJECT:liner-migration-announcement-v/d; /liner-announcement\.js/d' \
   "$STG/standalone/public/liner/index.html" 2>/dev/null || true
 rm -f "$STG/standalone/public/liner/liner-announcement.js"
+# the closure notice ("LINER HAS BEEN CLOSED...") is likewise space-z.ai only
+# — owner order: never deploy it to running.sh until they say so (loader tag
+# in index.html + the JS file itself; liner-closed.js is also hostname-gated)
+sed -i '/INJECT:liner-closed-notice-v/d; /liner-closed\.js/d' \
+  "$STG/standalone/public/liner/index.html" 2>/dev/null || true
+rm -f "$STG/standalone/public/liner/liner-closed.js"
 cp "$ROOT/db/custom.db" "$STG/db/custom.db"
 cp "$ROOT/deploy/web/Dockerfile" "$STG/Dockerfile"
 tar -czf /tmp/liner-web.tgz -C "$STG" Dockerfile standalone db
