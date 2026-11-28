@@ -1,0 +1,226 @@
+/*
+ * Mobile Liquid Glass — the Evi design language ported onto Liner's chrome,
+ * narrow viewports only.
+ *
+ * 2026-11-28 (owner request): mobile users on running.sh get the liquid-glass
+ * look (floating frosted islands: translucent fills, backdrop blur +
+ * saturation, hairline borders, specular top edges, large radii). The desktop
+ * layout is untouched — every rule below lives inside the max-width media
+ * query, so viewports wider than 768px render exactly as before.
+ *
+ * The reshape turns the desktop sidebar into a floating bottom dock (same DOM,
+ * no new components): nav icons + account row survive, brand/library rows are
+ * hidden. Stable selectors come from data-app-* / data-sidebar-* attributes
+ * added in AppFrame.tsx / Sidebar.tsx / Header.tsx for exactly this purpose.
+ */
+
+@media (max-width: 768px) {
+  /* ---------------------------------------------------------------
+   * shell — full bleed, no desktop floating-window inset or clipping
+   * --------------------------------------------------------------- */
+  [data-app-shell] {
+    padding: 0 !important;
+    gap: 0 !important;
+    border-radius: 0 !important;
+    clip-path: none !important;
+  }
+
+  /* ---------------------------------------------------------------
+   * header — islands become frosted glass, search pill fits the width
+   * --------------------------------------------------------------- */
+  [data-app-header] {
+    left: 10px !important;
+    right: 10px;
+    top: calc(8px + env(safe-area-inset-top, 0px)) !important;
+    width: auto;
+  }
+
+  [data-app-header] header {
+    height: 44px;
+  }
+
+  [data-app-header] header button {
+    backdrop-filter: blur(24px) saturate(170%);
+    -webkit-backdrop-filter: blur(24px) saturate(170%);
+    background-color: color-mix(in srgb, var(--bg-surface) 55%, transparent);
+    border: 1px solid var(--lg-border);
+    box-shadow: var(--lg-specular), var(--lg-shadow);
+    border-radius: 999px;
+  }
+
+  [data-app-header] header button:active {
+    background-color: color-mix(in srgb, var(--bg-surface) 68%, transparent);
+  }
+
+  /* the desktop keyboard hint has no meaning on touch */
+  [data-app-header] [data-header-kbd] {
+    display: none !important;
+  }
+
+  [data-app-header] header button > span:first-of-type {
+    min-width: 0;
+  }
+
+  /* ---------------------------------------------------------------
+   * sidebar → floating bottom dock (liquid glass tab bar)
+   * --------------------------------------------------------------- */
+  [data-app-sidebar] {
+    position: fixed !important;
+    top: auto !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    height: 62px !important;
+    z-index: 46 !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 8px 10px !important;
+    border-radius: 26px !important;
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    background-color: var(--lg-fill);
+    border: 1px solid var(--lg-border);
+    box-shadow: var(--lg-specular), var(--lg-shadow);
+  }
+
+  /* desktop-only rows disappear from the dock */
+  [data-app-sidebar] [data-sidebar-brand],
+  [data-app-sidebar] [data-sidebar-library] {
+    display: none !important;
+  }
+
+  /* the sidebar's inner wrapper stays column from its own classes —
+     the dock needs everything on one line */
+  [data-app-sidebar] > div {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+
+  /* nav rows: icons only, spread across the dock */
+  [data-app-sidebar] nav {
+    flex: 1 1 auto;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    gap: 2px !important;
+  }
+
+  [data-app-sidebar] nav > * {
+    flex: 0 0 auto;
+  }
+
+  [data-app-sidebar] nav a,
+  [data-app-sidebar] nav button {
+    /* the search/changelog rows carry w-full for the desktop sidebar */
+    width: auto !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    padding: 0 12px !important;
+    justify-content: center !important;
+    gap: 0 !important;
+    border-radius: 999px !important;
+  }
+
+  [data-app-sidebar] nav a span,
+  [data-app-sidebar] nav button span {
+    display: none !important;
+  }
+
+  /* account row: avatar + settings gear ride along at the dock's end */
+  [data-app-sidebar] [data-sidebar-account] {
+    margin: 0 0 0 auto !important;
+    padding: 0 0 0 8px !important;
+    height: 44px !important;
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    border-left: 1px solid var(--lg-border);
+  }
+
+  [data-app-sidebar] [data-sidebar-account] span {
+    display: none !important;
+  }
+
+  /* ---------------------------------------------------------------
+   * mini player — floats above the dock
+   * --------------------------------------------------------------- */
+  [data-app-dock] {
+    margin-bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* ---------------------------------------------------------------
+   * right drawer (queue) — a sheet that fits the phone
+   * --------------------------------------------------------------- */
+  [data-app-drawer] {
+    width: min(440px, calc(100vw - 20px)) !important;
+    right: 10px !important;
+    top: calc(60px + env(safe-area-inset-top, 0px)) !important;
+    border-radius: 20px !important;
+    border: 1px solid var(--lg-border);
+    box-shadow: var(--lg-shadow);
+    overflow: hidden;
+  }
+
+  /* ---------------------------------------------------------------
+   * page insets — clear the glass header and the dock
+   * --------------------------------------------------------------- */
+  [data-app-main] {
+    --page-inset-top: 64px !important;
+    --page-inset-bottom: 148px !important;
+    --floating-inset-bottom: 152px !important;
+  }
+
+  /* ---------------------------------------------------------------
+   * dialogs with a nav sidebar (settings) — stack nav above content
+   * so the sheet fits a phone; glass material comes from the panel
+   * --------------------------------------------------------------- */
+  /* the settings panel carries a !flex-row utility. Tailwind v4 lives in
+     cascade layers and, for !important, EARLIER layers beat later ones and
+     beat unlayered rules — so this rule joins @layer components (declared
+     before utilities by tailwindcss) to win the direction back. */
+  @layer components {
+    [data-modal-panel][data-modal-panel]:has(> aside) {
+      flex-wrap: wrap !important;
+    }
+
+    [data-modal-panel][data-modal-panel]:has(> aside) > aside {
+      flex-basis: 100% !important;
+      width: 100% !important;
+      flex: 0 0 100% !important;
+      max-height: 46% !important;
+      border-bottom: 1px solid var(--lg-border);
+    }
+
+    /* the content column has flex-basis:0 — on a wrapped line it must take
+       the full row or it "fits" beside the aside at zero width */
+    [data-modal-panel][data-modal-panel]:has(> aside) > div {
+      flex-basis: 100% !important;
+    }
+  }
+}
+
+/* -----------------------------------------------------------------
+ * glass tokens — dark scheme (Liner default on phones) and light scheme
+ * ----------------------------------------------------------------- */
+@media (max-width: 768px) {
+  :root {
+    --lg-fill: rgba(28, 28, 32, 0.52);
+    --lg-border: rgba(255, 255, 255, 0.14);
+    --lg-specular: inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+    --lg-shadow: 0 14px 44px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.32);
+  }
+
+  :root:not(.dark) {
+    --lg-fill: rgba(255, 255, 255, 0.58);
+    --lg-border: rgba(0, 0, 0, 0.08);
+    --lg-specular: inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+    --lg-shadow: 0 14px 44px rgba(0, 0, 0, 0.16), 0 4px 14px rgba(0, 0, 0, 0.08);
+  }
+}

@@ -79,6 +79,7 @@ import { AnnouncementPopup } from "@/features/announcements";
 import { ChangelogModal } from "@/features/changelog";
 import { HumanCheckNotice } from "@/features/human-check";
 import { useOfflineModeStore } from "@/features/connectivity";
+import "./mobile-liquid-glass.css";
 
 interface AppFrameProps {
   children: React.ReactNode;
@@ -751,6 +752,7 @@ export default function AppFrame({ children }: AppFrameProps) {
   return (
     <div
       ref={appFrameRef}
+      data-app-shell
       className={`app-shell-enter relative flex flex-col h-full w-full overflow-hidden p-1.5 gap-1.5 ${
         hasCustomBg || isFullscreenPlayer ? "bg-black" : "bg-bg-canvas"
       } ${isEdgeToEdge ? "rounded-none" : "rounded-item"}`}
@@ -795,6 +797,7 @@ export default function AppFrame({ children }: AppFrameProps) {
         {!isFullscreenPlayer && (
           <motion.div
             key="app-header-container"
+            data-app-header
             initial={{ opacity: 1 }}
             animate={{ left: sidebarCollapsed ? 88 : 244, opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -817,6 +820,7 @@ export default function AppFrame({ children }: AppFrameProps) {
       >
         <motion.aside
           ref={sidebarRef}
+          data-app-sidebar
           initial={false}
           animate={{ width: sidebarCollapsed ? 76 : 232 }}
           transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
@@ -830,6 +834,7 @@ export default function AppFrame({ children }: AppFrameProps) {
 
         <div className="flex-1 flex flex-col min-w-0 h-full relative gap-1.5 overflow-hidden">
             <main
+              data-app-main
               className={cn(
                 // the header (nav arrows, search pill) floats over the page top,
                 // so pages start below it to keep the hero clear
@@ -865,6 +870,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                 {isRightDrawerOpen && (
                   <motion.aside
                     key="right-drawer"
+                    data-app-drawer
                     ref={queueDrawerRef}
                     initial={{ x: RIGHT_DRAWER_WIDTH }}
                     animate={{ x: 0 }}
@@ -883,6 +889,7 @@ export default function AppFrame({ children }: AppFrameProps) {
           {shouldShowMiniPlayer && (
             <div
               ref={miniPlayerContainerRef}
+              data-app-dock
               // Above the right drawer (z-50) so the player's volume/speed/queue
               // popups, which live in this stacking context, aren't hidden by it.
               className={`relative z-[55] w-full shrink-0 ${hasPageBackdrop ? "-mt-[70px]" : ""}`}

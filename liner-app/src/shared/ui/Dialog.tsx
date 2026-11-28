@@ -128,6 +128,7 @@ export default function Dialog({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 10 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            data-modal-panel="true"
             className={`pointer-events-auto w-full mx-[16px] max-h-[85vh] flex flex-col ${PANEL_GLASS_CLASS} border-0 shadow-[0_24px_80px_rgba(0,0,0,0.35)] overflow-hidden relative ${
               className || "pt-[20px]"
             }`}

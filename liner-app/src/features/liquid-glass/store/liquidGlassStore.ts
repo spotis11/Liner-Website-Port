@@ -4,6 +4,11 @@
 // genuine refracting glass panes by the liquidGL library (WebGPU/WebGL with a
 // frosted CSS fallback) — see features/liquid-glass/lib/liquidGlassController.
 //
+// 2026-11-28 (owner request): with no saved preference, MOBILE devices default
+// to enabled — the Evi liquid-glass design ships to phones out of the box —
+// while desktop keeps the classic chrome. An explicit toggle in Appearance
+// (either value, persisted) always wins over the device default.
+//
 // Persistence mirrors appearanceStore: synchronous, tolerant of corrupt
 // records / storage outages. The storage key is NEW (v1) so legacy records
 // from the removed CSS-imitation feature never re-enable this one.
@@ -19,21 +24,34 @@ export interface LiquidGlassState {
 }
 
 interface PersistedLiquidGlass {
-  enabled: boolean;
+  /** null = no explicit preference recorded (device default applies). */
+  enabled: boolean | null;
+}
+
+/** True on phones/tablets: coarse pointer or a narrow viewport. */
+export function prefersMobileChrome(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const coarse = window.matchMedia?.("(pointer: coarse)").matches === true;
+    const narrow = window.matchMedia?.("(max-width: 768px)").matches === true;
+    return coarse || narrow;
+  } catch {
+    return false;
+  }
 }
 
 function readPersisted(storage: Storage | null): PersistedLiquidGlass {
-  if (!storage) return { enabled: false };
+  if (!storage) return { enabled: null };
   try {
     const raw = storage.getItem(LIQUID_GLASS_STORAGE_KEY);
-    if (!raw) return { enabled: false };
+    if (!raw) return { enabled: null };
     const parsed = JSON.parse(raw) as Partial<PersistedLiquidGlass> | null;
-    if (!parsed || typeof parsed !== "object") return { enabled: false };
+    if (!parsed || typeof parsed !== "object") return { enabled: null };
     return {
-      enabled: typeof parsed.enabled === "boolean" ? parsed.enabled : false,
+      enabled: typeof parsed.enabled === "boolean" ? parsed.enabled : null,
     };
   } catch {
-    return { enabled: false };
+    return { enabled: null };
   }
 }
 
@@ -61,12 +79,12 @@ export function createLiquidGlassStore(
   const initial = readPersisted(storage);
   const persist = (state: Partial<LiquidGlassState>): void => {
     writePersisted(storage, {
-      enabled: state.enabled ?? readPersisted(storage).enabled,
+      enabled: state.enabled ?? (readPersisted(storage).enabled ?? false),
     });
   };
 
   return create<LiquidGlassState>()((set) => ({
-    enabled: initial.enabled,
+    enabled: initial.enabled ?? prefersMobileChrome(),
     setEnabled: (value) => {
       set({ enabled: value });
       persist({ enabled: value });

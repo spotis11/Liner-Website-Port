@@ -19,6 +19,15 @@ function freshStorage(): Storage {
   } as Storage;
 }
 
+// jsdom has no real layout, so media queries are stubbed per test. Every
+// query that is not listed matches false — i.e. a desktop by default.
+const originalMatchMedia = window.matchMedia;
+function stubMatchMedia(matches: Record<string, boolean>): void {
+  window.matchMedia = ((query: string) => ({
+    matches: matches[query] === true,
+  })) as unknown as typeof window.matchMedia;
+}
+
 describe("liquidGlassStore", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -26,10 +35,42 @@ describe("liquidGlassStore", () => {
   });
 
   afterEach(() => {
+    window.matchMedia = originalMatchMedia;
     window.localStorage.clear();
   });
 
   it("defaults to disabled", () => {
+    const store = createLiquidGlassStore(freshStorage());
+    expect(store.getState().enabled).toBe(false);
+  });
+
+  it("mobile devices default to enabled when no preference is saved", () => {
+    stubMatchMedia({ "(pointer: coarse)": true });
+    const store = createLiquidGlassStore(freshStorage());
+    expect(store.getState().enabled).toBe(true);
+  });
+
+  it("a narrow viewport also counts as mobile for the default", () => {
+    stubMatchMedia({ "(max-width: 768px)": true });
+    const store = createLiquidGlassStore(freshStorage());
+    expect(store.getState().enabled).toBe(true);
+  });
+
+  it("an explicit preference beats the mobile default", () => {
+    stubMatchMedia({ "(pointer: coarse)": true });
+    const storage = freshStorage();
+    storage.setItem(LIQUID_GLASS_STORAGE_KEY, '{"enabled":false}');
+    const store = createLiquidGlassStore(storage);
+    expect(store.getState().enabled).toBe(false);
+    // and it stays off after the toggle round-trips
+    store.getState().setEnabled(false);
+    expect(
+      JSON.parse(storage.getItem(LIQUID_GLASS_STORAGE_KEY) ?? "{}").enabled,
+    ).toBe(false);
+  });
+
+  it("desktop devices (no media match) keep the classic chrome", () => {
+    stubMatchMedia({});
     const store = createLiquidGlassStore(freshStorage());
     expect(store.getState().enabled).toBe(false);
   });

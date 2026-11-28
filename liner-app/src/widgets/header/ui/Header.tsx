@@ -45,7 +45,10 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         <span className="min-w-0 flex-1 truncate text-body text-text-tertiary font-[400]">
           {t("common.search_placeholder")}
         </span>
-        <span className="shrink-0 rounded-[6px] bg-fill-strong px-[7px] py-[3px] text-[11px] font-[500] leading-none text-text-tertiary">
+        <span
+          data-header-kbd
+          className="shrink-0 rounded-[6px] bg-fill-strong px-[7px] py-[3px] text-[11px] font-[500] leading-none text-text-tertiary"
+        >
           Ctrl K
         </span>
       </button>

@@ -26,6 +26,7 @@ function Sidebar({ searchOpen, onSearchToggle }: SidebarProps) {
           states, so the rail is never a dead end (reference screenshot);
           collapsed, the logo + toggle pair centers over the icon column */}
       <div
+        data-sidebar-brand
         className={cn(
           "flex items-center px-[8px] h-[42px] shrink-0",
           collapsed ? "justify-center gap-[4px]" : "gap-[6px]",
@@ -70,6 +71,7 @@ function Sidebar({ searchOpen, onSearchToggle }: SidebarProps) {
       {/* account row pinned to the window bottom — stacks vertically while
           collapsed so the avatar and settings stay reachable in the rail */}
       <div
+        data-sidebar-account
         className={cn(
           "mt-auto shrink-0 rounded-control",
           collapsed

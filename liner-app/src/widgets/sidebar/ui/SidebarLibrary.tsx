@@ -229,7 +229,10 @@ export function SidebarLibrary({ collapsed = false }: { collapsed?: boolean }) {
   if (collapsed) return null;
 
   return (
-    <section className="mt-[14px] flex min-h-0 flex-1 flex-col">
+    <section
+      data-sidebar-library
+      className="mt-[14px] flex min-h-0 flex-1 flex-col"
+    >
       <div className="flex h-[30px] shrink-0 items-center justify-between px-[18px]">
         <span className="text-[13px] font-[500] text-text-secondary select-none">
           {t("library.your_library")}
